@@ -1,3 +1,4 @@
+import { ApiError } from './errors.ts';
 import { LIMITS } from './events.ts';
 import type { EventInput, PullResponse, PushResponse, RejectCode, StoredEvent } from './events.ts';
 
@@ -38,8 +39,10 @@ export async function syncOnce(
     const res = await api.push(batch);
     const offset = res.serverTime - now();
     await storage.setServerOffset(offset);
-    await storage.markPushed(res.accepted);
     const byId = new Map<string | null, EventInput>(batch.map((e) => [e.id, e]));
+    // only ids from this batch: anything else from a misbehaving server is neither progress nor pushed
+    const accepted = res.accepted.filter((id) => byId.has(id));
+    await storage.markPushed(accepted);
     const skewed: string[] = [];
     const refused: RejectedEvent[] = [];
     for (const { id, code, message } of res.rejected) {
@@ -51,15 +54,18 @@ export async function syncOnce(
     }
     if (skewed.length > 0) await storage.restamp(skewed, offset);
     if (refused.length > 0) await storage.reject(refused);
-    pushed += res.accepted.length;
+    pushed += accepted.length;
     rejected += refused.length;
-    if (res.accepted.length > 0) retried = false;
+    if (accepted.length > 0) retried = false;
     else if (skewed.length > 0 && !retried) retried = true;
     else break;
   }
   let after = await storage.getCursor();
   for (;;) {
     const page = await api.pull(after, LIMITS.pullMaxLimit);
+    if (page.hasMore && page.lastSeq <= after) {
+      throw new ApiError(502, 'pull_stalled', `pull after ${after} has more but did not advance`);
+    }
     await storage.setServerOffset(page.serverTime - now());
     await storage.applyPulled(page.events, page.lastSeq);
     pulled += page.events.length;
