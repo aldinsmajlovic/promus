@@ -80,23 +80,28 @@ export class EditSheet {
     { label: 'edit.name', control: this.name },
     { label: 'edit.note', control: this.note },
   ];
-  // kept across tries: a note saved before a refused name still belongs to the next undo
-  private readonly saved: UndoToken[] = [];
-  // set once the sheet has saved, or dropped the edits for a remove
+  // committed but not yet offered: the next undo covers them, so a note saved before a refused name
+  // is undone together with whatever closes the sheet
+  private readonly committed: UndoToken[] = [];
+  // set once a close path has taken over, so dismissing does not save again
   private settled = false;
 
   constructor() {
     const escape = this.ref.keydownEvents().pipe(filter((e) => e.key === 'Escape'));
     merge(this.ref.backdropClick(), escape).subscribe(() => void this.close());
-    // Back closes the sheet without close(): keep the edits then too
+    // Back closes the sheet without close(): keep the valid edits then too, and drop a refused one
     this.ref.afterDismissed().subscribe(() => {
-      if (!this.settled) this.actions.run(this.save()).catch((err: unknown) => this.actions.failed(err));
+      if (this.settled) return;
+      const saved = this.save().catch((err: unknown) => {
+        if (!(err instanceof ValidationError)) throw err;
+      });
+      void this.actions.run(saved.then(() => this.takeUndo()));
     });
   }
 
   protected async close(): Promise<void> {
     try {
-      await this.actions.run(this.save());
+      await this.actions.run(this.save().then(() => this.takeUndo()));
     } catch (err) {
       if (!(err instanceof ValidationError)) throw err;
       refuse(err.code === 'note_too_long' ? this.note : this.name, err);
@@ -107,31 +112,44 @@ export class EditSheet {
   }
 
   protected remove(): void {
-    this.settled = true;
-    this.ref.dismiss();
-    void this.actions.run(this.store.remove(this.data.listId, this.data.itemId));
+    this.leave(this.store.remove(this.data.listId, this.data.itemId));
   }
 
   protected archive(): void {
-    this.settled = true;
-    this.ref.dismiss();
-    void this.actions.run(this.store.archiveItem(this.data.itemId));
+    this.leave(this.store.archiveItem(this.data.itemId));
   }
 
-  /** One undo for everything the sheet changed: the newest change's message, all of their inverses. */
-  private async save(): Promise<UndoToken | null> {
+  /** Closes the sheet for `action`, dropping unsaved edits; its undo also covers what was saved. */
+  private leave(action: Promise<UndoToken | null>): void {
+    this.settled = true;
+    this.ref.dismiss();
+    void this.actions.run(action.then((token) => this.takeUndo(token)));
+  }
+
+  /** Writes each field on its own; rejects with the first refusal once both were tried. */
+  private async save(): Promise<void> {
     const { listId, itemId } = this.data;
+    let refused: ValidationError | null = null;
     for (const write of [
       () => this.store.setNote(listId, itemId, this.note.value),
       () => this.store.renameItem(itemId, this.name.value),
     ]) {
-      const token = await write();
-      if (token) this.saved.push(token);
+      try {
+        const token = await write();
+        if (token) this.committed.push(token);
+      } catch (err) {
+        if (!(err instanceof ValidationError)) throw err;
+        refused ??= err;
+      }
     }
-    const last = this.saved.at(-1);
-    const token = last ? { ...last, inverse: this.saved.reverse().flatMap((t) => t.inverse) } : null;
-    // offered with this undo; a second close has nothing left to offer
-    this.saved.length = 0;
-    return token;
+    if (refused) throw refused;
+  }
+
+  /** One undo for everything committed since the last one, `last` included: the newest message, every inverse. */
+  private takeUndo(last: UndoToken | null = null): UndoToken | null {
+    const tokens = this.committed.splice(0);
+    if (last) tokens.push(last);
+    const newest = tokens.at(-1);
+    return newest ? { ...newest, inverse: tokens.reverse().flatMap((t) => t.inverse) } : null;
   }
 }

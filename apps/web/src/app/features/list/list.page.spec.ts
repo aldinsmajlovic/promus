@@ -7,6 +7,7 @@ import { MATERIAL_ANIMATIONS } from '@angular/material/core';
 import { MatDialogHarness } from '@angular/material/dialog/testing';
 import { MatFormFieldHarness } from '@angular/material/form-field/testing';
 import { MatInputHarness } from '@angular/material/input/testing';
+import { MatActionListItemHarness } from '@angular/material/list/testing';
 import { MatMenuHarness } from '@angular/material/menu/testing';
 import { MatSnackBarHarness } from '@angular/material/snack-bar/testing';
 import { provideRouter } from '@angular/router';
@@ -20,9 +21,7 @@ import { Store } from '../../core/store';
 import { SyncService, type SyncStatus } from '../../core/sync.service';
 import { ListPage } from './list.page';
 
-async function setup(items: [name: string, note?: string][] = []) {
-  const db = new PromusDb(`list-${newId()}`);
-  await db.setMeta('session', { userId: newId(), username: 'anna', householdId: newId() });
+function configure(db: PromusDb) {
   const status = signal<SyncStatus>({ kind: 'idle', pending: 0, rejected: 0 });
   const sync = { status, syncNow: vi.fn(async () => undefined), soon: () => undefined };
   TestBed.configureTestingModule({
@@ -41,6 +40,13 @@ async function setup(items: [name: string, note?: string][] = []) {
       ),
     ],
   });
+  return sync;
+}
+
+async function setup(items: [name: string, note?: string][] = []) {
+  const db = new PromusDb(`list-${newId()}`);
+  await db.setMeta('session', { userId: newId(), username: 'anna', householdId: newId() });
+  const sync = configure(db);
   const store = TestBed.inject(Store);
   await store.load();
   const { listId } = await store.createList('Inköpslista');
@@ -67,6 +73,20 @@ const rows = (el: HTMLElement, checked: boolean) =>
 const names = (el: HTMLElement, checked = false) => rows(el, checked).map((r) => text(r.querySelector('.name')));
 // the menu triggers carry aria-expanded too
 const doneToggle = (el: HTMLElement) => el.querySelector<HTMLElement>('main [aria-expanded]');
+const noteOf = (store: Store, listId: string, name: string) =>
+  store.state().entries.get(entryKey(listId, itemId(store, name)))?.note;
+
+/** Opens Mjölk's edit sheet and sets its fields; a refused name keeps it open with the note saved. */
+async function editMjolk(t: Awaited<ReturnType<typeof setup>>, values: { name?: string; note?: string }) {
+  t.el.querySelector<HTMLElement>('[aria-label="Alternativ för Mjölk"]')!.click();
+  const sheet = await t.loader.getHarness(MatBottomSheetHarness);
+  for (const [label, value] of [['Namn', values.name], ['Anteckning', values.note]] as const) {
+    if (value === undefined) continue;
+    const field = await sheet.getHarness(MatFormFieldHarness.with({ floatingLabelText: label }));
+    await (await field.getControl(MatInputHarness))!.setValue(value);
+  }
+  return sheet;
+}
 
 describe('ListPage', () => {
   it('shows active items sorted the Swedish way', async () => {
@@ -109,6 +129,66 @@ describe('ListPage', () => {
     await fixture.whenStable();
     expect(names(el)).toEqual(['Ost', 'Smör']);
     expect(text(doneToggle(el))).toBe('Klart (1)');
+  });
+
+  it('focus stays in the list when a row moves to the other section', async () => {
+    const { el, fixture } = await setup([['Mjölk'], ['Ost'], ['Smör']]);
+    const tap = async (row: HTMLElement) => {
+      row.focus();
+      row.click();
+      await fixture.whenStable();
+    };
+    const focused = () => document.activeElement as HTMLElement;
+
+    await tap(rows(el, false)[1]!);
+    expect(text(focused())).toBe('Smör');
+    await tap(rows(el, false)[1]!);
+    expect(text(focused())).toBe('Mjölk');
+    await tap(rows(el, false)[0]!);
+    expect(focused()).toBe(doneToggle(el));
+
+    doneToggle(el)!.click();
+    await fixture.whenStable();
+    await tap(rows(el, true)[2]!);
+    expect(text(focused())).toBe(text(rows(el, true)[1]!));
+    await tap(rows(el, true)[0]!);
+    await tap(rows(el, true)[0]!);
+    // Done is gone with its toggle
+    expect(focused()).toBe(el.querySelector('.fab'));
+  });
+
+  it('shows no title until the current list is known', async () => {
+    const { db, store, listId } = await setup();
+    await store.renameList(listId, 'Mat');
+    // sorts first, so a guess before the saved id is known would show it
+    await store.createList('Apotek');
+    await db.setMeta('currentListId', listId);
+    const later = <T>(load: () => Promise<T>) => new Promise((r) => setTimeout(r, 50)).then(load);
+    const transaction = db.transaction.bind(db) as (...args: unknown[]) => Promise<unknown>;
+    const getMeta = db.getMeta.bind(db) as (key: string) => Promise<unknown>;
+
+    for (const slow of ['store', 'saved id']) {
+      TestBed.resetTestingModule();
+      // the same database, with a Store that has not loaded it yet; one of the two loads lags
+      configure(db);
+      const lagStore = (...args: unknown[]) => later(() => transaction(...args));
+      const lagSavedId = (key: string) => (key === 'currentListId' ? later(() => getMeta(key)) : getMeta(key));
+      const spy =
+        slow === 'store'
+          ? vi.spyOn(db, 'transaction').mockImplementation(lagStore as never)
+          : vi.spyOn(db, 'getMeta').mockImplementation(lagSavedId as never);
+      const fixture = TestBed.createComponent(ListPage);
+      const el: HTMLElement = fixture.nativeElement;
+      const titles = new Set<string>();
+      const seen = new MutationObserver(() => titles.add(text(el.querySelector('h1'))));
+      seen.observe(el, { subtree: true, childList: true, characterData: true });
+      // the Store's first load is no pending task, so wait for the title itself
+      await vi.waitFor(() => expect(text(el.querySelector('h1'))).toBe('Mat'));
+      seen.disconnect();
+      spy.mockRestore();
+      titles.delete('');
+      expect([slow, [...titles]]).toEqual([slow, ['Mat']]);
+    }
   });
 
   it('the list switcher appears only with more than one list', async () => {
@@ -176,6 +256,43 @@ describe('ListPage', () => {
     await fixture.whenStable();
     expect(await loader.getAllHarnesses(MatBottomSheetHarness)).toHaveLength(0);
     expect(names(el)).toEqual(['Laktosfri mjölk']);
+  });
+
+  it('a note saved before a refused name is undone with a later remove', async () => {
+    const t = await setup([['Mjölk', '2 st']]);
+    const sheet = await editMjolk(t, { name: ' ', note: 'laktosfri' });
+    await sheet.dismiss();
+    await t.fixture.whenStable();
+    expect(noteOf(t.store, t.listId, 'Mjölk')).toBe('laktosfri');
+
+    await (await sheet.getHarness(MatActionListItemHarness.with({ text: 'Ta bort från listan' }))).click();
+    await t.fixture.whenStable();
+    expect(names(t.el)).toEqual([]);
+    const snackBar = await t.loader.getHarness(MatSnackBarHarness);
+    expect(await snackBar.getMessage()).toBe('Mjölk borttagen');
+    await snackBar.dismissWithAction();
+    await t.fixture.whenStable();
+    expect(names(t.el)).toEqual(['Mjölk']);
+    expect(noteOf(t.store, t.listId, 'Mjölk')).toBe('2 st');
+  });
+
+  it('Back after a refused name keeps the saved note undoable and drops the name', async () => {
+    const failed = vi.spyOn(console, 'error');
+    const t = await setup([['Mjölk', '2 st']]);
+    const sheet = await editMjolk(t, { name: ' ', note: 'laktosfri' });
+    await sheet.dismiss();
+    await t.fixture.whenStable();
+
+    window.dispatchEvent(new PopStateEvent('popstate'));
+    await t.fixture.whenStable();
+    expect(await t.loader.getAllHarnesses(MatBottomSheetHarness)).toHaveLength(0);
+    expect(names(t.el)).toEqual(['Mjölk']);
+    const snackBar = await t.loader.getHarness(MatSnackBarHarness);
+    expect(await snackBar.getMessage()).toBe('Anteckning sparad');
+    expect(failed).not.toHaveBeenCalled();
+    await snackBar.dismissWithAction();
+    await t.fixture.whenStable();
+    expect(noteOf(t.store, t.listId, 'Mjölk')).toBe('2 st');
   });
 
   it('edit sheet also saves when Back closes it', async () => {
@@ -253,6 +370,10 @@ describe('ListPage', () => {
     await fixture.whenStable();
     expect(indicator()?.querySelector('mat-icon')?.getAttribute('data-mat-icon-name')).toBe('cloud_off');
     expect(text(indicator()!.querySelector('.mat-badge-content'))).toBe('2');
+    expect(indicator()!.getAttribute('aria-label')).toBe('Offline, 2 osynkade ändringar');
+    sync.status.set({ kind: 'offline', pending: 1, rejected: 0 });
+    await fixture.whenStable();
+    expect(indicator()!.getAttribute('aria-label')).toBe('Offline, 1 osynkad ändring');
 
     sync.status.set({ kind: 'offline', pending: 0, rejected: 0 });
     await fixture.whenStable();
@@ -263,7 +384,9 @@ describe('ListPage', () => {
     (indicator() as HTMLElement).click();
     await fixture.whenStable();
     const harness = await loader.getHarness(MatDialogHarness);
-    expect(await harness.getText()).toContain('Några ändringar nekades');
+    // the reason is the dialog's accessible name, so it is read out when the dialog opens
+    const labelledBy = await harness.getAriaLabelledby();
+    expect(text(document.getElementById(labelledBy ?? ''))).toBe('Några ändringar nekades');
     await (await harness.getHarness(MatButtonHarness.with({ text: 'Försök igen' }))).click();
     expect(sync.syncNow).toHaveBeenCalledOnce();
   });

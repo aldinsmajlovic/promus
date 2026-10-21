@@ -49,7 +49,10 @@
     "error": "Synkfel",
     "failed": "Synkningen misslyckades",
     "offline": "Offline",
-    "pending": "{{n}} osynkade",
+    "pending": {
+      "one": "1 osynkad ändring",
+      "other": "{{n}} osynkade ändringar"
+    },
     "rejected": "Några ändringar nekades",
     "retry": "Försök igen",
     "syncing": "Synkar",

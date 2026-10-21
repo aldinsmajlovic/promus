@@ -1,19 +1,23 @@
 <ng-container *transloco="let t">
   <mat-toolbar>
     <h1>
-      @if (lists().length > 1) {
-        <button
-          class="switch state"
-          matRipple
-          [matMenuTriggerFor]="switcher"
-          (menuOpened)="switcherOpen.set(true)"
-          (menuClosed)="switcherOpen.set(false)"
-        >
-          <span class="brand">{{ list()?.name ?? t('list.default') }}</span>
-          <mat-icon [svgIcon]="switcherOpen() ? 'arrow_drop_up' : 'arrow_drop_down'" />
-        </button>
-      } @else {
-        <span class="brand">{{ list()?.name ?? t('list.default') }}</span>
+      <!-- no name until the current list is known, rather than a wrong one first -->
+      @let current = list();
+      @if (current !== undefined) {
+        @if (lists().length > 1) {
+          <button
+            class="switch state"
+            matRipple
+            [matMenuTriggerFor]="switcher"
+            (menuOpened)="switcherOpen.set(true)"
+            (menuClosed)="switcherOpen.set(false)"
+          >
+            <span class="brand">{{ current?.name }}</span>
+            <mat-icon [svgIcon]="switcherOpen() ? 'arrow_drop_up' : 'arrow_drop_down'" />
+          </button>
+        } @else {
+          <span class="brand">{{ current?.name ?? t('list.default') }}</span>
+        }
       }
     </h1>
     <app-sync-indicator />
@@ -57,9 +61,16 @@
     <main>
       @if (view().active.length) {
         <ul>
-          @for (e of view().active; track e.itemId) {
+          @for (e of view().active; track e.itemId; let i = $index) {
             <li>
-              <button class="row state" matRipple role="checkbox" aria-checked="false" (click)="check(l.id, e)">
+              <button
+                #activeRow
+                class="row state"
+                matRipple
+                role="checkbox"
+                aria-checked="false"
+                (click)="check(l.id, e, i)"
+              >
                 <mat-icon svgIcon="check_box_outline_blank" />
                 <span class="text">
                   <span class="name">{{ e.name }}</span>
@@ -80,15 +91,28 @@
 
       @if (view().done.length) {
         <mat-divider />
-        <button class="section state" matRipple [attr.aria-expanded]="doneOpen()" (click)="doneOpen.set(!doneOpen())">
+        <button
+          #doneToggle
+          class="section state"
+          matRipple
+          [attr.aria-expanded]="doneOpen()"
+          (click)="doneOpen.set(!doneOpen())"
+        >
           <mat-icon [svgIcon]="doneOpen() ? 'expand_less' : 'expand_more'" />
           {{ t('list.done', { n: view().done.length }) }}
         </button>
         @if (doneOpen()) {
           <ul class="done">
-            @for (e of view().done; track e.itemId) {
+            @for (e of view().done; track e.itemId; let i = $index) {
               <li>
-                <button class="row state" matRipple role="checkbox" aria-checked="true" (click)="uncheck(l.id, e)">
+                <button
+                  #doneRow
+                  class="row state"
+                  matRipple
+                  role="checkbox"
+                  aria-checked="true"
+                  (click)="uncheck(l.id, e, i)"
+                >
                   <mat-icon svgIcon="check_box" />
                   <span class="text">
                     <span class="name">{{ e.name }}</span>
@@ -104,6 +128,6 @@
       }
     </main>
 
-    <a matFab extended class="fab" routerLink="/add"><mat-icon svgIcon="add" />{{ t('list.add') }}</a>
+    <a #fab matFab extended class="fab" routerLink="/add"><mat-icon svgIcon="add" />{{ t('list.add') }}</a>
   }
 </ng-container>

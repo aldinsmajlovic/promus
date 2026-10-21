@@ -1,4 +1,17 @@
-import { Component, PendingTasks, computed, inject, signal } from '@angular/core';
+import {
+  Component,
+  DOCUMENT,
+  ElementRef,
+  Injector,
+  PendingTasks,
+  type Signal,
+  afterNextRender,
+  computed,
+  inject,
+  signal,
+  viewChild,
+  viewChildren,
+} from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { MatBottomSheet } from '@angular/material/bottom-sheet';
 import { MatFabAnchor, MatIconButton } from '@angular/material/button';
@@ -13,12 +26,13 @@ import { TranslocoDirective, TranslocoService } from '@jsverse/transloco';
 import { type EntryView, listSummaries, listView } from '@promus/shared';
 import { Actions } from '../../core/actions';
 import { PromusDb } from '../../core/db';
-import { Store } from '../../core/store';
+import { Store, type UndoToken } from '../../core/store';
 import { EditSheet, type EditSheetData } from './edit-sheet';
 import { NameDialog, type NameDialogData } from './name-dialog';
 import { SyncIndicator } from './sync-indicator';
 
 type List = { id: string; name: string };
+type Rows = Signal<readonly ElementRef<HTMLElement>[]>;
 
 @Component({
   selector: 'app-list-page',
@@ -45,17 +59,27 @@ export class ListPage {
   private readonly sheet = inject(MatBottomSheet);
   private readonly dialog = inject(MatDialog);
   private readonly actions = inject(Actions);
+  private readonly injector = inject(Injector);
+  private readonly doc = inject(DOCUMENT);
+  private readonly activeRows = viewChildren('activeRow', { read: ElementRef });
+  private readonly doneRows = viewChildren('doneRow', { read: ElementRef });
+  private readonly doneToggle = viewChild('doneToggle', { read: ElementRef });
+  private readonly fab = viewChild('fab', { read: ElementRef });
 
   private readonly lang = toSignal(inject(TranslocoService).langChanges$, { requireSync: true });
   private readonly collator = computed(() => new Intl.Collator(this.lang(), { numeric: true }));
-  // undefined until read from meta, so the first render already shows the right list
+  // undefined until read from meta
   private readonly savedId = signal<string | null | undefined>(undefined);
   protected readonly lists = computed(() => listSummaries(this.store.state(), this.collator()));
-  /** The saved list, or the first one when it is missing or deleted. */
+  /**
+   * The saved list, or the first one when it is missing or deleted; null when there are no lists, and
+   * undefined until both the saved id and the Store are loaded, so no other list's name shows first.
+   */
   protected readonly list = computed(() => {
     const id = this.savedId();
+    if (id === undefined || !this.store.ready()) return undefined;
     const lists = this.lists();
-    return id === undefined ? null : (lists.find((l) => l.id === id) ?? lists[0] ?? null);
+    return lists.find((l) => l.id === id) ?? lists[0] ?? null;
   });
   protected readonly view = computed(() => {
     const list = this.list();
@@ -79,12 +103,12 @@ export class ListPage {
     this.db.setMeta('currentListId', listId).catch((err: unknown) => this.actions.failed(err));
   }
 
-  protected check(listId: string, e: EntryView): void {
-    void this.actions.run(this.store.check(listId, e.itemId));
+  protected check(listId: string, e: EntryView, index: number): void {
+    void this.move(this.store.check(listId, e.itemId), this.activeRows, index);
   }
 
-  protected uncheck(listId: string, e: EntryView): void {
-    void this.actions.run(this.store.uncheck(listId, e.itemId));
+  protected uncheck(listId: string, e: EntryView, index: number): void {
+    void this.move(this.store.uncheck(listId, e.itemId), this.doneRows, index);
   }
 
   protected edit(listId: string, e: EntryView): void {
@@ -106,6 +130,24 @@ export class ListPage {
 
   protected deleteList(list: List): void {
     void this.actions.run(this.store.deleteList(list.id));
+  }
+
+  /**
+   * The row leaves its section and takes focus with it: hand focus to the row now in its place, the
+   * new last one, or the Done toggle or FAB when the section is empty.
+   */
+  private async move(action: Promise<UndoToken | null>, rows: Rows, index: number): Promise<void> {
+    if (!(await this.actions.run(action))) return;
+    afterNextRender(
+      () => {
+        // focus went somewhere else meanwhile, on purpose
+        if (this.doc.activeElement !== this.doc.body) return;
+        const left = rows();
+        const next = left[Math.min(index, left.length - 1)] ?? this.doneToggle() ?? this.fab();
+        next?.nativeElement.focus();
+      },
+      { injector: this.injector },
+    );
   }
 
   private askName(title: string, name: string, save: NameDialogData['save']): void {

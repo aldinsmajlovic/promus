@@ -1,7 +1,7 @@
 import { Component, type TemplateRef, computed, inject, viewChild } from '@angular/core';
 import { MatBadge } from '@angular/material/badge';
 import { MatButton, MatIconButton } from '@angular/material/button';
-import { MatDialog, MatDialogActions, MatDialogClose, MatDialogContent } from '@angular/material/dialog';
+import { MatDialog, MatDialogActions, MatDialogClose, MatDialogTitle } from '@angular/material/dialog';
 import { MatIcon } from '@angular/material/icon';
 import { Router } from '@angular/router';
 import { TranslocoDirective } from '@jsverse/transloco';
@@ -15,7 +15,7 @@ import { SyncService } from '../../core/sync.service';
     MatButton,
     MatIcon,
     MatBadge,
-    MatDialogContent,
+    MatDialogTitle,
     MatDialogActions,
     MatDialogClose,
     TranslocoDirective,
@@ -29,14 +29,15 @@ import { SyncService } from '../../core/sync.service';
           [class.error]="look.icon === 'error'"
           [matBadge]="pending"
           [matBadgeHidden]="!pending"
-          [attr.aria-label]="pending ? t(look.label) + ', ' + t('sync.pending', { n: pending }) : t(look.label)"
+          [attr.aria-label]="pending ? t(look.label) + ', ' + t(pendingKey(pending), { n: pending }) : t(look.label)"
           (click)="tap()"
         >
           <mat-icon [svgIcon]="look.icon" />
         </button>
       }
       <ng-template #failed>
-        <mat-dialog-content>{{ t(sync.status().messageKey ?? 'sync.failed') }}</mat-dialog-content>
+        <!-- the reason is the title, so it names the dialog for screen readers -->
+        <h2 mat-dialog-title>{{ t(sync.status().messageKey ?? 'sync.failed') }}</h2>
         <mat-dialog-actions>
           <button matButton mat-dialog-close>{{ t('dialog.close') }}</button>
           <button matButton mat-dialog-close (click)="sync.syncNow()">{{ t('sync.retry') }}</button>
@@ -68,6 +69,11 @@ export class SyncIndicator {
     if (pending === 0) return null;
     return kind === 'offline' ? { icon: 'cloud_off', label: 'sync.offline' } : { icon: 'sync', label: 'sync.waiting' };
   });
+
+  // sv and en need only one and other
+  protected pendingKey(n: number): string {
+    return n === 1 ? 'sync.pending.one' : 'sync.pending.other';
+  }
 
   protected tap(): void {
     const { kind } = this.sync.status();

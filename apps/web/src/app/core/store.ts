@@ -101,6 +101,9 @@ export class Store {
   private readonly pending = signal(0);
   readonly state = this.current.asReadonly();
   readonly pendingCount = this.pending.asReadonly();
+  private readonly folded = signal(false);
+  /** False until the first load has folded what IndexedDB holds, so an empty `state` means "not yet". */
+  readonly ready = this.folded.asReadonly();
 
   private householdId: string | null = null;
   private serverOffset = 0;
@@ -332,6 +335,7 @@ export class Store {
     this.householdId = householdId;
     this.serverOffset = offset ?? 0;
     this.loaded = { events: events.length, outbox: outbox.length, cursor: cursor ?? 0, householdId };
+    this.folded.set(true);
   }
 
   private serial<T>(task: () => Promise<T>): Promise<T> {

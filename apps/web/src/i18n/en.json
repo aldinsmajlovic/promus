@@ -49,7 +49,10 @@
     "error": "Sync error",
     "failed": "Sync failed",
     "offline": "Offline",
-    "pending": "{{n}} unsynced",
+    "pending": {
+      "one": "1 unsynced change",
+      "other": "{{n}} unsynced changes"
+    },
     "rejected": "Some changes were refused",
     "retry": "Retry",
     "syncing": "Syncing",
