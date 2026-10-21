@@ -59,7 +59,9 @@ export const eventInputSchema = z.discriminatedUnion('type', [
 export type EventInput = z.infer<typeof eventInputSchema>;
 export type PayloadOf<T extends EventType> = Extract<EventInput, { type: T }>['payload'];
 export type StoredEvent = EventInput & { seq: number; userId: string; receivedAt: number };
-export type FoldEvent = Pick<EventInput, 'id' | 'type' | 'v' | 'hlc' | 'occurredAt' | 'undoOf' | 'payload'>;
+type FoldKeys = 'id' | 'type' | 'v' | 'hlc' | 'occurredAt' | 'undoOf' | 'payload';
+// distributive, so each variant keeps its type<->payload link
+export type FoldEvent = EventInput extends infer E ? (E extends EventInput ? Pick<E, FoldKeys> : never) : never;
 
 export type RejectCode = 'invalid' | 'clock_skew' | 'forbidden_household';
 export type PushResponse = {

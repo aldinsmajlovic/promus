@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import type { FoldEvent } from '../src/index.ts';
 import { formatHlc, makeEvent, newId, parseEventInput, EVENT_TYPES } from '../src/index.ts';
 
 const meta = () => ({ householdId: newId(), hlc: formatHlc(1, 0, 'dev'), occurredAt: 1 });
@@ -40,5 +41,23 @@ describe('event schemas', () => {
   it('parseEventInput reports the id of an invalid event', () => {
     const r = parseEventInput({ id: 'abc', type: 'nope' });
     expect(r).toMatchObject({ ok: false, id: 'abc' });
+  });
+});
+
+// compile-time check (tsc): switching on type narrows payload without a cast
+const nameOf = (e: FoldEvent): string | undefined => {
+  switch (e.type) {
+    case 'item.created':
+      return e.payload.name;
+    case 'entry.noteSet':
+      return e.payload.note;
+    default:
+      return undefined;
+  }
+};
+
+describe('FoldEvent', () => {
+  it('narrows payload by type', () => {
+    expect(nameOf(item('milk'))).toBe('milk');
   });
 });
