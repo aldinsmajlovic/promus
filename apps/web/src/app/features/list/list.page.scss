@@ -202,7 +202,7 @@ main > mat-divider {
   transition: translate 150ms;
 }
 
-// a snackbar (always at the bottom) would cover the FAB: move it up, as in the mockups
-:host-context(body:has(.mat-mdc-snack-bar-container)) .fab {
+// a bottom snackbar would cover the FAB: move it up, as in the mockups
+:host-context(body:has(.mat-mdc-snack-bar-container:not(.below-toolbar))) .fab {
   translate: 0 -4rem;
 }

@@ -1,6 +1,6 @@
 import { Injectable, PendingTasks, inject } from '@angular/core';
 import type { FormControl } from '@angular/forms';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { MatSnackBar, type MatSnackBarConfig } from '@angular/material/snack-bar';
 import { TranslocoService } from '@jsverse/transloco';
 import { LIMITS } from '@promus/shared';
 import { Store, type UndoToken, ValidationError } from './store';
@@ -27,34 +27,37 @@ export class Actions {
   private readonly transloco = inject(TranslocoService);
   private readonly tasks = inject(PendingTasks);
 
-  /** Rejects with a ValidationError, for the field that caused it; any other failure is shown and resolves null. */
-  async run<T extends UndoToken | null>(action: Promise<T>): Promise<T | null> {
+  /**
+   * Rejects with a ValidationError, for the field that caused it; any other failure is shown and resolves null.
+   * `snack` places its snackbars, e.g. at the top.
+   */
+  async run<T extends UndoToken | null>(action: Promise<T>, snack: MatSnackBarConfig = {}): Promise<T | null> {
     // keeps the app unstable until the action settles; ending it also runs change detection, which
     // (zoneless) is what shows a refusal set on a field after the await
     const done = this.tasks.add();
     try {
       const token = await action;
-      if (token) this.offerUndo(token);
+      if (token) this.offerUndo(token, snack);
       return token;
     } catch (err) {
       if (err instanceof ValidationError) throw err;
-      this.failed(err);
+      this.failed(err, snack);
       return null;
     } finally {
       done();
     }
   }
 
-  failed(err: unknown): void {
+  failed(err: unknown, snack: MatSnackBarConfig = {}): void {
     console.error('action failed', err);
-    this.snackBar.open(this.transloco.translate('errors.actionFailed'), undefined, { duration: SNACK_MS });
+    this.snackBar.open(this.transloco.translate('errors.actionFailed'), undefined, { ...snack, duration: SNACK_MS });
   }
 
-  private offerUndo(token: UndoToken): void {
+  private offerUndo(token: UndoToken, snack: MatSnackBarConfig): void {
     const t = this.transloco;
     this.snackBar
-      .open(t.translate(token.messageKey, token.params), t.translate('snack.undo'), { duration: SNACK_MS })
+      .open(t.translate(token.messageKey, token.params), t.translate('snack.undo'), { ...snack, duration: SNACK_MS })
       .onAction()
-      .subscribe(() => void this.run(this.store.undo(token).then(() => null)));
+      .subscribe(() => void this.run(this.store.undo(token).then(() => null), snack));
   }
 }

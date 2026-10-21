@@ -1,4 +1,11 @@
 {
+  "add": {
+    "alreadyOnList": "Finns redan på listan",
+    "clear": "Rensa",
+    "create": "Lägg till \"{{name}}\"",
+    "onList": "På listan",
+    "placeholder": "Lägg till vara"
+  },
   "dialog": {
     "cancel": "Avbryt",
     "close": "Stäng",

@@ -3,7 +3,6 @@ import {
   DOCUMENT,
   ElementRef,
   Injector,
-  PendingTasks,
   type Signal,
   afterNextRender,
   computed,
@@ -12,7 +11,6 @@ import {
   viewChild,
   viewChildren,
 } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
 import { MatBottomSheet } from '@angular/material/bottom-sheet';
 import { MatFabAnchor, MatIconButton } from '@angular/material/button';
 import { MatRipple } from '@angular/material/core';
@@ -22,10 +20,10 @@ import { MatIcon } from '@angular/material/icon';
 import { MatMenu, MatMenuItem, MatMenuTrigger } from '@angular/material/menu';
 import { MatToolbar } from '@angular/material/toolbar';
 import { RouterLink } from '@angular/router';
-import { TranslocoDirective, TranslocoService } from '@jsverse/transloco';
-import { type EntryView, listSummaries, listView } from '@promus/shared';
+import { TranslocoDirective } from '@jsverse/transloco';
+import { type EntryView, listView } from '@promus/shared';
 import { Actions } from '../../core/actions';
-import { PromusDb } from '../../core/db';
+import { CurrentList } from '../../core/current-list';
 import { Store, type UndoToken } from '../../core/store';
 import { EditSheet, type EditSheetData } from './edit-sheet';
 import { NameDialog, type NameDialogData } from './name-dialog';
@@ -55,7 +53,7 @@ type Rows = Signal<readonly ElementRef<HTMLElement>[]>;
 })
 export class ListPage {
   private readonly store = inject(Store);
-  private readonly db = inject(PromusDb);
+  private readonly current = inject(CurrentList);
   private readonly sheet = inject(MatBottomSheet);
   private readonly dialog = inject(MatDialog);
   private readonly actions = inject(Actions);
@@ -66,41 +64,18 @@ export class ListPage {
   private readonly doneToggle = viewChild('doneToggle', { read: ElementRef });
   private readonly fab = viewChild('fab', { read: ElementRef });
 
-  private readonly lang = toSignal(inject(TranslocoService).langChanges$, { requireSync: true });
-  private readonly collator = computed(() => new Intl.Collator(this.lang(), { numeric: true }));
-  // undefined until read from meta
-  private readonly savedId = signal<string | null | undefined>(undefined);
-  protected readonly lists = computed(() => listSummaries(this.store.state(), this.collator()));
-  /**
-   * The saved list, or the first one when it is missing or deleted; null when there are no lists, and
-   * undefined until both the saved id and the Store are loaded, so no other list's name shows first.
-   */
-  protected readonly list = computed(() => {
-    const id = this.savedId();
-    if (id === undefined || !this.store.ready()) return undefined;
-    const lists = this.lists();
-    return lists.find((l) => l.id === id) ?? lists[0] ?? null;
-  });
+  protected readonly lists = this.current.lists;
+  protected readonly list = this.current.list;
   protected readonly view = computed(() => {
     const list = this.list();
-    return list ? listView(this.store.state(), list.id, this.store.now(), this.collator()) : { active: [], done: [] };
+    if (!list) return { active: [], done: [] };
+    return listView(this.store.state(), list.id, this.store.now(), this.current.collator());
   });
   protected readonly doneOpen = signal(false);
   protected readonly switcherOpen = signal(false);
 
-  constructor() {
-    inject(PendingTasks).run(async () => {
-      const id = await this.db.getMeta('currentListId').catch((err: unknown) => {
-        console.error('reading the current list failed', err);
-        return null;
-      });
-      this.savedId.set(id ?? null);
-    });
-  }
-
   protected select(listId: string): void {
-    this.savedId.set(listId);
-    this.db.setMeta('currentListId', listId).catch((err: unknown) => this.actions.failed(err));
+    this.current.select(listId);
   }
 
   protected check(listId: string, e: EntryView, index: number): void {

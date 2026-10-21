@@ -39,3 +39,8 @@ body {
 .mat-bottom-sheet-container {
   border-radius: var(--mat-sys-corner-extra-large-top);
 }
+
+// a top snackbar (the add view's, clear of the keyboard) sits under the 64px toolbar, so Close stays reachable
+.mat-mdc-snack-bar-container.below-toolbar {
+  margin-top: 4.5rem;
+}

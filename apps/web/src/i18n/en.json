@@ -1,4 +1,11 @@
 {
+  "add": {
+    "alreadyOnList": "Already on the list",
+    "clear": "Clear",
+    "create": "Add \"{{name}}\"",
+    "onList": "On the list",
+    "placeholder": "Add item"
+  },
   "dialog": {
     "cancel": "Cancel",
     "close": "Close",
