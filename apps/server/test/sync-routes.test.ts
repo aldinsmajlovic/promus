@@ -67,6 +67,7 @@ describe('sync routes', { timeout: 30_000 }, () => {
     expect(res.rejected[0]).toMatchObject({ id: bad.id, code: 'invalid' });
     expect(res.rejected[1]).toMatchObject({ id: null, code: 'invalid' });
     for (const r of res.rejected) expect(r.message.length).toBeLessThanOrEqual(200);
+    expect(db.prepare('SELECT id FROM events WHERE id = ?').get(good.id)).toEqual({ id: good.id });
     expect(db.prepare('SELECT id FROM events WHERE id = ?').get(bad.id)).toBeUndefined();
   });
 
@@ -97,12 +98,14 @@ describe('sync routes', { timeout: 30_000 }, () => {
   });
 
   it('rejects events more than one hour in the future', async () => {
-    const { a, cookieA, push, ev } = await setup();
+    const { a, cookieA, push, ev, db } = await setup();
     const late = ev(a.householdId, T0 + 61 * MIN);
     const ok = ev(a.householdId, T0 + 59 * MIN);
     const res = await pushed(await push(cookieA, { events: [late, ok] }));
     expect(res.accepted).toEqual([ok.id]);
     expect(res.rejected).toMatchObject([{ id: late.id, code: 'clock_skew' }]);
+    expect(db.prepare('SELECT id FROM events WHERE id = ?').get(ok.id)).toEqual({ id: ok.id });
+    expect(db.prepare('SELECT id FROM events WHERE id = ?').get(late.id)).toBeUndefined();
   });
 
   it('pages through events in order without gaps', async () => {
