@@ -1,4 +1,4 @@
-import { writeFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { join, sep } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { makeTestApp } from './helpers.ts';
@@ -58,14 +58,28 @@ describe('app', () => {
     }
   });
 
-  it('serves assets with their type and immutable caching, ngsw.json uncached', async () => {
+  it('caches only hashed build files as immutable, everything else no-cache', async () => {
     const { app, webRoot } = makeTestApp();
-    writeFileSync(join(webRoot, 'main-abc.js'), 'console.log(1)');
-    writeFileSync(join(webRoot, 'ngsw.json'), '{}');
-    const js = await app.request('/main-abc.js');
+    mkdirSync(join(webRoot, 'media'));
+    mkdirSync(join(webRoot, 'icons'));
+    const files = {
+      'main-4FBLEPWP.js': 'console.log(1)',
+      'media/roboto-latin-400-normal-LOX3CHMS.woff2': '',
+      'manifest.webmanifest': '{}',
+      'ngsw-worker.js': '',
+      'ngsw.json': '{}',
+      'icons/icon-192.png': '',
+    };
+    for (const [path, body] of Object.entries(files)) writeFileSync(join(webRoot, path), body);
+    const cacheOf = async (path: string) => (await app.request(path)).headers.get('cache-control');
+
+    const immutable = 'public, max-age=31536000, immutable';
+    const js = await app.request('/main-4FBLEPWP.js');
     expect(js.headers.get('content-type')).toContain('javascript');
-    expect(js.headers.get('cache-control')).toBe('public, max-age=31536000, immutable');
-    expect((await app.request('/ngsw.json')).headers.get('cache-control')).toBe('no-cache');
+    expect(js.headers.get('cache-control')).toBe(immutable);
+    expect(await cacheOf('/media/roboto-latin-400-normal-LOX3CHMS.woff2')).toBe(immutable);
+    const unhashed = ['/manifest.webmanifest', '/ngsw-worker.js', '/ngsw.json', '/icons/icon-192.png', '/'];
+    for (const path of unhashed) expect(await cacheOf(path), path).toBe('no-cache');
   });
 
   it('serves assets when the web root ends with a separator, as DEFAULT_WEB_ROOT does', async () => {

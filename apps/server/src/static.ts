@@ -11,7 +11,9 @@ const NOT_FOUND_CODES = new Set([
   'ELOOP',
   'ERR_INVALID_ARG_VALUE',
 ]);
-const NO_CACHE = new Set(['index.html', 'ngsw.json']);
+// Angular stamps an 8-character content hash into bundled file names
+// (main-4FBLEPWP.js, media/roboto-latin-400-normal-LOX3CHMS.woff2). Only those never change.
+const HASHED = /-[A-Z0-9]{8}\.[a-z0-9]+$/;
 
 async function tryRead(path: string): Promise<Buffer | null> {
   try {
@@ -26,7 +28,7 @@ function respond(c: Context, rel: string, body: Buffer) {
   c.header('Content-Type', getMimeType(rel) ?? 'application/octet-stream');
   c.header(
     'Cache-Control',
-    NO_CACHE.has(rel) ? 'no-cache' : 'public, max-age=31536000, immutable',
+    HASHED.test(rel) ? 'public, max-age=31536000, immutable' : 'no-cache',
   );
   return c.body(new Uint8Array(body));
 }
