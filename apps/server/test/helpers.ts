@@ -24,5 +24,5 @@ export function makeTestApp(overrides: Partial<AppDeps> = {}) {
     webRoot,
     ...overrides,
   });
-  return { app, db, setNow: (ms: number) => { now = ms; } };
+  return { app, db, webRoot, setNow: (ms: number) => { now = ms; } };
 }

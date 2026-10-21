@@ -31,6 +31,7 @@ export function createApp(deps: AppDeps): Hono {
     deps.logger.error({ err }, 'unhandled error');
     return c.json({ error: 'internal' }, 500);
   });
+  app.notFound((c) => c.json({ error: 'not_found' }, 404));
   app.route('/api', healthRoutes(deps));
   app.all('/api/*', (c) => c.json({ error: 'not_found' }, 404));
   app.get('*', serveWeb(deps.webRoot));

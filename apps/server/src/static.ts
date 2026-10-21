@@ -3,13 +3,21 @@ import { join, normalize, sep } from 'node:path';
 import type { Context } from 'hono';
 import { getMimeType } from 'hono/utils/mime';
 
+const NOT_FOUND_CODES = new Set([
+  'ENOENT',
+  'EISDIR',
+  'ENOTDIR',
+  'ENAMETOOLONG',
+  'ELOOP',
+  'ERR_INVALID_ARG_VALUE',
+]);
 const NO_CACHE = new Set(['index.html', 'ngsw.json']);
 
 async function tryRead(path: string): Promise<Buffer | null> {
   try {
     return await readFile(path);
   } catch (err) {
-    if ((err as NodeJS.ErrnoException).code === 'ENOENT' || (err as NodeJS.ErrnoException).code === 'EISDIR') return null;
+    if (NOT_FOUND_CODES.has((err as NodeJS.ErrnoException).code ?? '')) return null;
     throw err;
   }
 }
@@ -26,9 +34,9 @@ function respond(c: Context, rel: string, body: Buffer) {
 export function serveWeb(webRoot: string) {
   const root = normalize(webRoot);
   return async (c: Context) => {
-    const rel = normalize(decodeURIComponent(c.req.path)).replace(/^[/\\]+/, '');
+    const rel = normalize(c.req.path).replace(/^[/\\]+/, '');
     const file = join(root, rel);
-    if (rel !== '' && (file === root || file.startsWith(root + sep))) {
+    if (!rel.includes('\0') && rel !== '' && (file === root || file.startsWith(root + sep))) {
       const body = await tryRead(file);
       if (body) return respond(c, rel, body);
     }
