@@ -12,10 +12,12 @@ export type SyncStatus = {
   messageKey?: string;
 };
 
+type Outcome = Pick<SyncStatus, 'kind' | 'messageKey'>;
+
 const SOON_MS = 2000;
 const EVERY_MS = 60_000;
 
-function failure(err: unknown): Pick<SyncStatus, 'kind' | 'messageKey'> {
+function failure(err: unknown): Outcome {
   if (err instanceof NetworkError) return { kind: 'offline' };
   if (err instanceof AuthError) return { kind: 'auth' };
   console.error('sync failed', err);
@@ -30,7 +32,7 @@ export class SyncService {
   private readonly api = inject(ApiClient);
   private readonly db = inject(PromusDb);
   private readonly doc = inject(DOCUMENT);
-  private readonly outcome = signal<Pick<SyncStatus, 'kind' | 'messageKey'>>({ kind: 'idle' });
+  private readonly outcome = signal<Outcome>({ kind: 'idle' });
   private readonly rejected = signal(0);
   readonly status = computed<SyncStatus>(() => ({
     ...this.outcome(),
@@ -41,6 +43,7 @@ export class SyncService {
   private inFlight: Promise<void> | null = null;
   private soonTimer: ReturnType<typeof setTimeout> | undefined;
   private running: AbortController | null = null;
+  private rerun = false;
 
   start(): void {
     if (this.running) return;
@@ -69,30 +72,50 @@ export class SyncService {
   soon(): void {
     if (!this.running) return;
     clearTimeout(this.soonTimer);
-    this.soonTimer = setTimeout(() => void this.syncNow(), SOON_MS);
+    this.soonTimer = setTimeout(() => {
+      // a running sync may be past its push already: run once more after it
+      if (this.inFlight) this.rerun = true;
+      else void this.syncNow();
+    }, SOON_MS);
   }
 
   /** One sync at a time: a call while one runs gets that one. Never rejects; see `status`. */
   syncNow(): Promise<void> {
-    this.inFlight ??= this.run().finally(() => (this.inFlight = null));
+    this.inFlight ??= this.run()
+      .catch((err: unknown) => this.outcome.set(failure(err)))
+      .finally(() => {
+        this.inFlight = null;
+        const again = this.rerun && this.running !== null;
+        this.rerun = false;
+        if (again) void this.syncNow();
+      });
     return this.inFlight;
   }
 
   private async run(): Promise<void> {
+    const before = await this.countRejected();
     // signed out: a still-valid cookie (logout while offline) must not pull the data back in
     if (!(await this.db.getMeta('session'))) {
       this.outcome.set({ kind: 'auth' });
       return;
     }
     this.outcome.set({ kind: 'syncing' });
+    let outcome: Outcome = { kind: 'idle' };
     try {
-      const { rejected } = await syncOnce(this.storage, this.api, () => Date.now());
+      await syncOnce(this.storage, this.api, () => Date.now());
       await this.store.load();
-      // the store keeps every refusal for diagnostics; only this sync's refusals are an error
-      this.rejected.set(await this.db.rejected.count());
-      this.outcome.set(rejected > 0 ? { kind: 'error', messageKey: 'sync.rejected' } : { kind: 'idle' });
     } catch (err) {
-      this.outcome.set(failure(err));
+      outcome = failure(err);
+    } finally {
+      // the store keeps every refusal for diagnostics; new ones are the error, even if a later step failed
+      const refused = (await this.countRejected()) > before;
+      this.outcome.set(refused ? { kind: 'error', messageKey: 'sync.rejected' } : outcome);
     }
+  }
+
+  private async countRejected(): Promise<number> {
+    const count = await this.db.rejected.count();
+    this.rejected.set(count);
+    return count;
   }
 }

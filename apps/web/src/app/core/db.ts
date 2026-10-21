@@ -23,6 +23,14 @@ export type Meta = {
 };
 type MetaKey = keyof Meta;
 
+/** Wiping now would drop events the server hasn't accepted yet. */
+export class PendingChangesError extends Error {
+  constructor() {
+    super('unsynced changes would be lost');
+    this.name = 'PendingChangesError';
+  }
+}
+
 @Injectable({ providedIn: 'root', useFactory: () => new PromusDb('promus') })
 export class PromusDb extends Dexie {
   declare readonly events: Table<StoredEvent, string>;
@@ -48,8 +56,15 @@ export class PromusDb extends Dexie {
     await this.meta.put({ key, value });
   }
 
-  /** Clears every table in one transaction, so open tabs see it through liveQuery and keep working. */
+  /**
+   * Clears every table in one transaction, so open tabs see it through liveQuery and keep working.
+   * Throws PendingChangesError, and clears nothing, while the outbox holds unpushed events.
+   */
   async wipe(): Promise<void> {
-    await this.transaction('rw', this.tables, () => Promise.all(this.tables.map((t) => t.clear())));
+    await this.transaction('rw', this.tables, async () => {
+      // checked inside the transaction: no tab can queue an event between the check and the clear
+      if ((await this.outbox.where('pushed').equals(0).count()) > 0) throw new PendingChangesError();
+      await Promise.all(this.tables.map((t) => t.clear()));
+    });
   }
 }

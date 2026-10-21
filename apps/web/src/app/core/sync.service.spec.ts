@@ -46,11 +46,12 @@ describe('SyncService', () => {
   });
 
   it('reports auth when the session is gone', async () => {
-    const { sync } = await setup(async () => {
+    const { db, sync } = await setup(async () => {
       throw new AuthError();
     });
     await sync.syncNow();
     expect(sync.status()).toEqual({ kind: 'auth', pending: 1, rejected: 0 });
+    expect(await db.outbox.count()).toBe(1);
   });
 
   it('runs one sync at a time', async () => {
@@ -97,6 +98,42 @@ describe('SyncService', () => {
     expect(sync.status()).toEqual({ kind: 'error', messageKey: 'sync.rejected', pending: 0, rejected: 1 });
     await sync.syncNow();
     expect(sync.status()).toEqual({ kind: 'idle', pending: 0, rejected: 1 });
+  });
+
+  it('reports a refusal even when the pull then fails', async () => {
+    const { api, sync } = await setup(async (events) => ({
+      accepted: [],
+      rejected: events.map((e) => ({ id: e.id, code: 'invalid' as const, message: 'name must be clean' })),
+      serverTime: Date.now(),
+    }));
+    api.pull.mockRejectedValue(new NetworkError());
+    await sync.syncNow();
+    expect(sync.status()).toEqual({ kind: 'error', messageKey: 'sync.rejected', pending: 0, rejected: 1 });
+  });
+
+  it('syncs once more when soon() fires during a sync', async () => {
+    const { api, store, listId, sync } = await setup(async (events) => accepted(events));
+    let release = (): void => undefined;
+    api.pull.mockImplementationOnce(
+      (after) =>
+        new Promise<PullResponse>((resolve) => {
+          release = () => resolve({ events: [], lastSeq: after, hasMore: false, serverTime: Date.now() });
+        }),
+    );
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] });
+    onTestFinished(() => {
+      sync.stop();
+      vi.useRealTimers();
+    });
+    sync.start();
+    // the first sync has pushed and now waits on its pull: an action made now is past its push
+    await vi.waitFor(() => expect(api.pull).toHaveBeenCalledOnce());
+    await store.addByName(listId, 'Mjölk');
+    vi.advanceTimersByTime(2000);
+    release();
+    await vi.waitFor(() => expect(api.push).toHaveBeenCalledTimes(2));
+    expect(api.push.mock.calls[1]?.[0].map((e) => e.type)).toEqual(['item.created', 'entry.added']);
+    await vi.waitFor(() => expect(sync.status()).toMatchObject({ kind: 'idle', pending: 0 }));
   });
 
   it('syncs on start, when visible, when online, every 60 s while visible and 2 s after soon()', async () => {

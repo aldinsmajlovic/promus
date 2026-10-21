@@ -1,4 +1,7 @@
 {
+  "login": {
+    "pendingOtherUser": "Synka eller logga in som {{username}} först"
+  },
   "sync": {
     "failed": "Synkningen misslyckades",
     "rejected": "Några ändringar nekades"
