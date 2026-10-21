@@ -11,9 +11,16 @@
           "/manifest.webmanifest",
           "/*.css",
           "/*.js",
-          "/media/**",
           "/icons/**"
         ]
+      }
+    },
+    {
+      "name": "fonts",
+      "installMode": "lazy",
+      "updateMode": "prefetch",
+      "resources": {
+        "files": ["/media/**"]
       }
     }
   ]

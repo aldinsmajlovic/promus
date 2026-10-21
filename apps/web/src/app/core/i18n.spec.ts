@@ -1,6 +1,6 @@
 import { ApplicationInitStatus } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { TranslocoService } from '@jsverse/transloco';
+import { TRANSLOCO_LOADER, TranslocoService } from '@jsverse/transloco';
 import { normalizeName } from '@promus/shared';
 import { describe, expect, it, vi } from 'vitest';
 import en from '../../i18n/en.json';
@@ -30,6 +30,11 @@ describe('i18n', () => {
     await TestBed.inject(ApplicationInitStatus).donePromise;
     expect(document.documentElement.lang).toBe('sv');
     expect(TestBed.inject(TranslocoService).translate('update.reload')).toBe('Ladda om');
+  });
+
+  it('rejects languages it has no translations for', async () => {
+    TestBed.configureTestingModule({ providers: [provideI18n()] });
+    await expect(TestBed.inject(TRANSLOCO_LOADER).getTranslation('de')).rejects.toThrow('"de"');
   });
 
   it('resolves @promus/shared from source', () => {

@@ -21,10 +21,13 @@ export function detectLang(languages: readonly string[]): Lang {
   return 'en';
 }
 
+const isLang = (lang: string): lang is Lang => Object.hasOwn(TRANSLATIONS, lang);
+
 @Injectable()
 class BundledLoader implements TranslocoLoader {
-  getTranslation(lang: string) {
-    return TRANSLATIONS[lang as Lang]().then((m) => m.default);
+  async getTranslation(lang: string): Promise<Translation> {
+    if (!isLang(lang)) throw new Error(`No translations for "${lang}"`);
+    return (await TRANSLATIONS[lang]()).default;
   }
 }
 
