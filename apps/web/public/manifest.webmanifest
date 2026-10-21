@@ -1,0 +1,8 @@
+{
+  "name": "Promus",
+  "short_name": "Promus",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F9FAEF",
+  "theme_color": "#354E16"
+}
