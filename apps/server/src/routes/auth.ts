@@ -1,14 +1,11 @@
 import { Hono } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
-import { z } from 'zod';
-import { normalizeName } from '@promus/shared';
+import { loginRequestSchema, normalizeName } from '@promus/shared';
 import type { AppDeps, AppEnv } from '../app.ts';
 import { hashPassword, verifyPassword } from '../auth/password.ts';
 import { createLoginLimiter } from '../auth/rate-limit.ts';
 import { createSession, revokeSession } from '../auth/sessions.ts';
 import { clearSessionCookie, requireAuth, setSessionCookie } from '../middleware/auth.ts';
-
-const LoginBody = z.object({ username: z.string(), password: z.string() });
 
 type UserRow = { id: string; username: string; password_hash: string; disabled_at: number | null };
 
@@ -19,7 +16,7 @@ export function authRoutes({ db, now }: Pick<AppDeps, 'db' | 'now'>) {
       '/auth/login',
       bodyLimit({ maxSize: 4096, onError: (c) => c.json({ error: 'payload_too_large' }, 413) }),
       async (c) => {
-        const body = LoginBody.safeParse(await c.req.json().catch(() => null));
+        const body = loginRequestSchema.safeParse(await c.req.json().catch(() => null));
         if (!body.success) return c.json({ error: 'invalid_request' }, 400);
         const { username, password } = body.data;
         const key = normalizeName(username);

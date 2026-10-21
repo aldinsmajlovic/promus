@@ -143,6 +143,8 @@ describe('auth', { timeout: 30_000 }, () => {
       { Host: 'promus.test', Origin: 'null' },
       { Origin: 'null' },
       { Host: 'promus.test', Origin: 'https://promus.test:8443' },
+      // only a real Bearer token skips the check, not any Authorization header
+      { Host: 'promus.test', 'Sec-Fetch-Site': 'cross-site', Authorization: 'Basic eDp5' },
     ];
     for (const headers of attempts) {
       const res = await logout(app, { ...headers, Cookie: cookie });

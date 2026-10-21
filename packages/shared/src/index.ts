@@ -5,3 +5,4 @@ export * from './events.ts';
 export * from './fold.ts';
 export * from './views.ts';
 export * from './undo.ts';
+export * from './auth.ts';

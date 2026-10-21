@@ -38,7 +38,8 @@ export function migrate(db: DatabaseSync, dir: URL | string): number {
   return version;
 }
 
-export function transaction<T>(db: DatabaseSync, fn: () => T): T {
+/** Synchronous only: an async callback would COMMIT before its awaited work runs, so it doesn't compile. */
+export function transaction<T>(db: DatabaseSync, fn: () => T extends PromiseLike<unknown> ? never : T): T {
   db.exec('BEGIN IMMEDIATE');
   try {
     const result = fn();

@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { describe, expect, it } from 'vitest';
-import { MIGRATIONS_DIR, migrate, openDatabase } from '../src/db.ts';
+import { MIGRATIONS_DIR, migrate, openDatabase, transaction } from '../src/db.ts';
 
 const tmp = () => mkdtempSync(join(tmpdir(), 'promus-mig-'));
 const version = (db: DatabaseSync) =>
@@ -48,5 +48,15 @@ describe('migrate', () => {
     expect(() => migrate(db, dir)).toThrow();
     expect(version(db)).toBe(1);
     expect(tables(db)).not.toContain('partial');
+  });
+});
+
+describe('transaction', () => {
+  it('returns the callback result and refuses async callbacks at the type level', () => {
+    const db = openDatabase(join(tmp(), 'a.db'));
+    db.exec('CREATE TABLE t (x INTEGER)');
+    expect(transaction(db, () => db.prepare('INSERT INTO t VALUES (1)').run().changes)).toBe(1);
+    // @ts-expect-error an async callback would commit before its awaited work runs
+    void (() => transaction(db, async () => {}));
   });
 });

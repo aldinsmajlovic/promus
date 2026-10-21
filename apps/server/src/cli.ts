@@ -6,7 +6,7 @@ import { loadConfig } from './config.ts';
 import { MIGRATIONS_DIR, migrate, openDatabase } from './db.ts';
 import { createUser, setPassword } from './users.ts';
 
-const USAGE = 'Usage: cli.ts user:create <username> [--locale sv|en] | user:password <username>';
+const USAGE = 'Usage: cli.ts user:create <username> [--locale en|sv] (default en) | user:password <username>';
 
 async function readPassword(): Promise<string> {
   if (!process.stdin.isTTY) {
@@ -27,8 +27,8 @@ async function main(): Promise<string> {
   const { positionals, values } = parseArgs({ allowPositionals: true, options: { locale: { type: 'string' } } });
   const [command, username, ...extra] = positionals;
   if (!username || extra.length > 0) throw new Error(USAGE);
-  const locale = values.locale ?? 'sv';
-  if (locale !== 'sv' && locale !== 'en') throw new Error('--locale must be sv or en');
+  const locale = values.locale ?? 'en';
+  if (locale !== 'sv' && locale !== 'en') throw new Error('--locale must be en or sv');
   if (command !== 'user:create' && command !== 'user:password') throw new Error(USAGE);
 
   const db = openDatabase(loadConfig(process.env).dbPath);
