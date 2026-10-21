@@ -29,16 +29,23 @@ export function migrate(db: DatabaseSync, dir: URL | string): number {
   for (const { name, n } of files) {
     if (n <= version) continue;
     const sql = readFileSync(join(dir instanceof URL ? fileURLToPath(dir) : dir, name), 'utf8');
-    db.exec('BEGIN IMMEDIATE');
-    try {
+    transaction(db, () => {
       db.exec(sql);
       db.exec(`PRAGMA user_version = ${n}`);
-      db.exec('COMMIT');
-    } catch (err) {
-      db.exec('ROLLBACK');
-      throw err;
-    }
+    });
     version = n;
   }
   return version;
+}
+
+export function transaction<T>(db: DatabaseSync, fn: () => T): T {
+  db.exec('BEGIN IMMEDIATE');
+  try {
+    const result = fn();
+    db.exec('COMMIT');
+    return result;
+  } catch (err) {
+    db.exec('ROLLBACK');
+    throw err;
+  }
 }
