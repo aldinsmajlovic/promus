@@ -10,5 +10,8 @@
   "scripts": {
     "test": "vitest run",
     "typecheck": "tsc -p ."
+  },
+  "dependencies": {
+    "uuid": "^14.0.3"
   }
 }
