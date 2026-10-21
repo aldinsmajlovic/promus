@@ -2,11 +2,12 @@ import { createInterface } from 'node:readline/promises';
 import { Writable } from 'node:stream';
 import { parseArgs } from 'node:util';
 import { cleanName } from '@promus/shared';
+import { backup } from './backup.ts';
 import { loadConfig } from './config.ts';
 import { MIGRATIONS_DIR, migrate, openDatabase } from './db.ts';
 import { createUser, setPassword } from './users.ts';
 
-const USAGE = 'Usage: cli.ts user:create <username> [--locale en|sv] (default en) | user:password <username>';
+const USAGE = 'Usage: cli.ts user:create <username> [--locale en|sv] (default en) | user:password <username> | backup';
 
 async function readPassword(): Promise<string> {
   if (!process.stdin.isTTY) {
@@ -26,6 +27,17 @@ async function readPassword(): Promise<string> {
 async function main(): Promise<string> {
   const { positionals, values } = parseArgs({ allowPositionals: true, options: { locale: { type: 'string' } } });
   const [command, username, ...extra] = positionals;
+  if (command === 'backup') {
+    if (positionals.length > 1) throw new Error(USAGE);
+    const config = loadConfig(process.env);
+    const db = openDatabase(config.dbPath);
+    try {
+      migrate(db, MIGRATIONS_DIR);
+      return backup(db, config.backupDir, Date.now());
+    } finally {
+      db.close();
+    }
+  }
   if (!username || extra.length > 0) throw new Error(USAGE);
   const locale = values.locale ?? 'en';
   if (locale !== 'sv' && locale !== 'en') throw new Error('--locale must be en or sv');
