@@ -11,11 +11,15 @@
     "node": ">=26"
   },
   "scripts": {
+    "icons": "node scripts/build-icons.ts",
     "test": "npm test --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present"
   },
   "devDependencies": {
+    "@types/fontkit": "^2.0.9",
     "@types/node": "^26.6.5",
+    "fontkit": "^2.0.4",
+    "sharp": "^0.35.5",
     "typescript": "~6.0.0",
     "vitest": "^4.1.12"
   }
