@@ -1,5 +1,5 @@
 import uFuzzy from '@leeoniya/ufuzzy';
-import { cleanName, entryKey, itemScore, normalizeName } from '@promus/shared';
+import { LIMITS, cleanName, entryKey, itemScore, normalizeName } from '@promus/shared';
 import type { HouseholdState, ItemState } from '@promus/shared';
 
 /** `ranges` are uFuzzy highlight ranges into `name`: [start0, end0, start1, end1, …]. */
@@ -25,10 +25,14 @@ export function searchItems(
   now: number,
 ): { results: SearchResult[]; exact: SearchResult | null } {
   const items = [...state.items.values()].filter((i) => !i.archived);
-  // latinize swaps one accented letter for one plain one, so the ranges also index the original names
-  const haystack = uFuzzy.latinize(items.map((i) => i.name));
-  // ranks every match (by default it stops ranking above 1 000); 3 000 names take a few ms
-  const [, info, order] = fuzzy.search(haystack, uFuzzy.latinize(cleanName(query)), 0, Infinity);
+  const needle = cleanName(query);
+  // latinize swaps one accented letter for one plain one, so the ranges also index the original names.
+  // Infinity ranks every match (the default stops above 1 000): a few ms for 3 000 names. A needle longer
+  // than any name can match nothing, and would cost uFuzzy tens of ms per keystroke.
+  const [, info, order] =
+    needle.length > LIMITS.nameMax
+      ? [null, null, null]
+      : fuzzy.search(uFuzzy.latinize(items.map((i) => i.name)), uFuzzy.latinize(needle), 0, Infinity);
   const matches = (order ?? []).map((o) => ({ item: items[info!.idx[o]!]!, ranges: info!.ranges[o]! }));
 
   const exactId = state.byName.get(normalizeName(query))?.values().next().value;

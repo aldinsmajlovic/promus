@@ -1,4 +1,4 @@
-import { applyEvent, fold, formatHlc, makeEvent, newId } from '@promus/shared';
+import { LIMITS, applyEvent, fold, formatHlc, makeEvent, newId } from '@promus/shared';
 import type { EventInput, EventType, HouseholdState, PayloadOf } from '@promus/shared';
 import { describe, expect, it } from 'vitest';
 import { searchItems, segments } from './search';
@@ -33,6 +33,14 @@ const groceries = () =>
     ['Gurka', 5],
     ['Mjölk', 8],
   ]);
+
+/** 3 000 names like "Kaffe smör 17", bought up to three times, and `extra`. */
+function thousands(extra: [name: string, purchases: number][] = []): HouseholdState {
+  const words = ['Grädde', 'Mjölk', 'Ost', 'Bröd', 'Äpplen', 'Kaffe', 'Smör', 'Ägg', 'Gurka', 'Tomater', 'Lök'];
+  const name = (i: number) => `${words[i % 11]} ${words[(i * 7) % 11]!.toLowerCase()} ${i}`;
+  const bought = Array.from({ length: 3000 - extra.length }, (_, i): [string, number] => [name(i), i % 4]);
+  return catalog([...bought, ...extra]);
+}
 
 const idOf = (s: HouseholdState, name: string) => [...s.items.values()].find((i) => i.name === name)!.id;
 const names = (s: HouseholdState, query: string) => searchItems(s, query, listId, NOW).results.map((r) => r.name);
@@ -80,10 +88,7 @@ describe('searchItems', () => {
   });
 
   it('searches 3 000 items in under 50 ms', () => {
-    const words = ['Grädde', 'Mjölk', 'Ost', 'Bröd', 'Äpplen', 'Kaffe', 'Smör', 'Ägg', 'Gurka', 'Tomater', 'Lök'];
-    const s = catalog(
-      Array.from({ length: 3000 }, (_, i) => [`${words[i % 11]} ${words[(i * 7) % 11]!.toLowerCase()} ${i}`, i % 4]),
-    );
+    const s = thousands();
     expect(s.items.size).toBe(3000);
     for (const query of ['a', 'grädd', 'mjlk', 'ost 12']) {
       const start = performance.now();
@@ -92,5 +97,17 @@ describe('searchItems', () => {
       expect(results.length).toBeGreaterThan(0);
       expect(results.length).toBeLessThanOrEqual(20);
     }
+  });
+
+  it('a needle longer than any name may be matches nothing, at once', () => {
+    const longest = 'a'.repeat(LIMITS.nameMax);
+    const s = thousands([[longest, 0]]);
+    expect(searchItems(s, longest, listId, NOW).exact?.name).toBe(longest);
+
+    const start = performance.now();
+    const { results, exact } = searchItems(s, `${longest}a`, listId, NOW);
+    expect(performance.now() - start).toBeLessThan(5);
+    expect(results).toEqual([]);
+    expect(exact).toBeNull();
   });
 });

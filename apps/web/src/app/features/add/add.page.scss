@@ -63,8 +63,8 @@ b {
       list-item-disabled-label-text-color: var(--mat-sys-on-surface-variant),
       list-item-disabled-leading-icon-opacity: 1,
       list-item-disabled-leading-icon-color: var(--mat-sys-on-surface-variant),
-      list-item-disabled-trailing-icon-opacity: 1,
-      list-item-disabled-trailing-icon-color: var(--mat-sys-primary),
+      // a matListItemMeta icon is trailing meta to Material, coloured as supporting text
+      list-item-trailing-supporting-text-color: var(--mat-sys-primary),
     )
   );
 }
