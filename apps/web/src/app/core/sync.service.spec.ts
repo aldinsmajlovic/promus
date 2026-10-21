@@ -87,6 +87,18 @@ describe('SyncService', () => {
     expect(sync.status()).toEqual({ kind: 'error', messageKey: 'sync.failed', pending: 2, rejected: 1 });
   });
 
+  it('reports a refusal until the next clean sync, and keeps counting it', async () => {
+    const { sync } = await setup(async (events) => ({
+      accepted: [],
+      rejected: events.map((e) => ({ id: e.id, code: 'invalid' as const, message: 'name must be clean' })),
+      serverTime: Date.now(),
+    }));
+    await sync.syncNow();
+    expect(sync.status()).toEqual({ kind: 'error', messageKey: 'sync.rejected', pending: 0, rejected: 1 });
+    await sync.syncNow();
+    expect(sync.status()).toEqual({ kind: 'idle', pending: 0, rejected: 1 });
+  });
+
   it('syncs on start, when visible, when online, every 60 s while visible and 2 s after soon()', async () => {
     const { sync } = await setup(async (events) => accepted(events));
     const syncNow = vi.spyOn(sync, 'syncNow').mockResolvedValue();

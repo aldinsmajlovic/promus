@@ -86,10 +86,10 @@ export class SyncService {
     }
     this.outcome.set({ kind: 'syncing' });
     try {
-      await syncOnce(this.storage, this.api, () => Date.now());
+      const { rejected } = await syncOnce(this.storage, this.api, () => Date.now());
       await this.store.load();
-      const rejected = await this.db.rejected.count();
-      this.rejected.set(rejected);
+      // the store keeps every refusal for diagnostics; only this sync's refusals are an error
+      this.rejected.set(await this.db.rejected.count());
       this.outcome.set(rejected > 0 ? { kind: 'error', messageKey: 'sync.rejected' } : { kind: 'idle' });
     } catch (err) {
       this.outcome.set(failure(err));
