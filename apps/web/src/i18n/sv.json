@@ -1,4 +1,8 @@
 {
+  "sync": {
+    "failed": "Synkningen misslyckades",
+    "rejected": "Några ändringar nekades"
+  },
   "update": {
     "ready": "Ny version finns",
     "reload": "Ladda om"

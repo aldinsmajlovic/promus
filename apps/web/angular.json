@@ -40,9 +40,11 @@
           "configurations": {
             "production": {
               "budgets": [
+                // Raised from 500kB for the data layer: Zod's classic runtime (~92 kB, one locale, validates
+                // every event on the client) and Dexie (~95 kB, IndexedDB). With them wired in: 615.5 kB.
                 {
                   "type": "initial",
-                  "maximumWarning": "500kB",
+                  "maximumWarning": "650kB",
                   "maximumError": "1MB"
                 },
                 {

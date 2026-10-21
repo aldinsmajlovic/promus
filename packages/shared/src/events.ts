@@ -1,4 +1,5 @@
-import { z } from 'zod';
+// a namespace import, so bundlers keep only the zod parts used (`{ z }` pulls in every locale)
+import * as z from 'zod';
 import { HLC_PATTERN } from './hlc.ts';
 import { newId } from './ids.ts';
 import { cleanName } from './normalize.ts';

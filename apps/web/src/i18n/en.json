@@ -1,4 +1,8 @@
 {
+  "sync": {
+    "failed": "Sync failed",
+    "rejected": "Some changes were refused"
+  },
   "update": {
     "ready": "New version available",
     "reload": "Reload"
