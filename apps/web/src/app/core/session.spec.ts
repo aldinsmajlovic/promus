@@ -1,11 +1,11 @@
 import { TestBed } from '@angular/core/testing';
-import { formatHlc, makeEvent, newId } from '@promus/shared';
+import { ApiError, formatHlc, makeEvent, newId } from '@promus/shared';
 import { describe, expect, it, vi } from 'vitest';
 import { ApiClient } from './api';
 import { PendingChangesError, PromusDb } from './db';
 import { DexieSyncStorage } from './dexie-storage';
 import { PendingOtherUserError, SessionService } from './session';
-import { Store } from './store';
+import { SessionError, Store } from './store';
 
 const anna = { user: { id: 'u1', username: 'anna' }, householdId: newId() };
 const bo = { user: { id: 'u2', username: 'bo' }, householdId: newId() };
@@ -41,26 +41,47 @@ describe('SessionService', () => {
     const { db, api, sessions, queue } = await setup();
     await db.setMeta('cursor', 42);
     await queue();
-    await sessions.login('anna', 'pw');
+    await sessions.login(' ANNA ', 'pw');
+    expect(api.login).toHaveBeenCalledTimes(2);
     expect(await db.getMeta('cursor')).toBe(42);
     expect(await db.outbox.count()).toBe(1);
     expect(api.logout).not.toHaveBeenCalled();
   });
 
-  it('signing in as another user is refused while changes are pending, and wipes synced data', async () => {
+  it('signing in as another user while changes are pending is refused before contacting the server', async () => {
+    const { db, api, sessions, queue } = await setup();
+    await queue();
+    api.login.mockClear();
+    const refused = await sessions.login('Bo', 'pw').catch((err: unknown) => err);
+    expect(refused).toBeInstanceOf(PendingOtherUserError);
+    expect(refused).toMatchObject({ messageKey: 'login.pendingOtherUser', params: { username: 'anna' } });
+    expect(api.login).not.toHaveBeenCalled();
+    expect(api.logout).not.toHaveBeenCalled();
+    expect(await db.outbox.count()).toBe(1);
+    expect(await db.getMeta('session')).toMatchObject({ userId: 'u1' });
+    expect(sessions.session()).toMatchObject({ userId: 'u1' });
+  });
+
+  it('another account behind the same name is refused while changes are pending; once synced, it wipes', async () => {
     const { db, api, sessions, storage, queue } = await setup();
     await db.setMeta('cursor', 42);
     const pending = await queue();
-    api.login.mockResolvedValue(bo);
-    const refused = await sessions.login('bo', 'pw').catch((err: unknown) => err);
+    // only the server can tell, say for an account deleted and made again under the same name
+    api.login.mockResolvedValue({ user: { id: 'u3', username: 'anna' }, householdId: newId() });
+    const boom = new ApiError(500, 'internal');
+    api.logout.mockRejectedValue(boom);
+    const log = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const refused = await sessions.login('anna', 'pw').catch((err: unknown) => err);
     expect(refused).toBeInstanceOf(PendingOtherUserError);
-    expect(refused).toMatchObject({ messageKey: 'login.pendingOtherUser', params: { username: 'anna' } });
+    expect(log).toHaveBeenCalledWith('server logout failed', boom);
+    log.mockRestore();
     expect(api.logout).toHaveBeenCalledOnce();
     expect(await db.outbox.count()).toBe(1);
     expect(await db.getMeta('session')).toMatchObject({ userId: 'u1' });
     expect(sessions.session()).toMatchObject({ userId: 'u1' });
 
     await storage.markPushed([pending.id]);
+    api.login.mockResolvedValue(bo);
     await sessions.login('bo', 'pw');
     expect(await db.getMeta('cursor')).toBeUndefined();
     expect(await db.outbox.count()).toBe(0);
@@ -79,14 +100,19 @@ describe('SessionService', () => {
     await storage.markPushed([pending.id]);
     const store = TestBed.inject(Store);
     await store.load();
-    let release = (): void => undefined;
-    api.logout.mockImplementation(() => new Promise<void>((resolve) => (release = resolve)));
+    const boom = new ApiError(500, 'internal');
+    let fail = (): void => undefined;
+    api.logout.mockImplementation(() => new Promise<void>((_, reject) => (fail = () => reject(boom))));
+    const log = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     const signingOut = sessions.logout();
     await vi.waitFor(() => expect(api.logout).toHaveBeenCalledOnce());
     // an action during the server call is refused, not queued and then wiped
-    await expect(store.createList('Ny lista')).rejects.toThrow();
-    release();
+    await expect(store.createList('Ny lista')).rejects.toBeInstanceOf(SessionError);
+    fail();
+    // the local sign-out has happened: a failing server call is logged, not thrown
     await signingOut;
+    expect(log).toHaveBeenCalledWith('server logout failed', boom);
+    log.mockRestore();
     expect(sessions.session()).toBeNull();
     expect(await db.getMeta('session')).toBeUndefined();
     expect(await db.outbox.count()).toBe(0);

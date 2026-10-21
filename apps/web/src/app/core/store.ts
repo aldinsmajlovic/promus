@@ -23,6 +23,14 @@ import { SyncService } from './sync.service';
 /** `messageKey` and `params` make the snackbar text, e.g. `snack.checked` with `{ name }`. */
 export type UndoToken = { messageKey: string; params: Record<string, string>; inverse: Draft[] };
 
+/** No action without the session this state was loaded for: signed out, or another user signed in. */
+export class SessionError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'SessionError';
+  }
+}
+
 export class ValidationError extends Error {
   readonly code: 'name_empty' | 'name_too_long' | 'note_too_long';
 
@@ -260,11 +268,11 @@ export class Store {
   /** Writes the drafts as events, then applies them; resolves to the drafts that undo them. */
   private async commit(drafts: Draft[]): Promise<Draft[]> {
     const householdId = this.householdId;
-    if (householdId === null) throw new Error('not signed in');
+    if (householdId === null) throw new SessionError('not signed in');
     const db = this.db;
     const events = await db.transaction('rw', db.outbox, db.meta, async () => {
       // the state these drafts were planned on must still be the signed-in household's
-      if ((await db.getMeta('session'))?.householdId !== householdId) throw new Error('the session changed');
+      if ((await db.getMeta('session'))?.householdId !== householdId) throw new SessionError('the session changed');
       const clock = await this.storage.clock();
       const occurredAt = Date.now();
       const written = drafts.map(({ type, payload, undoOf }) =>
