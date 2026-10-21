@@ -1,0 +1,49 @@
+import { describe, expect, it } from 'vitest';
+import { makeTestApp } from './helpers.ts';
+
+describe('app', () => {
+  it('health returns ok', async () => {
+    const { app } = makeTestApp();
+    const res = await app.request('/api/health');
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ status: 'ok', version: '0.1.0' });
+  });
+
+  it('sets security headers', async () => {
+    const { app } = makeTestApp();
+    const res = await app.request('/api/health');
+    const csp = res.headers.get('content-security-policy') ?? '';
+    expect(csp).toContain("script-src 'self'");
+    expect(csp).toContain("frame-ancestors 'none'");
+    expect(res.headers.get('x-content-type-options')).toBe('nosniff');
+    expect(res.headers.get('referrer-policy')).toBe('same-origin');
+  });
+
+  it('sends no CORS headers even for a foreign Origin', async () => {
+    const { app } = makeTestApp();
+    const res = await app.request('/api/health', { headers: { Origin: 'https://evil.example' } });
+    expect([...res.headers.keys()].filter((k) => k.startsWith('access-control-'))).toEqual([]);
+  });
+
+  it('falls back to index.html for app routes with no-cache', async () => {
+    const { app } = makeTestApp();
+    const res = await app.request('/some/app/route');
+    expect(res.status).toBe(200);
+    expect(await res.text()).toContain('<title>Promus</title>');
+    expect(res.headers.get('cache-control')).toBe('no-cache');
+  });
+
+  it('returns JSON 404 for unknown API routes', async () => {
+    const { app } = makeTestApp();
+    const res = await app.request('/api/nope');
+    expect(res.status).toBe(404);
+    expect(await res.json()).toEqual({ error: 'not_found' });
+  });
+
+  it('returns JSON 404 when the web root has no index.html', async () => {
+    const { app } = makeTestApp({ webRoot: '/nonexistent-promus-root' });
+    const res = await app.request('/anything');
+    expect(res.status).toBe(404);
+    expect(await res.json()).toEqual({ error: 'not_found' });
+  });
+});

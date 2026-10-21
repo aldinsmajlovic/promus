@@ -1,0 +1,44 @@
+import { mkdirSync, readFileSync, readdirSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { DatabaseSync } from 'node:sqlite';
+
+export const MIGRATIONS_DIR = new URL('./migrations/', import.meta.url);
+
+export function openDatabase(path: string): DatabaseSync {
+  mkdirSync(dirname(path), { recursive: true });
+  const db = new DatabaseSync(path);
+  db.exec(`
+    PRAGMA journal_mode = WAL;
+    PRAGMA busy_timeout = 5000;
+    PRAGMA foreign_keys = ON;
+    PRAGMA synchronous = NORMAL;
+  `);
+  return db;
+}
+
+export function migrate(db: DatabaseSync, dir: URL | string): number {
+  const row = db.prepare('PRAGMA user_version').get() as { user_version: number };
+  let version = row.user_version;
+  const files = readdirSync(dir)
+    .flatMap((name) => {
+      const m = /^(\d+)_.*\.sql$/.exec(name);
+      return m ? [{ name, n: Number(m[1]) }] : [];
+    })
+    .sort((a, b) => a.n - b.n);
+  for (const { name, n } of files) {
+    if (n <= version) continue;
+    const sql = readFileSync(join(dir instanceof URL ? fileURLToPath(dir) : dir, name), 'utf8');
+    db.exec('BEGIN IMMEDIATE');
+    try {
+      db.exec(sql);
+      db.exec(`PRAGMA user_version = ${n}`);
+      db.exec('COMMIT');
+    } catch (err) {
+      db.exec('ROLLBACK');
+      throw err;
+    }
+    version = n;
+  }
+  return version;
+}
