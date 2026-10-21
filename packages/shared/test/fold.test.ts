@@ -150,6 +150,19 @@ describe('fold', () => {
     expect(earlier.items.get('milk')).toMatchObject({ purchaseCount: 1, lastPurchasedAt: 10 });
   });
 
+  it('does not count a check that undoes an uncheck or a re-add', () => {
+    for (const reset of ['entry.unchecked', 'entry.added'] as const) {
+      const s = fold([
+        ...setup,
+        ev('entry.checked', entry, 10),
+        ev(reset, entry, 20, { id: 'r1' }),
+        ev('entry.checked', entry, 30, { undoOf: 'r1' }),
+      ]);
+      expect(s.items.get('milk')).toMatchObject({ purchaseCount: 1, lastPurchasedAt: 10 });
+      expect(s.entries.get(entryKey(L, 'milk'))).toMatchObject({ state: 'checked', checkedAt: 30 });
+    }
+  });
+
   it('does not count a second check of an already checked entry', () => {
     const s = fold([...setup, ev('entry.checked', entry, 10), ev('entry.checked', entry, 20)]);
     expect(s.items.get('milk')).toMatchObject({ purchaseCount: 1, lastPurchasedAt: 10 });

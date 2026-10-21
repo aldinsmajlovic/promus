@@ -161,6 +161,8 @@ function applyEntry(s: HouseholdState, e: EntryEvent): boolean {
     case 'entry.checked': {
       if (prev?.state === 'checked') break;
       s.entries.set(key, { ...keep, state: 'checked', checkedAt: e.occurredAt });
+      // a check that undoes something only restores state; it is not a new purchase
+      if (e.undoOf) break;
       const p = (s.purchases.get(itemId) ?? new Map<string, number>()).set(e.id, e.occurredAt);
       s.purchases.set(itemId, p);
       derivePurchases(item, p);
