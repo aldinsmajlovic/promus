@@ -1,4 +1,5 @@
 import { EVENT_TYPES, type FoldEvent } from './events.ts';
+import { hlcWall } from './hlc.ts';
 import { normalizeName } from './normalize.ts';
 
 export type ListState = { id: string; name: string; deleted: boolean; createdAt: number };
@@ -25,7 +26,7 @@ export type HouseholdState = {
   entries: Map<string, EntryState>;
   aliases: Map<string, string>;
   skipped: number;
-  // fold internals: itemId -> counted entry.checked id -> occurredAt
+  // fold internals: itemId -> counted entry.checked id -> its hlc wall
   purchases: Map<string, Map<string, number>>;
   // fold internals: normalized name -> ids of non-archived items with that name
   byName: Map<string, Set<string>>;
@@ -95,7 +96,7 @@ function apply(s: HouseholdState, e: FoldEvent): boolean {
     case 'list.created': {
       const { listId: id, name } = e.payload;
       if (s.lists.has(id)) return false;
-      s.lists.set(id, { id, name, deleted: false, createdAt: e.occurredAt });
+      s.lists.set(id, { id, name, deleted: false, createdAt: hlcWall(e.hlc) });
       return true;
     }
     case 'list.renamed':
@@ -150,20 +151,21 @@ function applyEntry(s: HouseholdState, e: EntryEvent): boolean {
   if (!item || !s.lists.has(listId)) return false;
   const key = entryKey(listId, itemId);
   const prev = s.entries.get(key);
-  const keep = { listId, itemId, note: prev?.note ?? null, addedAt: prev?.addedAt ?? e.occurredAt };
+  const at = hlcWall(e.hlc);
+  const keep = { listId, itemId, note: prev?.note ?? null, addedAt: prev?.addedAt ?? at };
   switch (e.type) {
     case 'entry.added': {
       const note = e.payload.note || null;
-      s.entries.set(key, { listId, itemId, state: 'active', note, addedAt: e.occurredAt, checkedAt: null });
+      s.entries.set(key, { listId, itemId, state: 'active', note, addedAt: at, checkedAt: null });
       if (note) item.lastNote = note;
       break;
     }
     case 'entry.checked': {
       if (prev?.state === 'checked') break;
-      s.entries.set(key, { ...keep, state: 'checked', checkedAt: e.occurredAt });
+      s.entries.set(key, { ...keep, state: 'checked', checkedAt: at });
       // a check that undoes something only restores state; it is not a new purchase
       if (e.undoOf) break;
-      const p = (s.purchases.get(itemId) ?? new Map<string, number>()).set(e.id, e.occurredAt);
+      const p = (s.purchases.get(itemId) ?? new Map<string, number>()).set(e.id, at);
       s.purchases.set(itemId, p);
       derivePurchases(item, p);
       break;

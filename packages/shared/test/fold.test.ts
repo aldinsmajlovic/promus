@@ -6,7 +6,7 @@ const ev = <T extends EventType>(
   type: T,
   payload: PayloadOf<T>,
   wall: number,
-  extra: { id?: string; undoOf?: string } = {},
+  extra: { id?: string; undoOf?: string; occurredAt?: number } = {},
 ): FoldEvent => ({ id: newId(), type, v: 1, hlc: formatHlc(wall, 0, 't'), occurredAt: wall, payload, ...extra }) as FoldEvent;
 
 const L = 'list-home';
@@ -161,6 +161,19 @@ describe('fold', () => {
       expect(s.items.get('milk')).toMatchObject({ purchaseCount: 1, lastPurchasedAt: 10 });
       expect(s.entries.get(entryKey(L, 'milk'))).toMatchObject({ state: 'checked', checkedAt: 30 });
     }
+  });
+
+  it('takes every state time from the hlc wall, not occurredAt', () => {
+    const future = { occurredAt: 365 * 86_400_000 };
+    const s = fold([
+      ev('list.created', { listId: L, name: 'Hem' }, 1, future),
+      ev('item.created', { itemId: 'milk', name: 'Mjölk' }, 2, future),
+      ev('entry.added', entry, 10, future),
+      ev('entry.checked', entry, 20, future),
+    ]);
+    expect(s.lists.get(L)?.createdAt).toBe(1);
+    expect(s.entries.get(entryKey(L, 'milk'))).toMatchObject({ addedAt: 10, checkedAt: 20 });
+    expect(s.items.get('milk')?.lastPurchasedAt).toBe(20);
   });
 
   it('does not count a second check of an already checked entry', () => {
