@@ -7,13 +7,37 @@ const OUT = 'apps/web/public/icons';
 const DARK = '#354E16';
 const LIGHT = '#CDEDA3';
 
-const font = openSync(FONT) as Font;
-// getVariation() re-decodes the raw (compressed) WOFF2 bytes, so set the coords on the font directly.
-font.getGlyph(0); // decode the WOFF2 glyf table while no variation is set (fontkit crashes on composites otherwise)
-const want: Record<string, number> = { wght: 700, SOFT: 100, WONK: 1, opsz: 144 };
-(font as any).variationCoords = font.fvar.axis.map((a: any) => want[a.axisTag.trim()] ?? a.defaultValue);
-(font as any)._glyphs = {};
-const glyph = font.getGlyph(font.glyphForCodePoint(0x50).id)!;
+type Axes = Record<string, number>;
+const WANTED: Axes = { wght: 700, SOFT: 100, WONK: 1, opsz: 144 };
+
+// Workaround for fontkit 2.0.4 + WOFF2 (three separate problems):
+// - getVariation() re-decodes the compressed bytes and fails, so we vary the font in place;
+// - `_variationProcessor` is cached as a non-configurable own property (null, once the glyf table is
+//   decoded without variation), so a derived object computes its own;
+// - WOFF2 glyphs are pre-decoded without variation and never varied afterwards, so we apply the
+//   processor's deltas to the P's points ourselves, before the path is first read.
+// Each call opens its own font, because that mutates the shared decoded points.
+function pGlyph(axes: Axes) {
+  const base = openSync(FONT) as Font;
+  base.getGlyph(0); // decode the glyf table while no variation is active
+  const font = Object.create(base) as any;
+  font.variationCoords = base.fvar.axis.map((a: any) => axes[a.axisTag.trim()] ?? a.defaultValue);
+  font._glyphs = {};
+  let proto = Object.getPrototypeOf(base);
+  while (!Object.getOwnPropertyDescriptor(proto, '_variationProcessor')) proto = Object.getPrototypeOf(proto);
+  const processor = Object.getOwnPropertyDescriptor(proto, '_variationProcessor')!.get!.call(font);
+  if (!processor) throw new Error('fontkit variation processor is null; variation not applied');
+  const glyph = font.getGlyph(font.glyphForCodePoint(0x50).id);
+  const decoded = glyph._decode();
+  const Point = decoded.points[0].constructor;
+  const phantoms = [0, 1, 2, 3].map(() => new Point(false, true, 0, 0));
+  processor.transformPoints(glyph.id, [...decoded.points, ...phantoms]);
+  return glyph;
+}
+
+const glyph = pGlyph(WANTED);
+const bbox = (g: { path: { bbox: object } }) => JSON.stringify(g.path.bbox);
+if (bbox(glyph) === bbox(pGlyph({}))) throw new Error('P bbox equals the default master; variation not applied');
 const { minX, minY, maxX, maxY } = glyph.path.bbox;
 const gw = maxX - minX;
 const gh = maxY - minY;
@@ -30,7 +54,7 @@ const svg = (size: number, body: string) =>
   `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">${body}</svg>`;
 const circle = (size: number) => `<circle cx="${size / 2}" cy="${size / 2}" r="${size / 2}" fill="${DARK}"/>`;
 
-const any = (size: number) =>
+const roundIcon = (size: number) =>
   svg(size, `${circle(size)}<path fill="${LIGHT}" d="${glyphPath(size, 0.44, 0.02, -0.015)}"/>`);
 const maskable = (size: number) =>
   svg(size, `<rect width="${size}" height="${size}" fill="${DARK}"/><path fill="${LIGHT}" d="${glyphPath(size, 0.36, 0.02, -0.015)}"/>`);
@@ -43,11 +67,11 @@ mkdirSync('brand', { recursive: true });
 const flipped = glyph.path.transform(1, 0, 0, -1, -minX, maxY).toSVG();
 writeFileSync('brand/promus-p.svg',
   `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${gw} ${gh}"><path d="${flipped}"/></svg>\n`);
-writeFileSync(`${OUT}/favicon.svg`, any(512).replace(/ width="512" height="512"/, '') + '\n');
+writeFileSync(`${OUT}/favicon.svg`, roundIcon(512).replace(/ width="512" height="512"/, '') + '\n');
 
 const pngs: [string, number, string][] = [
-  ['icon-192.png', 192, any(192)],
-  ['icon-512.png', 512, any(512)],
+  ['icon-192.png', 192, roundIcon(192)],
+  ['icon-512.png', 512, roundIcon(512)],
   ['maskable-192.png', 192, maskable(192)],
   ['maskable-512.png', 512, maskable(512)],
   ['monochrome-512.png', 512, mono(512)],
