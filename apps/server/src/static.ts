@@ -1,5 +1,5 @@
 import { readFile } from 'node:fs/promises';
-import { join, normalize, sep } from 'node:path';
+import { join, normalize, resolve, sep } from 'node:path';
 import type { Context } from 'hono';
 import { getMimeType } from 'hono/utils/mime';
 
@@ -32,7 +32,7 @@ function respond(c: Context, rel: string, body: Buffer) {
 }
 
 export function serveWeb(webRoot: string) {
-  const root = normalize(webRoot);
+  const root = resolve(webRoot);
   return async (c: Context) => {
     const rel = normalize(c.req.path).replace(/^[/\\]+/, '');
     const file = join(root, rel);

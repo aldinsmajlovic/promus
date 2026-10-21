@@ -1,5 +1,5 @@
 import { writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, sep } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { makeTestApp } from './helpers.ts';
 
@@ -66,6 +66,15 @@ describe('app', () => {
     expect(js.headers.get('content-type')).toContain('javascript');
     expect(js.headers.get('cache-control')).toBe('public, max-age=31536000, immutable');
     expect((await app.request('/ngsw.json')).headers.get('cache-control')).toBe('no-cache');
+  });
+
+  it('serves assets when the web root ends with a separator, as DEFAULT_WEB_ROOT does', async () => {
+    const { webRoot } = makeTestApp();
+    writeFileSync(join(webRoot, 'main-abc.js'), 'console.log(1)');
+    const { app } = makeTestApp({ webRoot: webRoot + sep });
+    const res = await app.request('/main-abc.js');
+    expect(res.headers.get('content-type')).toContain('javascript');
+    expect(await res.text()).toBe('console.log(1)');
   });
 
   it('never serves index.html for /api or /api/', async () => {
