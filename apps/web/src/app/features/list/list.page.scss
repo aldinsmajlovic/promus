@@ -1,0 +1,208 @@
+:host {
+  display: block;
+  max-width: 640px;
+  margin-inline: auto;
+}
+
+mat-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  gap: 0.25rem;
+  padding-inline: 1rem 0.25rem;
+}
+
+h1 {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font: inherit;
+}
+
+.brand {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+// a plain button with an M3 state layer; matRipple adds the press ripple
+.state {
+  position: relative;
+  overflow: hidden;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: currentColor;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  @media (hover: hover) {
+    &:hover::before {
+      opacity: var(--mat-sys-hover-state-layer-opacity);
+    }
+  }
+
+  &:focus-visible {
+    outline: 3px solid var(--mat-sys-secondary);
+    outline-offset: -3px;
+
+    &::before {
+      opacity: var(--mat-sys-focus-state-layer-opacity);
+    }
+  }
+}
+
+.switch {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  min-height: 3rem;
+  margin-inline-start: -0.5rem;
+  padding-inline: 0.5rem 0.25rem;
+  border-radius: var(--mat-sys-corner-full);
+}
+
+.switch mat-icon,
+.row mat-icon,
+.section mat-icon {
+  flex: none;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.menu-row {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.menu-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.selected {
+  background: var(--mat-sys-secondary-container);
+  color: var(--mat-sys-on-secondary-container);
+}
+
+main {
+  // room to scroll the last row out from under the FAB
+  padding-bottom: 6rem;
+}
+
+ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+li {
+  display: flex;
+  align-items: center;
+  padding-inline-end: 0.25rem;
+}
+
+.row {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 1rem;
+  min-width: 0;
+  min-height: 3.5rem;
+  padding-block: 0.5rem;
+  padding-inline: 1rem 0.25rem;
+}
+
+.text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.name,
+.note {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+
+.name {
+  font: var(--mat-sys-body-large);
+  letter-spacing: var(--mat-sys-body-large-tracking);
+}
+
+.note {
+  font: var(--mat-sys-body-medium);
+  letter-spacing: var(--mat-sys-body-medium-tracking);
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.done {
+  .name {
+    color: var(--mat-sys-on-surface-variant);
+  }
+
+  .name,
+  .note {
+    text-decoration: line-through;
+  }
+
+  mat-icon {
+    color: var(--mat-sys-primary);
+  }
+}
+
+main > mat-divider {
+  margin: 0.25rem 1rem;
+}
+
+.section {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  min-height: 3rem;
+  padding-inline: 1rem;
+  font: var(--mat-sys-label-large);
+  letter-spacing: var(--mat-sys-label-large-tracking);
+  color: var(--mat-sys-on-surface-variant);
+
+  mat-icon {
+    width: 1.25rem;
+    height: 1.25rem;
+  }
+}
+
+.empty {
+  margin: 0;
+  padding: 1rem;
+  font: var(--mat-sys-body-large);
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.fab {
+  position: fixed;
+  bottom: 1rem;
+  // the right edge of the centered column on wide screens
+  inset-inline-end: max(1rem, calc(50% - 320px + 1rem));
+  transition: translate 150ms;
+}
+
+// a snackbar (always at the bottom) would cover the FAB: move it up, as in the mockups
+:host-context(body:has(.mat-mdc-snack-bar-container)) .fab {
+  translate: 0 -4rem;
+}

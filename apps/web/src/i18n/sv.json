@@ -1,10 +1,59 @@
 {
+  "dialog": {
+    "cancel": "Avbryt",
+    "close": "Stäng",
+    "save": "Spara"
+  },
+  "edit": {
+    "archive": "Ta bort från förslag",
+    "name": "Namn",
+    "note": "Anteckning",
+    "remove": "Ta bort från listan"
+  },
+  "errors": {
+    "actionFailed": "Ändringen kunde inte sparas",
+    "nameEmpty": "Ange ett namn",
+    "nameTooLong": "Högst {{max}} tecken",
+    "noteTooLong": "Högst {{max}} tecken"
+  },
+  "list": {
+    "add": "Lägg till",
+    "default": "Inköpslista",
+    "delete": "Ta bort listan",
+    "done": "Klart ({{n}})",
+    "empty": "Listan är tom",
+    "more": "Fler alternativ",
+    "moreFor": "Alternativ för {{name}}",
+    "new": "Ny lista",
+    "rename": "Byt namn på listan",
+    "settings": "Inställningar"
+  },
   "login": {
     "pendingOtherUser": "Synka eller logga in som {{username}} först"
   },
+  "snack": {
+    "added": "{{name}} tillagd",
+    "archived": "{{name}} borttagen från förslag",
+    "checked": "{{name}} avbockad",
+    "listCreated": "Listan skapad",
+    "listDeleted": "Listan borttagen",
+    "listRenamed": "Listan omdöpt",
+    "noteSet": "Anteckning sparad",
+    "removed": "{{name}} borttagen",
+    "renamed": "Bytt namn till {{name}}",
+    "unchecked": "{{name}} tillbaka på listan",
+    "undo": "Ångra"
+  },
   "sync": {
+    "auth": "Logga in",
+    "error": "Synkfel",
     "failed": "Synkningen misslyckades",
-    "rejected": "Några ändringar nekades"
+    "offline": "Offline",
+    "pending": "{{n}} osynkade",
+    "rejected": "Några ändringar nekades",
+    "retry": "Försök igen",
+    "syncing": "Synkar",
+    "waiting": "Väntar på synkning"
   },
   "update": {
     "ready": "Ny version finns",

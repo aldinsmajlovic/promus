@@ -34,3 +34,8 @@ body {
     'SOFT' 100,
     'WONK' 1;
 }
+
+// M3 bottom sheets keep their rounded top at every width; Material squares it off on phones
+.mat-bottom-sheet-container {
+  border-radius: var(--mat-sys-corner-extra-large-top);
+}

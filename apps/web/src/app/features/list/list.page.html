@@ -1,0 +1,109 @@
+<ng-container *transloco="let t">
+  <mat-toolbar>
+    <h1>
+      @if (lists().length > 1) {
+        <button
+          class="switch state"
+          matRipple
+          [matMenuTriggerFor]="switcher"
+          (menuOpened)="switcherOpen.set(true)"
+          (menuClosed)="switcherOpen.set(false)"
+        >
+          <span class="brand">{{ list()?.name ?? t('list.default') }}</span>
+          <mat-icon [svgIcon]="switcherOpen() ? 'arrow_drop_up' : 'arrow_drop_down'" />
+        </button>
+      } @else {
+        <span class="brand">{{ list()?.name ?? t('list.default') }}</span>
+      }
+    </h1>
+    <app-sync-indicator />
+    <button matIconButton [matMenuTriggerFor]="more" [attr.aria-label]="t('list.more')">
+      <mat-icon svgIcon="more_vert" />
+    </button>
+  </mat-toolbar>
+
+  <mat-menu #switcher="matMenu">
+    @for (l of lists(); track l.id) {
+      <button
+        mat-menu-item
+        role="menuitemradio"
+        [attr.aria-checked]="l.id === list()?.id"
+        [class.selected]="l.id === list()?.id"
+        (click)="select(l.id)"
+      >
+        <span class="menu-row">
+          <span class="menu-name">{{ l.name }}</span>
+          <span>{{ l.activeCount }}</span>
+        </span>
+      </button>
+    }
+    <mat-divider />
+    <button mat-menu-item (click)="newList()"><mat-icon svgIcon="add" />{{ t('list.new') }}</button>
+  </mat-menu>
+
+  <mat-menu #more="matMenu" xPosition="before">
+    <button mat-menu-item (click)="newList()"><mat-icon svgIcon="playlist_add" />{{ t('list.new') }}</button>
+    @if (list(); as l) {
+      <button mat-menu-item (click)="renameList(l)"><mat-icon svgIcon="edit" />{{ t('list.rename') }}</button>
+      <!-- the last list stays: without one there is nothing to add to -->
+      <button mat-menu-item [disabled]="lists().length < 2" (click)="deleteList(l)">
+        <mat-icon svgIcon="delete" />{{ t('list.delete') }}
+      </button>
+    }
+    <a mat-menu-item routerLink="/settings"><mat-icon svgIcon="settings" />{{ t('list.settings') }}</a>
+  </mat-menu>
+
+  @if (list(); as l) {
+    <main>
+      @if (view().active.length) {
+        <ul>
+          @for (e of view().active; track e.itemId) {
+            <li>
+              <button class="row state" matRipple role="checkbox" aria-checked="false" (click)="check(l.id, e)">
+                <mat-icon svgIcon="check_box_outline_blank" />
+                <span class="text">
+                  <span class="name">{{ e.name }}</span>
+                  @if (e.note) {
+                    <span class="note">{{ e.note }}</span>
+                  }
+                </span>
+              </button>
+              <button matIconButton [attr.aria-label]="t('list.moreFor', { name: e.name })" (click)="edit(l.id, e)">
+                <mat-icon svgIcon="more_vert" />
+              </button>
+            </li>
+          }
+        </ul>
+      } @else {
+        <p class="empty">{{ t('list.empty') }}</p>
+      }
+
+      @if (view().done.length) {
+        <mat-divider />
+        <button class="section state" matRipple [attr.aria-expanded]="doneOpen()" (click)="doneOpen.set(!doneOpen())">
+          <mat-icon [svgIcon]="doneOpen() ? 'expand_less' : 'expand_more'" />
+          {{ t('list.done', { n: view().done.length }) }}
+        </button>
+        @if (doneOpen()) {
+          <ul class="done">
+            @for (e of view().done; track e.itemId) {
+              <li>
+                <button class="row state" matRipple role="checkbox" aria-checked="true" (click)="uncheck(l.id, e)">
+                  <mat-icon svgIcon="check_box" />
+                  <span class="text">
+                    <span class="name">{{ e.name }}</span>
+                    @if (e.note) {
+                      <span class="note">{{ e.note }}</span>
+                    }
+                  </span>
+                </button>
+              </li>
+            }
+          </ul>
+        }
+      }
+    </main>
+
+    <a matFab extended class="fab" routerLink="/add"><mat-icon svgIcon="add" />{{ t('list.add') }}</a>
+  }
+</ng-container>

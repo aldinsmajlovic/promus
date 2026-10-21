@@ -1,10 +1,59 @@
 {
+  "dialog": {
+    "cancel": "Cancel",
+    "close": "Close",
+    "save": "Save"
+  },
+  "edit": {
+    "archive": "Remove from suggestions",
+    "name": "Name",
+    "note": "Note",
+    "remove": "Remove from list"
+  },
+  "errors": {
+    "actionFailed": "Couldn't save the change",
+    "nameEmpty": "Enter a name",
+    "nameTooLong": "At most {{max}} characters",
+    "noteTooLong": "At most {{max}} characters"
+  },
+  "list": {
+    "add": "Add",
+    "default": "Shopping list",
+    "delete": "Delete list",
+    "done": "Done ({{n}})",
+    "empty": "The list is empty",
+    "more": "More options",
+    "moreFor": "Options for {{name}}",
+    "new": "New list",
+    "rename": "Rename list",
+    "settings": "Settings"
+  },
   "login": {
     "pendingOtherUser": "Sync or sign in as {{username}} first"
   },
+  "snack": {
+    "added": "{{name}} added",
+    "archived": "{{name}} removed from suggestions",
+    "checked": "{{name}} checked off",
+    "listCreated": "List created",
+    "listDeleted": "List deleted",
+    "listRenamed": "List renamed",
+    "noteSet": "Note saved",
+    "removed": "{{name}} removed",
+    "renamed": "Renamed to {{name}}",
+    "unchecked": "{{name}} back on the list",
+    "undo": "Undo"
+  },
   "sync": {
+    "auth": "Sign in",
+    "error": "Sync error",
     "failed": "Sync failed",
-    "rejected": "Some changes were refused"
+    "offline": "Offline",
+    "pending": "{{n}} unsynced",
+    "rejected": "Some changes were refused",
+    "retry": "Retry",
+    "syncing": "Syncing",
+    "waiting": "Waiting to sync"
   },
   "update": {
     "ready": "New version available",

@@ -3,8 +3,9 @@ import { MatIconRegistry } from '@angular/material/icon';
 import { DomSanitizer } from '@angular/platform-browser';
 import add from '@material-symbols/svg-400/rounded/add.svg';
 import arrowDropDown from '@material-symbols/svg-400/rounded/arrow_drop_down.svg';
+import arrowDropUp from '@material-symbols/svg-400/rounded/arrow_drop_up.svg';
 import check from '@material-symbols/svg-400/rounded/check.svg';
-import checkBox from '@material-symbols/svg-400/rounded/check_box.svg';
+import checkBox from '@material-symbols/svg-400/rounded/check_box-fill.svg';
 import checkBoxOutlineBlank from '@material-symbols/svg-400/rounded/check_box_outline_blank.svg';
 import close from '@material-symbols/svg-400/rounded/close.svg';
 import cloudOff from '@material-symbols/svg-400/rounded/cloud_off.svg';
@@ -26,6 +27,7 @@ import sync from '@material-symbols/svg-400/rounded/sync.svg';
 const ICONS: Record<string, string> = {
   add,
   check,
+  // filled, as in the approved mockups: a checked row reads at a glance
   check_box: checkBox,
   check_box_outline_blank: checkBoxOutlineBlank,
   more_vert: moreVert,
@@ -33,6 +35,7 @@ const ICONS: Record<string, string> = {
   expand_more: keyboardArrowDown,
   expand_less: keyboardArrowUp,
   arrow_drop_down: arrowDropDown,
+  arrow_drop_up: arrowDropUp,
   close,
   history,
   cloud_off: cloudOff,
