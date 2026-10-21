@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.angular/
+data/
+*.db
+test-results/
+playwright-report/
+initial.md
+.superpowers/
+docs/superpowers/

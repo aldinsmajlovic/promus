@@ -1,0 +1,22 @@
+{
+  "name": "promus",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "engines": {
+    "node": ">=26"
+  },
+  "scripts": {
+    "test": "npm test --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "typescript": "~6.0.0",
+    "vitest": "^4.1.12"
+  }
+}
