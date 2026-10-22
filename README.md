@@ -54,14 +54,28 @@ Configuration comes only from environment variables. See [.env.example](.env.exa
 
 ### Accounts and backups
 
-These commands run on the server, from the repository root:
+The server CLI is `apps/server/src/cli.ts`, with three commands:
 
-```sh
-node apps/server/src/cli.ts user:create <username> [--locale en|sv]
-node apps/server/src/cli.ts user:password <username>
-node apps/server/src/cli.ts backup
+```
+user:create <username> [--locale en|sv]
+user:password <username>
+backup
 ```
 
+Run it against the server's own database:
+- **Docker:** `docker compose exec promus node apps/server/src/cli.ts <command>`
+- **systemd install:** run it as the `promus` user, with the service's `DATA_DIR`:
+
+  ```sh
+  cd /opt/promus
+  runuser -u promus -- env $(grep '^DATA_DIR=' /etc/promus/promus.env) node apps/server/src/cli.ts <command>
+  ```
+
+  For a backup, `systemctl start promus-backup.service` does the same. See the guide's sections on [accounts](docs/self-hosting.md#6-create-your-account) and [backups](docs/self-hosting.md#8-backups-and-restore).
+
+Without `DATA_DIR`, the CLI uses `./data`, which is a separate database. `backup` would then copy an empty database and report success, and `user:create` would create an account the server never sees.
+
+What the commands do:
 - **`user:create`** asks for a password of at least 8 characters, on a hidden prompt. Without a TTY, it reads the first line of stdin.
   - It also creates the user's default list.
   - The list's name is English by default (`--locale en`). `--locale sv` gives it a Swedish name.
@@ -70,7 +84,7 @@ node apps/server/src/cli.ts backup
 
 ### Updating
 
-- **Docker:** `git pull && docker compose up -d --build`.
+- **Docker:** take a backup first, then run `git pull && docker compose up -d --build`. The guide's [Docker section](docs/self-hosting.md#10-alternative-docker) covers backups.
 - **systemd install:** see [Updating](docs/self-hosting.md#9-updating) in the guide.
 
 Database migrations run automatically on startup.

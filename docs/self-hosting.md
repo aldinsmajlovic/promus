@@ -19,12 +19,12 @@ All commands inside the container run as root, for example from `pct enter <id>`
 
 ## 1. Requirements
 
-- Proxmox VE 7 or later.
+- Proxmox VE 8.4 or 9, fully updated. Older `pve-container` releases refuse Debian 13 point releases.
 - A Tailscale account with permission to edit the tailnet policy file and generate auth keys (Owner, Admin or Network admin).
 - An Android phone with the Tailscale app and Chrome.
 - For the container:
   - 1 CPU core.
-  - **At least 1 GB of RAM.** Each login runs scrypt with 128 MiB of memory, and building the web app uses close to 1 GB.
+  - **2 GB of RAM, or 1 GB with the container's default 512 MB of swap kept.** Each login runs scrypt with 128 MiB of memory, and building the web app peaks at about 1 GB.
   - 8 GB of disk.
 
 ## 2. Create the container on Proxmox
@@ -83,14 +83,15 @@ cp .env.example /etc/promus/promus.env
 cp deploy/promus.service deploy/promus-backup.service deploy/promus-backup.timer /etc/systemd/system/
 systemctl daemon-reload
 systemctl enable --now promus.service promus-backup.timer
-curl -fsS http://127.0.0.1:8080/api/health
+curl -fsS --retry 5 --retry-connrefused --retry-delay 1 http://127.0.0.1:8080/api/health
 ```
 
 The health check prints `{"status":"ok",...}`.
 
 Notes:
 - `/etc/promus/promus.env` sets `PORT`, `HOST`, `DATA_DIR` and `LOG_LEVEL`. Keep `HOST=127.0.0.1`.
-- `DATA_DIR=/var/lib/promus` matches `StateDirectory=promus` in the unit. systemd creates that directory, owned by `promus`. Apart from its private `/tmp`, it is the only place the sandboxed service can write to. If you change `DATA_DIR`, keep it under `/var/lib/promus`.
+- `DATA_DIR=/var/lib/promus` matches `StateDirectory=promus` in the unit. systemd creates that directory, owned by `promus` with mode `0700`. Apart from its private `/tmp`, it is the only place the sandboxed service can write to. If you change `DATA_DIR`, keep it under `/var/lib/promus`.
+- Both units set `UMask=0077`, because the database and its backups hold password and session hashes.
 - The service logs JSON lines to the journal. Follow them with `journalctl -u promus -f`.
 
 ## 4. Tailscale
@@ -139,6 +140,8 @@ ip link show tailscale0
 
 `ip link show tailscale0` confirms kernel mode: in userspace mode, that interface doesn't exist. To keep the key out of shell history, write it to a file and pass `--auth-key=file:/root/authkey`, then delete the file.
 
+`/var/lib/tailscale` now holds the node key, which is this machine's identity on your tailnet. Proxmox backups (vzdump) of the container include it, so protect them as you would the container itself.
+
 ### Enable MagicDNS and HTTPS
 
 On the **DNS** page of the admin console:
@@ -181,17 +184,32 @@ The target policy:
 - Home Assistant reaches the server on `tcp:443`, if its device is tagged. A Home Assistant node logged in as a user is already covered by the first two rules.
 - The server reaches nothing. No grant has `tag:promus` as `src`. Grants are directional, so letting your devices connect to the server doesn't let the server connect to them. A compromised container can't reach Proxmox or anything else on the tailnet.
 
-### First, list your tagged devices
+### First, list what allow-all was covering
 
-`autogroup:member` covers only devices logged in as a user. Removing the allow-all rule cuts off every tagged device, such as subnet routers, other servers or a tagged Home Assistant, unless a grant covers it.
+`autogroup:member` covers only devices logged in as a user, and only their Tailscale addresses. Removing the allow-all rule cuts off, unless a grant covers them:
+- **Tagged devices**, such as other servers or a tagged Home Assistant.
+- **Subnet routes and exit nodes** that your devices advertise. A grant to the router device doesn't cover the networks behind it, or the internet through it.
 
-List the tagged devices on the **Machines** page of the admin console, or from one of your devices with `jq` installed:
+On the **Machines** page of the admin console:
+- Each device shows its tags.
+- The **Subnets** and **Exit Node** badges mark routers. The `property:subnet` and `property:exit-node` filters list them.
+
+Or, from one of your devices with `jq` installed:
 
 ```sh
-tailscale status --json | jq -r '.Peer[] | select(.Tags) | "\(.HostName) \(.Tags | join(","))"'
+tailscale status --json | jq -r '(.Self, .Peer[]?) | select(.Tags or .PrimaryRoutes or .ExitNodeOption) | "\(.HostName) tags=\(.Tags // [] | join(",")) routes=\(.PrimaryRoutes // [] | join(",")) exit-node=\(.ExitNodeOption)"'
 ```
 
-For each one, decide what it needs and add a grant for it.
+For each one, add a grant to the `grants` below. For example:
+
+```jsonc
+// Your devices may use exit nodes.
+{"src": ["autogroup:member"], "dst": ["autogroup:internet"], "ip": ["*"]},
+// Your devices reach a subnet that a router advertises. Use your route instead of this example range.
+{"src": ["autogroup:member"], "dst": ["192.0.2.0/24"], "ip": ["*"]},
+```
+
+These forms come from Tailscale's [grant examples](https://tailscale.com/docs/reference/examples/grants) for exit nodes and its [subnet router docs](https://tailscale.com/docs/features/subnet-routers) for CIDR destinations.
 
 ### The policy
 
@@ -215,7 +233,7 @@ Then merge in the following. Replace `you@example.com` with your Tailscale login
     {"src": ["autogroup:member"], "dst": ["tag:promus"], "ip": ["tcp:443"]},
     // A tagged Home Assistant reaches Promus over HTTPS only.
     {"src": ["tag:homeassistant"], "dst": ["tag:promus"], "ip": ["tcp:443"]},
-    // Add grants here for the tagged devices you listed above.
+    // Add grants here for the tagged devices, subnet routes and exit nodes you listed above.
     // No grant has tag:promus as src: the server reaches nothing.
   ],
 
@@ -250,18 +268,21 @@ The syntax was checked against Tailscale's [policy file syntax](https://tailscal
 Afterwards:
 - Open the app on your phone.
 - Check that Home Assistant still syncs.
-- Check that every tagged device you listed still works.
+- Check that every tagged device, subnet route and exit node you listed still works.
 
 From now on, manage the container from the Proxmox console (`pct enter <id>`), because the tailnet allows only port 443 to it.
 
 ## 6. Create your account
 
-There is no sign-up page. Create accounts on the server, as the `promus` user and with the same `DATA_DIR` as in `/etc/promus/promus.env`:
+There is no sign-up page. Create accounts on the server, as the `promus` user:
 
 ```sh
 cd /opt/promus
-runuser -u promus -- env DATA_DIR=/var/lib/promus node apps/server/src/cli.ts user:create <username>
+runuser -u promus -- env $(grep '^DATA_DIR=' /etc/promus/promus.env) node apps/server/src/cli.ts user:create <username>
 ```
+
+- `$(grep ...)` passes the `DATA_DIR` line from `/etc/promus/promus.env`, so the CLI opens the service's database.
+- Without it, the CLI falls back to `./data`, a separate, empty database the server never reads.
 
 - The password prompt is hidden. The password must be at least 8 characters.
 - Without a TTY, for example in a script, the CLI reads the password from the first line of stdin.
@@ -270,7 +291,7 @@ runuser -u promus -- env DATA_DIR=/var/lib/promus node apps/server/src/cli.ts us
 To change a password, which also signs that user out on every device:
 
 ```sh
-runuser -u promus -- env DATA_DIR=/var/lib/promus node apps/server/src/cli.ts user:password <username>
+runuser -u promus -- env $(grep '^DATA_DIR=' /etc/promus/promus.env) node apps/server/src/cli.ts user:password <username>
 ```
 
 ## 7. Install the app on your phone
@@ -294,7 +315,7 @@ systemctl start promus-backup.service
 systemctl list-timers promus-backup.timer
 ```
 
-To keep copies off the machine, copy files from `backups/`, or rely on Proxmox backups (vzdump) of the container on top. Never copy the live `promus.db` on its own. Recent changes live in `promus.db-wal` until SQLite folds them in.
+To keep copies off the machine, copy files from `backups/`, or rely on Proxmox backups (vzdump) of the container on top. Those also contain the Tailscale node key in `/var/lib/tailscale`, so store them accordingly. Never copy the live `promus.db` on its own. Recent changes live in `promus.db-wal` until SQLite folds them in.
 
 To restore a backup:
 
@@ -308,18 +329,30 @@ systemctl start promus
 
 Removing the `-wal` and `-shm` files matters: if they're there, they belong to the old database, and SQLite would apply them to the restored one.
 
+**A restore loses every change made after the backup.** That covers list changes, and also accounts, passwords and sessions, which all return to their state in the backup.
+
+**Then reset every device.** Each device remembers how far it has synced by its position in the server's log. A restored server hands out those positions again.
+- A device that had synced past the backup would never receive new changes.
+- Its own changes from after the backup would stay on that device only.
+
+On every device:
+1. Open **Settings**, sign out, and sign back in. Signing out clears the device's local copy. It refuses while the device has unsynced changes, so let it sync first.
+2. If the app already shows the sign-in page, first delete the stored data for `https://<name>.<your-tailnet>.ts.net` in Chrome's site settings. Signing back in as the same user keeps the old local copy.
+
 ## 9. Updating
 
 ```sh
 systemctl start promus-backup.service
+systemctl stop promus
 cd /opt/promus
 git pull
 npm ci
 npm run build -w apps/web
-systemctl restart promus
+systemctl start promus
 ```
 
 - Database migrations run on startup and are forward-only, which is why the backup comes first.
+- The service is stopped while `npm ci` replaces `node_modules` underneath it.
 - If a release changes the files in `deploy/`, copy them to `/etc/systemd/system/` again and run `systemctl daemon-reload`.
 - Installed apps pick up the new version on their own and offer a reload.
 
@@ -350,15 +383,20 @@ Two warnings:
 Backups, restore and updates:
 
 ```sh
-# backup (run it from cron or a systemd timer on the host)
+# backup (run it from cron or a systemd timer on the host), then copy the backups out of the volume
 docker compose exec -T promus node apps/server/src/cli.ts backup
+docker compose cp promus:/data/backups ./backups
 
 # restore
 docker compose stop promus
 docker compose run --rm promus sh -c 'cp /data/backups/promus-YYYY-MM-DD.db /data/promus.db && rm -f /data/promus.db-wal /data/promus.db-shm'
 docker compose start promus
 
-# update
+# update: back up first
+docker compose exec -T promus node apps/server/src/cli.ts backup
 git pull
 docker compose up -d --build
 ```
+
+- The backups live in the `promus-data` volume, so `docker compose down -v` deletes them along with the database. Keep copies outside the volume.
+- After a restore, reset every device as described in [section 8](#8-backups-and-restore). A restore loses every change made after the backup.
