@@ -5,7 +5,7 @@
   flex-direction: column;
   // the space above the keyboard: the viewport resizes for it (interactive-widget in index.html)
   height: 100dvh;
-  max-width: 640px;
+  max-width: 40rem;
   margin-inline: auto;
 }
 
@@ -37,7 +37,7 @@ h1 {
   // as in the mockups and the list screen
   @include mat.list-overrides(
     (
-      list-item-one-line-container-height: 56px,
+      list-item-one-line-container-height: 3.5rem,
     )
   );
 

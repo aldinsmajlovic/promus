@@ -1,6 +1,6 @@
 :host {
   display: block;
-  max-width: 640px;
+  max-width: 40rem;
   margin-inline: auto;
 }
 
@@ -198,7 +198,7 @@ main > mat-divider {
   position: fixed;
   bottom: 1rem;
   // the right edge of the centered column on wide screens
-  inset-inline-end: max(1rem, calc(50% - 320px + 1rem));
+  inset-inline-end: max(1rem, calc(50% - 20rem + 1rem));
   transition: translate 150ms;
 }
 

@@ -29,7 +29,7 @@ import { type ThemeMode, ThemeService } from '../../core/theme';
   styles: `
     :host {
       display: block;
-      max-width: 640px;
+      max-width: 40rem;
       margin-inline: auto;
     }
     mat-toolbar {

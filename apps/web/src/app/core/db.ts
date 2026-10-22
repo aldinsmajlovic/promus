@@ -41,7 +41,9 @@ export class PromusDb extends Dexie {
   declare readonly meta: Table<{ key: MetaKey; value: Meta[MetaKey] }, MetaKey>;
 
   constructor(name: string) {
-    super(name);
+    // strict: Chrome reports a commit only once it is on disk; with its relaxed default a power loss can
+    // drop committed transactions, and the outbox holds the only copy of unsynced changes
+    super(name, { chromeTransactionDurability: 'strict' });
     this.version(1).stores({
       events: 'id, seq',
       outbox: 'id, hlc, pushed',
