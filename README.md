@@ -27,23 +27,19 @@ Stats, data export and a Home Assistant integration come next.
 
 ## Quick start
 
-On a machine with Docker and [Tailscale](https://tailscale.com/download):
+On a machine with Docker:
 
 ```sh
 docker run -d --name promus -p 127.0.0.1:8080:8080 -v promus-data:/data --restart unless-stopped ghcr.io/aldinsmajlovic/promus
-tailscale funnel --bg 8080
 docker logs promus | grep 'Setup code'
 ```
 
-Open the `https://` address that `tailscale funnel` prints, enter the setup code, and follow the wizard. It ends with a QR code that opens Promus on your phone. Then invite your household from **Settings**.
-
-Funnel makes the sign-in page reachable from the internet. To keep Promus private to your own devices, or to use your own domain, see the [self-hosting guide](docs/self-hosting.md).
+Put HTTPS in front of `http://127.0.0.1:8080` with whatever you use to expose services: a reverse proxy, a tunnel or a VPN. The [self-hosting guide](docs/self-hosting.md#put-https-in-front) lists what Promus needs from it. Then open the `https://` address, enter the setup code, and follow the wizard. It ends with a QR code that opens Promus on your phone. Invite your household from **Settings** afterwards.
 
 ## Documentation
 
-- [Self-hosting](docs/self-hosting.md): Docker, HTTPS with Tailscale or your own domain, the phone, invites, backups and updates.
-- [Promus on Proxmox](docs/proxmox.md): an LXC container with systemd, built from source.
-- [Tailscale access policy](docs/tailscale-policy.md): limiting what each device on your tailnet can reach.
+- [Self-hosting](docs/self-hosting.md): Docker, what HTTPS in front needs, the phone, invites, backups and updates.
+- [Promus with systemd](docs/proxmox.md): built from source and run as a systemd service, for example in a Proxmox LXC container.
 - [Configuration](docs/configuration.md): the environment variables.
 - [Server commands](docs/cli.md): accounts and backups.
 - [Development](docs/development.md): running it locally, the checks, releasing and the project layout.

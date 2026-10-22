@@ -1,16 +1,14 @@
 # Self-hosting Promus
 
-Promus runs as one Docker container. Phones need HTTPS in front of it, because the app's service worker and its `Secure` session cookie only work in a secure context. This guide puts HTTPS in front with Tailscale, or with your own domain.
+Promus runs as one Docker container that serves the app and its API. How people reach it is up to you. Promus only needs HTTPS in front of it, because the app's service worker and its `Secure` session cookie only work in a secure context.
 
-To install it in a Proxmox LXC container as a systemd service instead, see [Promus on Proxmox](proxmox.md).
+To run it as a systemd service instead, for example in a Proxmox LXC container, see [Promus with systemd](proxmox.md).
 
 ## Requirements
 
-- An always-on machine with Docker, on amd64 or arm64: a home server, a NAS, a Raspberry Pi 4 or 5, or a small VPS. On Proxmox, run Docker in a VM, or use the [LXC setup](proxmox.md).
+- An always-on machine with Docker, on amd64 or arm64: a home server, a NAS, a Raspberry Pi 4 or 5, or a small VPS. On Proxmox, run Docker in a VM, or use the [systemd setup](proxmox.md).
 - Memory: the server uses about 60 MiB, plus 128 MiB for each sign-in in progress, which runs scrypt.
-- For HTTPS, one of:
-  - a Tailscale account, which is free for personal use, for the [Funnel](#public-with-tailscale-funnel) and [private](#private-on-your-tailnet) setups;
-  - a domain name and a reverse proxy, for the [own domain](#your-own-domain) setup.
+- A way to give it an `https://` address: a reverse proxy with a certificate, a tunnel, or whatever you already use.
 - Phones: Android with Chrome, or an iPhone with Safari on iOS 17 or later.
 
 ## Start Promus
@@ -28,50 +26,14 @@ Or, with Compose, download [`compose.yaml`](../compose.yaml) into a folder of it
 <!-- linked from the app: keep this heading -->
 ## Put HTTPS in front
 
-Pick one of the three setups below.
+Promus listens on plain HTTP. Exposing it, to your network or to the internet, is up to you: a reverse proxy with port forwarding, a tunnel, a VPN. Whatever you put in front must:
+- serve it over HTTPS, with a certificate the phones trust;
+- forward to Promus at `http://127.0.0.1:8080`;
+- keep the original `Host` header. The server compares a request's `Origin` with its `Host` to block cross-site requests.
 
-### Public, with Tailscale Funnel
+Forwarding port 8080 itself doesn't work. That's plain HTTP: browsers won't keep the sign-in, and passwords would cross the network unencrypted.
 
-The quickest setup: no domain and no router changes, and phones need nothing but the app. Funnel publishes the server on the internet under a `*.ts.net` name with a real certificate.
-
-1. [Install Tailscale](https://tailscale.com/download) on the machine that runs Promus, on the machine itself, not in a container. Log in with `tailscale up`.
-2. Pick a machine name that says nothing about you or what runs on it, for example `tailscale set --hostname=larder`. The name ends up in the public [Certificate Transparency logs](https://tailscale.com/kb/1153/enabling-https), which anyone can search.
-3. Start Funnel:
-
-   ```sh
-   tailscale funnel --bg 8080
-   ```
-
-   The first time, it prints a link to approve HTTPS and Funnel for your tailnet. Then it prints the address, `https://<name>.<your-tailnet>.ts.net`. `--bg` keeps it running across reboots.
-
-What a public server means:
-- Anyone can open the sign-in page. There's no sign-up, and the first account needs the setup code from the server's log.
-- Choose strong passwords. Promus allows 10 failed sign-ins per username every 15 minutes.
-- To check Funnel, run `tailscale funnel status`. To stop it, run `tailscale funnel reset`.
-
-### Private, on your tailnet
-
-Only devices on your tailnet can reach Promus, and every phone needs the Tailscale app.
-
-1. Install Tailscale and pick a name, as in steps 1 and 2 above.
-2. Turn on **MagicDNS** and **HTTPS Certificates** on the **DNS** page of the Tailscale admin console.
-3. Serve the app:
-
-   ```sh
-   tailscale serve --bg 8080
-   tailscale funnel status
-   ```
-
-   Every entry must say `(tailnet only)`. If one says `Funnel on`, run `tailscale funnel reset` and `tailscale serve --bg 8080` again.
-4. For someone in your household with their own Tailscale account, [share the machine](https://tailscale.com/kb/1084/sharing) with them from the **Machines** page of the admin console. Once they accept, they reach that machine and nothing else of yours, at the same `https://` address. A machine with a tag can't be shared.
-
-To limit what each device can reach, see [Tailscale access policy](tailscale-policy.md).
-
-Run Tailscale on the host, not as a sidecar container. The official image's `TS_USERSPACE` setting is on by default, and in userspace mode Tailscale [proxies incoming connections to the same port on `127.0.0.1`](https://tailscale.com/docs/reference/faq/other-vpns). Port 8080 would then be reachable from the tailnet over plain HTTP, bypassing `tailscale serve`.
-
-### Your own domain
-
-Forward port 443 on your router to a reverse proxy that terminates TLS and forwards to `http://127.0.0.1:8080`. With [Caddy](https://caddyserver.com), which gets the certificate itself, the whole configuration is:
+For example, [Caddy](https://caddyserver.com) gets a certificate on its own and keeps the `Host` header. With port 443 forwarded to it, this is the whole configuration:
 
 ```
 promus.example.com {
@@ -79,9 +41,11 @@ promus.example.com {
 }
 ```
 
-- The proxy must keep the original `Host` header, which Caddy does. The server compares a request's `Origin` with its `Host` to block cross-site requests.
-- Forwarding port 8080 itself doesn't work. That's plain HTTP: browsers won't keep the sign-in, and passwords would cross the internet unencrypted.
-- The same applies as for Funnel: anyone can open the sign-in page.
+If the proxy runs on another machine, publish the port where it can reach it, for example `-p 192.168.1.10:8080:8080`, and keep that address off the internet.
+
+When Promus is reachable from the internet:
+- **Anyone can open the sign-in page.** There's no sign-up, and the first account needs the setup code from the server's log.
+- **Choose strong passwords.** Promus allows 10 failed sign-ins per username every 15 minutes.
 
 ## Set up your account
 

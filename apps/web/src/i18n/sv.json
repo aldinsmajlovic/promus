@@ -39,7 +39,7 @@
   "https": {
     "cookie": "Inloggad, men webbläsaren sparade inte sessionen. Öppna Promus över HTTPS.",
     "guide": "Så sätter du upp HTTPS",
-    "how": "Inloggning och offlineläge fungerar bara över HTTPS. Sätt HTTPS framför servern, till exempel med tailscale funnel --bg 8080, och öppna dess https://-adress.",
+    "how": "Inloggning och offlineläge fungerar bara över HTTPS. Sätt HTTPS framför servern, till exempel med en omvänd proxy, och öppna dess https://-adress.",
     "needed": "Promus behöver HTTPS"
   },
   "install": {

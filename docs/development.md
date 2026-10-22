@@ -32,15 +32,7 @@ adb reverse tcp:4200 tcp:4200
 
 Then open <http://localhost:4200> in Chrome on the phone. The phone sees the dev server as `localhost`, which is a secure context, so signing in works without HTTPS.
 
-An iPhone needs HTTPS, even for testing. Build the app and serve it through Tailscale, with the phone on your tailnet:
-
-```sh
-npm run build -w apps/web
-npm run dev:server
-tailscale serve --bg 8080
-```
-
-Then open the `https://` address that `tailscale serve` prints in Safari on the iPhone.
+An iPhone needs HTTPS, even for testing. Build the app, start the server with `npm run build -w apps/web` and `npm run dev:server`, and put HTTPS in front of port 8080 as in [the self-hosting guide](self-hosting.md#put-https-in-front). Then open that `https://` address in Safari on the iPhone.
 
 ## Releasing
 

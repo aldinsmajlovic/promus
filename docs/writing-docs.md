@@ -36,9 +36,8 @@ Anything longer than a line or two goes to a page in `docs/` and the README link
 | Page | Owns |
 |---|---|
 | `README.md` | The front page |
-| `docs/self-hosting.md` | Installing with Docker, HTTPS, setup, the phone, invites, backups, restore, updating |
-| `docs/proxmox.md` | The Proxmox LXC and systemd install |
-| `docs/tailscale-policy.md` | The tailnet access policy |
+| `docs/self-hosting.md` | Installing with Docker, what HTTPS in front needs, setup, the phone, invites, backups, restore, updating |
+| `docs/proxmox.md` | The systemd install, in a Proxmox LXC container |
 | `docs/configuration.md` | Environment variables |
 | `docs/cli.md` | Server commands: accounts and backups |
 | `docs/development.md` | Running locally, checks, phone testing, releasing, project layout |

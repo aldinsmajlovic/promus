@@ -3,7 +3,7 @@ services:
     image: ghcr.io/aldinsmajlovic/promus:latest
     # the name the docs' docker exec and docker logs commands use
     container_name: promus
-    # this machine only: put HTTPS in front with tailscale funnel, tailscale serve or a reverse proxy
+    # this machine only: put HTTPS in front, see docs/self-hosting.md
     ports:
       - "127.0.0.1:8080:8080"
     volumes:

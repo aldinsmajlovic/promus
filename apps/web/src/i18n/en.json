@@ -39,7 +39,7 @@
   "https": {
     "cookie": "Signed in, but this browser didn't keep the session. Open Promus over HTTPS.",
     "guide": "How to set up HTTPS",
-    "how": "Signing in and offline use only work over HTTPS. Put HTTPS in front of the server, for example with tailscale funnel --bg 8080, and open its https:// address.",
+    "how": "Signing in and offline use only work over HTTPS. Put HTTPS in front of the server, for example with a reverse proxy, and open its https:// address.",
     "needed": "Promus needs HTTPS"
   },
   "install": {

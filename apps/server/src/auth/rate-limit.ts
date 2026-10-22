@@ -2,7 +2,7 @@ const WINDOW_MS = 15 * 60_000;
 const PER_USERNAME = 10;
 const TOTAL = 100;
 
-// Keyed by username, not IP: behind `tailscale serve` every request comes from 127.0.0.1.
+// Keyed by username, not IP: behind a reverse proxy every request comes from the proxy's address.
 // ponytail: in-memory per-process limiter, resets on restart; use a table if this ever runs multi-process
 // ponytail: on a public server, failures against many usernames reach TOTAL and block new sign-ins for up to
 // 15 minutes (signed-in devices keep syncing); add per-IP limits, behind a trusted X-Forwarded-For, if that bites
