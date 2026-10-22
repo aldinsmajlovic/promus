@@ -13,9 +13,11 @@
   "scripts": {
     "icons": "node scripts/build-icons.ts",
     "test": "npm test --workspaces --if-present",
-    "typecheck": "npm run typecheck --workspaces --if-present"
+    "typecheck": "npm run typecheck --workspaces --if-present && tsc -p e2e",
+    "e2e": "playwright test -c e2e/playwright.config.ts"
   },
   "devDependencies": {
+    "@playwright/test": "^1.64.1",
     "@types/fontkit": "^2.0.9",
     "@types/node": "^26.6.5",
     "fontkit": "^2.0.4",

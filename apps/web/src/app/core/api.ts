@@ -52,7 +52,12 @@ export class ApiClient implements SyncApi {
       res = await this.fetch(path, {
         method,
         credentials: 'same-origin',
-        headers: { Accept: 'application/json', ...(body === undefined ? {} : { 'Content-Type': 'application/json' }) },
+        headers: {
+          Accept: 'application/json',
+          // past the service worker: it has nothing cached here, and it answers no network with a 504
+          'ngsw-bypass': 'true',
+          ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
+        },
         body: body === undefined ? undefined : JSON.stringify(body),
       });
       text = await res.text();

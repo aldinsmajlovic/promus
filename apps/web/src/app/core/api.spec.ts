@@ -45,4 +45,13 @@ describe('ApiClient', () => {
     ]);
     expect(JSON.parse(fetch.mock.calls[0]?.[1]?.body as string)).toEqual({ username: 'anna', password: 'secret' });
   });
+
+  // through the service worker, no network is a 504 response rather than a failed fetch
+  it('bypasses the service worker', async () => {
+    const fetch = vi
+      .fn<typeof globalThis.fetch>()
+      .mockResolvedValue(json(200, { events: [], lastSeq: 0, hasMore: false, serverTime: 1 }));
+    await setup(fetch).pull(0, 500);
+    expect(fetch.mock.calls[0]?.[1]?.headers).toMatchObject({ 'ngsw-bypass': 'true' });
+  });
 });

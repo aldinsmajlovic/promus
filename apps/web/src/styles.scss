@@ -43,4 +43,10 @@ body {
 // a top snackbar (the add view's, clear of the keyboard) sits under the 64px toolbar, so Close stays reachable
 .mat-mdc-snack-bar-container.below-toolbar {
   margin-top: 4.5rem;
+  pointer-events: auto;
+}
+
+// its overlay pane spans that margin too, over the toolbar: only the snackbar itself takes taps
+.cdk-overlay-pane:has(> .below-toolbar) {
+  pointer-events: none;
 }
