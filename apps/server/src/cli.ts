@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs';
 import { createInterface } from 'node:readline/promises';
 import { Writable } from 'node:stream';
 import { parseArgs } from 'node:util';
@@ -30,9 +31,10 @@ async function main(): Promise<string> {
   if (command === 'backup') {
     if (positionals.length > 1) throw new Error(USAGE);
     const config = loadConfig(process.env);
+    // the database as it is: a backup neither creates one nor migrates it
+    if (!existsSync(config.dbPath)) throw new Error(`No database at ${config.dbPath}; check DATA_DIR`);
     const db = openDatabase(config.dbPath);
     try {
-      migrate(db, MIGRATIONS_DIR);
       return backup(db, config.backupDir, Date.now());
     } finally {
       db.close();

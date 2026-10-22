@@ -8,11 +8,13 @@ export const MIGRATIONS_DIR = new URL('./migrations/', import.meta.url);
 export function openDatabase(path: string): DatabaseSync {
   mkdirSync(dirname(path), { recursive: true });
   const db = new DatabaseSync(path);
+  // synchronous FULL, not NORMAL: in WAL mode NORMAL can lose a commit on power loss, and clients treat
+  // an accepted event as stored for good
   db.exec(`
     PRAGMA journal_mode = WAL;
     PRAGMA busy_timeout = 5000;
     PRAGMA foreign_keys = ON;
-    PRAGMA synchronous = NORMAL;
+    PRAGMA synchronous = FULL;
   `);
   return db;
 }

@@ -35,10 +35,10 @@ function httpApi(app: Hono<AppEnv>, session: { cookie: string }): SyncApi {
 
 async function setup() {
   const t = makeTestApp();
-  const user = await createUser(t.db, { username: 'Aldin', password: PW, locale: 'sv', now: T0 });
+  const user = await createUser(t.db, { username: 'Anna', password: PW, locale: 'sv', now: T0 });
   /** A device signed in as the user, with its own session and a clock `clockOffsetMs` off the server's. */
   const device = async (nodeId: string, clockOffsetMs = 0) => {
-    const session = { cookie: cookieOf(await login(t.app, 'aldin', PW)) };
+    const session = { cookie: cookieOf(await login(t.app, 'anna', PW)) };
     const client = new SimClient({ householdId: user.householdId, nodeId, now: t.now, clockOffsetMs });
     const api = httpApi(t.app, session);
     const sync = (via: SyncApi = api) => syncOnce(client.storage, via, client.now);
@@ -177,7 +177,7 @@ describe('sync protocol', { timeout: 30_000 }, () => {
     expect(logout.status).toBe(204);
     await expect(a.sync()).rejects.toBeInstanceOf(AuthError);
     expect(a.client.storage.pendingCount()).toBe(2);
-    a.session.cookie = cookieOf(await login(app, 'aldin', PW));
+    a.session.cookie = cookieOf(await login(app, 'anna', PW));
     expect(await a.sync()).toEqual({ pushed: 2, pulled: 3, rejected: 0 });
     expect(a.client.storage.pendingCount()).toBe(0);
   });

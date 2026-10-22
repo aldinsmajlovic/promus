@@ -6,6 +6,8 @@ export const security = secureHeaders({
     scriptSrc: ["'self'"],
     styleSrc: ["'self'", "'unsafe-inline'"],
     frameAncestors: ["'none'"],
+    baseUri: ["'self'"],
+    formAction: ["'self'"],
   },
   xContentTypeOptions: 'nosniff',
   referrerPolicy: 'same-origin',

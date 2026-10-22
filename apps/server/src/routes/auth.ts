@@ -9,7 +9,7 @@ import { clearSessionCookie, requireAuth, setSessionCookie } from '../middleware
 
 type UserRow = { id: string; username: string; password_hash: string; disabled_at: number | null };
 
-export function authRoutes({ db, now }: Pick<AppDeps, 'db' | 'now'>) {
+export function authRoutes({ db, logger, now }: Pick<AppDeps, 'db' | 'logger' | 'now'>) {
   const loginLimiter = createLoginLimiter();
   return new Hono<AppEnv>()
     .post(
@@ -21,7 +21,10 @@ export function authRoutes({ db, now }: Pick<AppDeps, 'db' | 'now'>) {
         const { username, password } = body.data;
         const key = normalizeName(username);
         const t = now();
-        if (loginLimiter.blocked(key, t)) return c.json({ error: 'rate_limited' }, 429);
+        if (loginLimiter.blocked(key, t)) {
+          logger.warn({ username: key }, 'login rate limited');
+          return c.json({ error: 'rate_limited' }, 429);
+        }
         // Counted before the slow verify so parallel guesses can't slip past the limit; cleared on success.
         loginLimiter.fail(key, t);
         const user = db
@@ -29,7 +32,10 @@ export function authRoutes({ db, now }: Pick<AppDeps, 'db' | 'now'>) {
           .get(key) as UserRow | undefined;
         // Unknown users still cost one scrypt, so response time doesn't reveal which usernames exist.
         const ok = user ? await verifyPassword(password, user.password_hash) : (await hashPassword(password), false);
-        if (!user || !ok || user.disabled_at !== null) return c.json({ error: 'invalid_credentials' }, 401);
+        if (!user || !ok || user.disabled_at !== null) {
+          logger.warn({ username: key }, 'login failed');
+          return c.json({ error: 'invalid_credentials' }, 401);
+        }
         loginLimiter.reset(key);
         const { token, context } = createSession(db, { userId: user.id, kind: 'browser', name: null, scopes: [], now: t });
         setSessionCookie(c, token);

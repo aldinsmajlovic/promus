@@ -17,8 +17,26 @@ describe('app', () => {
     const csp = res.headers.get('content-security-policy') ?? '';
     expect(csp).toContain("script-src 'self'");
     expect(csp).toContain("frame-ancestors 'none'");
+    expect(csp).toContain("base-uri 'self'");
+    expect(csp).toContain("form-action 'self'");
     expect(res.headers.get('x-content-type-options')).toBe('nosniff');
     expect(res.headers.get('referrer-policy')).toBe('same-origin');
+  });
+
+  it('marks every API response no-store, errors included', async () => {
+    const { app } = makeTestApp();
+    const cases: [path: string, init: RequestInit, status: number][] = [
+      ['/api/health', {}, 200],
+      ['/api/nope', {}, 404],
+      ['/api', {}, 404],
+      ['/api/me', {}, 401],
+      ['/api/auth/logout', { method: 'POST', headers: { 'Sec-Fetch-Site': 'cross-site' } }, 403],
+    ];
+    for (const [path, init, status] of cases) {
+      const res = await app.request(path, init);
+      expect(res.status, path).toBe(status);
+      expect(res.headers.get('cache-control'), path).toBe('no-store');
+    }
   });
 
   it('sends no CORS headers even for a foreign Origin', async () => {

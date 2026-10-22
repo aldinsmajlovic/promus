@@ -11,9 +11,9 @@ const MIN = 60_000;
 
 async function setup() {
   const t = makeTestApp();
-  const a = await createUser(t.db, { username: 'Aldin', password: PW, locale: 'sv', now: T0 });
+  const a = await createUser(t.db, { username: 'Anna', password: PW, locale: 'sv', now: T0 });
   const b = await createUser(t.db, { username: 'Bea', password: PW, locale: 'en', now: T0 });
-  const cookieA = cookieOf(await login(t.app, 'aldin', PW));
+  const cookieA = cookieOf(await login(t.app, 'anna', PW));
   const cookieB = cookieOf(await login(t.app, 'bea', PW));
   const headers = (cookie: string) => ({ ...SAME_ORIGIN, Cookie: cookie, 'Content-Type': 'application/json' });
   const push = (cookie: string, body: unknown, raw = false) =>

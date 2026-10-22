@@ -21,6 +21,8 @@ describe('migrate', () => {
     }
     expect((db.prepare('PRAGMA journal_mode').get() as { journal_mode: string }).journal_mode).toBe('wal');
     expect((db.prepare('PRAGMA foreign_keys').get() as { foreign_keys: number }).foreign_keys).toBe(1);
+    // FULL: in WAL mode, NORMAL can lose a commit the client was already told was accepted
+    expect((db.prepare('PRAGMA synchronous').get() as { synchronous: number }).synchronous).toBe(2);
   });
 
   it('is a no-op when up to date', () => {

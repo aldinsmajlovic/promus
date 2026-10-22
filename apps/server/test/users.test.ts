@@ -10,10 +10,10 @@ const PW = 'correct horse';
 describe('users', { timeout: 20_000 }, () => {
   it('creates user, household, membership and a default list event', async () => {
     const { db } = makeTestApp();
-    const ids = await createUser(db, { username: ' Aldin ', password: PW, locale: 'sv', now: T0 });
+    const ids = await createUser(db, { username: ' Anna ', password: PW, locale: 'sv', now: T0 });
 
     const user = db.prepare('SELECT * FROM users').get() as Record<string, unknown>;
-    expect(user).toMatchObject({ id: ids.userId, username: 'Aldin', username_norm: 'aldin', created_at: T0, disabled_at: null });
+    expect(user).toMatchObject({ id: ids.userId, username: 'Anna', username_norm: 'anna', created_at: T0, disabled_at: null });
     expect(await verifyPassword(PW, user.password_hash as string)).toBe(true);
     expect(db.prepare('SELECT * FROM households').all()).toEqual([{ id: ids.householdId, created_at: T0 }]);
     expect(db.prepare('SELECT * FROM household_members').all()).toEqual([
@@ -42,27 +42,27 @@ describe('users', { timeout: 20_000 }, () => {
 
   it('treats usernames case-insensitively', async () => {
     const { db } = makeTestApp();
-    await createUser(db, { username: 'Aldin', password: PW, locale: 'sv', now: T0 });
-    const dup = createUser(db, { username: 'aldin', password: PW, locale: 'sv', now: T0 });
+    await createUser(db, { username: 'Anna', password: PW, locale: 'sv', now: T0 });
+    const dup = createUser(db, { username: 'anna', password: PW, locale: 'sv', now: T0 });
     await expect(dup).rejects.toBeInstanceOf(UserExistsError);
-    await expect(dup).rejects.toThrow('User "aldin" already exists');
+    await expect(dup).rejects.toThrow('User "anna" already exists');
     expect(db.prepare('SELECT count(*) AS n FROM households').get()).toEqual({ n: 1 });
   });
 
   it('setPassword revokes existing sessions', async () => {
     const { db } = makeTestApp();
-    const { userId } = await createUser(db, { username: 'Aldin', password: PW, locale: 'sv', now: T0 });
+    const { userId } = await createUser(db, { username: 'Anna', password: PW, locale: 'sv', now: T0 });
     const browser = createSession(db, { userId, kind: 'browser', name: null, scopes: [], now: T0 });
     const api = createSession(db, { userId, kind: 'api', name: 'Home Assistant', scopes: ['lists:read'], now: T0 });
     expect(findSession(db, browser.token, T0)).not.toBeNull();
 
-    await setPassword(db, 'ALDIN', 'new password', T0 + 1);
+    await setPassword(db, 'ANNA', 'new password', T0 + 1);
     expect(findSession(db, browser.token, T0 + 1)).toBeNull();
     expect(findSession(db, api.token, T0 + 1)).toBeNull();
     const { password_hash } = db.prepare('SELECT password_hash FROM users').get() as { password_hash: string };
     expect(await verifyPassword('new password', password_hash)).toBe(true);
 
     await expect(setPassword(db, 'nobody', 'new password', T0)).rejects.toThrow('User "nobody" not found');
-    await expect(setPassword(db, 'aldin', 'short', T0)).rejects.toThrow(/at least 8/);
+    await expect(setPassword(db, 'anna', 'short', T0)).rejects.toThrow(/at least 8/);
   });
 });

@@ -42,6 +42,11 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
     return c.json({ error: 'internal' }, 500);
   });
   app.notFound((c) => c.json({ error: 'not_found' }, 404));
+  // API answers are per user and per moment: no cache may keep one, refusals included
+  app.use('/api/*', async (c, next) => {
+    await next();
+    c.header('Cache-Control', 'no-store');
+  });
   app.use('/api/*', csrf());
   app.route('/api', healthRoutes(deps));
   app.route('/api', authRoutes(deps));
