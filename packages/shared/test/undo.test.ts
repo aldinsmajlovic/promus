@@ -69,6 +69,25 @@ describe('inverseOf', () => {
     expect(frequentItems(s, L, NOW + 10 * 86_400_000).map((i) => i.id)).not.toContain('tea');
   });
 
+  it('undoing a new item archives it even when an archived item had its name', () => {
+    const old = [ev('item.created', { itemId: 'old', name: 'Mjolk' }, 10), ev('item.archived', { itemId: 'old' }, 11)];
+    const create = ev('item.created', { itemId: 'new', name: 'Mjolk' }, 12);
+    const buy = [ev('entry.added', e('new'), 13), ev('entry.checked', e('new'), 14)];
+    const [inv] = inverseOf(create, fold([...setup, ...old]));
+    expect(inv).toEqual({ type: 'item.archived', payload: { itemId: 'new' }, undoOf: create.id });
+    const s = fold([...setup, ...old, create, ...buy, ev(inv!.type, inv!.payload, 15, inv!.undoOf)]);
+    expect(s.items.get('new')!.archived).toBe(true);
+    expect(frequentItems(s, L, NOW + 10 * 86_400_000).map((i) => i.id)).not.toContain('new');
+  });
+
+  it('undoing an unarchive archives the item again', () => {
+    const archived = fold([...setup, ev('item.archived', { itemId: 'milk' }, 10)]);
+    const unarchive = ev('item.unarchived', { itemId: 'milk' }, 11);
+    expect(inverseOf(unarchive, archived)).toEqual([
+      { type: 'item.archived', payload: { itemId: 'milk' }, undoOf: unarchive.id },
+    ]);
+  });
+
   it('undoing a check removes the purchase', () => {
     const check = ev('entry.checked', e('milk'), 100);
     const afterCheck = fold([...setup, check]);

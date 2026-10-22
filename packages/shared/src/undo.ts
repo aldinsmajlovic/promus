@@ -31,14 +31,21 @@ export function inverseOf(e: FoldEvent, before: HouseholdState): Draft[] {
       return prev ? [{ type: 'entry.noteSet', payload: { ...e.payload, note: prev.note ?? '' }, undoOf }] : [];
     }
     case 'item.created':
-      // a duplicate name becomes an alias of the existing item; archiving it would hit that item
-      return before.byName.has(normalizeName(e.payload.name)) ? [] : [{ type: 'item.archived', payload: { itemId: e.payload.itemId }, undoOf }];
+      // a duplicate name becomes an alias of the existing item; archiving it would hit that item. Archived
+      // and renamed items leave empty sets behind, so only a non-empty one is a live item of that name
+      return (before.byName.get(normalizeName(e.payload.name))?.size ?? 0) > 0
+        ? []
+        : [{ type: 'item.archived', payload: { itemId: e.payload.itemId }, undoOf }];
     case 'item.renamed': {
       const item = before.items.get(resolveItemId(before, e.payload.itemId));
       return item ? [{ type: 'item.renamed', payload: { itemId: e.payload.itemId, name: item.name }, undoOf }] : [];
     }
     case 'item.archived':
       return [{ type: 'item.unarchived', payload: e.payload, undoOf }];
+    case 'item.unarchived':
+      return before.items.get(resolveItemId(before, e.payload.itemId))?.archived
+        ? [{ type: 'item.archived', payload: e.payload, undoOf }]
+        : [];
     case 'list.created':
       return [{ type: 'list.deleted', payload: { listId: e.payload.listId }, undoOf }];
     case 'list.renamed': {
@@ -47,7 +54,6 @@ export function inverseOf(e: FoldEvent, before: HouseholdState): Draft[] {
     }
     case 'list.deleted':
       return [{ type: 'list.restored', payload: e.payload, undoOf }];
-    case 'item.unarchived':
     case 'list.restored':
       return [];
   }
