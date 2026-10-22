@@ -73,14 +73,14 @@ Run it against the server's own database:
 
   For a backup, `systemctl start promus-backup.service` does the same. See the guide's sections on [accounts](docs/self-hosting.md#6-create-your-account) and [backups](docs/self-hosting.md#8-backups-and-restore).
 
-Without `DATA_DIR`, the CLI uses `./data`, which is a separate database. `backup` would then copy an empty database and report success, and `user:create` would create an account the server never sees.
+Without `DATA_DIR`, the CLI uses `./data`, which is a separate database. `user:create` would then create an account the server never sees. `backup` refuses a database that doesn't exist: it exits with `No database at <path>; check DATA_DIR` and creates nothing.
 
 What the commands do:
 - **`user:create`** asks for a password of at least 8 characters, on a hidden prompt. Without a TTY, it reads the first line of stdin.
   - It also creates the user's default list.
   - The list's name is English by default (`--locale en`). `--locale sv` gives it a Swedish name.
 - **`user:password`** sets a new password and signs that user out on every device.
-- **`backup`** writes a consistent copy of the database to `DATA_DIR/backups/promus-YYYY-MM-DD.db`, and keeps the 14 newest.
+- **`backup`** writes a consistent copy of the database, as it is, to `DATA_DIR/backups/promus-YYYY-MM-DD.db`, and keeps the 14 newest. It doesn't migrate the database: the server does that on startup.
 
 ### Updating
 
@@ -92,6 +92,8 @@ Database migrations run automatically on startup.
 ## Development
 
 This needs Node.js 26 (see `.node-version`). The end-to-end tests also need Google Chrome.
+
+npm 11 skips the install scripts of esbuild, lmdb, msgpackr-extract and @parcel/watcher. That is intentional: the build, the tests and the Docker image work without them.
 
 ```sh
 npm ci

@@ -337,7 +337,10 @@ Removing the `-wal` and `-shm` files matters: if they're there, they belong to t
 
 On every device:
 1. Open **Settings**, sign out, and sign back in. Signing out clears the device's local copy. It refuses while the device has unsynced changes, so let it sync first.
-2. If the app already shows the sign-in page, first delete the stored data for `https://<name>.<your-tailnet>.ts.net` in Chrome's site settings. Signing back in as the same user keeps the old local copy.
+2. If the app already shows the sign-in page, don't delete its site data: the device may still hold changes it hasn't synced. Instead:
+   1. Sign in again as the **same** user. That keeps the local copy and its unsynced changes.
+   2. Let it sync, until the badge with the number of unsynced changes is gone.
+   3. Open **Settings**, sign out, and sign in again.
 
 ## 9. Updating
 

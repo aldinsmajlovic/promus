@@ -20,4 +20,4 @@ Self-hosted offline-first grocery list. npm workspaces: `packages/shared`, `apps
 
 ## Local design docs
 
-Spec: `docs/superpowers/specs/2026-10-21-grocery-list-design.md`. Plan: `docs/superpowers/plans/2026-10-21-promus-weekend-1.md`.
+Optional, and not in the repository: if they exist on your machine, the spec is `docs/superpowers/specs/2026-10-21-grocery-list-design.md` and the plan is `docs/superpowers/plans/2026-10-21-promus-weekend-1.md`.
