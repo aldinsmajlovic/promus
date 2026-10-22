@@ -26,6 +26,16 @@
     </section>
 
     <section>
+      <h2>{{ t('settings.household') }}</h2>
+      <app-household />
+    </section>
+
+    <section>
+      <h2>{{ t('phone.title') }}</h2>
+      <app-phone-card />
+    </section>
+
+    <section>
       <h2>{{ t('settings.account') }}</h2>
       @let n = pending();
       <div class="account">

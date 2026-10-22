@@ -58,8 +58,8 @@ describe('route guards', () => {
     fetch.mockClear();
     await db.setMeta('session', session);
     for (const url of ['/', '/add', '/settings']) expect(await visit(url)).toBe(url);
-    // the cached session is enough: the app opens offline
-    expect(fetch).not.toHaveBeenCalled();
+    // the cached session is enough: the app opens offline (Settings asks only who's in the household)
+    expect(fetch.mock.calls.map(([url]) => url).filter((url) => url !== '/api/me')).toEqual([]);
   });
 
   it('login sends a cached session home, unless its sign-in expired', async () => {
@@ -75,7 +75,7 @@ describe('route guards', () => {
 
   it('a 401 from the server opens login again, with the session still cached', async () => {
     const { db, fetch, visit } = await setup(true);
-    fetch.mockResolvedValue(new Response(JSON.stringify({ error: 'unauthenticated' }), { status: 401 }));
+    fetch.mockImplementation(async () => new Response(JSON.stringify({ error: 'unauthenticated' }), { status: 401 }));
     await db.setMeta('session', session);
     expect(await visit('/settings')).toBe('/settings');
     expect(await visit('/login')).toBe('/');

@@ -47,6 +47,12 @@
     "ios": "Så installerar du: tryck på Dela i Safari och sedan på Lägg till på hemskärmen.",
     "other": "Så installerar du: öppna webbläsarens meny och välj Installera app eller Lägg till på startskärmen."
   },
+  "invite": {
+    "copy": "Kopiera länk",
+    "intro": "Den som öppnar länken kan gå med i ditt hushåll och dela dess listor. Den fungerar en gång, i 7 dagar.",
+    "share": "Dela",
+    "title": "Bjud in någon"
+  },
   "join": {
     "intro": "Du har bjudits in att dela ett hushålls listor. Välj användarnamn och lösenord.",
     "invalid": "Länken har gått ut eller redan använts. Be om en ny.",
@@ -85,6 +91,8 @@
     "back": "Tillbaka",
     "dark": "Mörkt",
     "en": "English",
+    "household": "Hushåll",
+    "invite": "Bjud in någon",
     "language": "Språk",
     "light": "Ljust",
     "pending": {
@@ -113,6 +121,9 @@
     "added": "{{name}} tillagd",
     "archived": "{{name}} borttagen från förslag",
     "checked": "{{name}} avbockad",
+    "copied": "Länken kopierad",
+    "inviteCreated": "Inbjudningslänk skapad",
+    "inviteRevoked": "Inbjudningslänken återkallad",
     "listCreated": "Listan skapad",
     "listDeleted": "Listan borttagen",
     "listRenamed": "Listan omdöpt",

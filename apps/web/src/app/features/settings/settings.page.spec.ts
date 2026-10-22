@@ -15,6 +15,7 @@ import { FETCH } from '../../core/api';
 import { PendingChangesError, PromusDb } from '../../core/db';
 import { DexieSyncStorage } from '../../core/dexie-storage';
 import { registerIcons } from '../../core/icons';
+import { ORIGIN } from '../../core/platform';
 import { SessionService } from '../../core/session';
 import { Store } from '../../core/store';
 import { SettingsPage } from './settings.page';
@@ -27,11 +28,17 @@ const html = document.documentElement;
 async function setup() {
   const db = new PromusDb(`settings-${newId()}`);
   await db.setMeta('session', { userId: newId(), username: 'anna', householdId: newId() });
-  const fetch = vi.fn<typeof globalThis.fetch>(async () => new Response(null, { status: 204 }));
+  const fetch = vi.fn<typeof globalThis.fetch>(async (url) =>
+    // the Household section asks who's in it
+    url === '/api/me'
+      ? new Response(JSON.stringify({ user: { id: 'u1', username: 'anna' }, households: [] }), { status: 200 })
+      : new Response(null, { status: 204 }),
+  );
   TestBed.configureTestingModule({
     providers: [
       { provide: PromusDb, useValue: db },
       { provide: FETCH, useValue: fetch },
+      { provide: ORIGIN, useValue: 'https://promus.example' },
       { provide: MATERIAL_ANIMATIONS, useValue: { animationsDisabled: true } },
       provideRouter([
         { path: '', component: Blank },
@@ -123,7 +130,7 @@ describe('SettingsPage', () => {
     expect(log).not.toHaveBeenCalled();
     log.mockRestore();
     expect(t.router.url).toBe('/settings');
-    expect(t.fetch).not.toHaveBeenCalled();
+    expect(t.fetch.mock.calls.map(([url]) => url)).not.toContain('/api/auth/logout');
     expect(await t.db.getMeta('session')).toEqual(session.session());
     expect(await t.db.outbox.count()).toBe(1);
   });

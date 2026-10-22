@@ -47,6 +47,12 @@
     "ios": "To install: in Safari, tap Share, then Add to Home Screen.",
     "other": "To install: open the browser menu and choose Install app or Add to Home screen."
   },
+  "invite": {
+    "copy": "Copy link",
+    "intro": "Whoever opens this link can join your household and share its lists. It works once, for 7 days.",
+    "share": "Share",
+    "title": "Invite someone"
+  },
   "join": {
     "intro": "You've been invited to share a household's lists. Choose a username and password.",
     "invalid": "This link has expired or was already used. Ask for a new one.",
@@ -85,6 +91,8 @@
     "back": "Back",
     "dark": "Dark",
     "en": "English",
+    "household": "Household",
+    "invite": "Invite someone",
     "language": "Language",
     "light": "Light",
     "pending": {
@@ -113,6 +121,9 @@
     "added": "{{name}} added",
     "archived": "{{name}} removed from suggestions",
     "checked": "{{name}} checked off",
+    "copied": "Link copied",
+    "inviteCreated": "Invite link created",
+    "inviteRevoked": "Invite link cancelled",
     "listCreated": "List created",
     "listDeleted": "List deleted",
     "listRenamed": "List renamed",

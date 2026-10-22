@@ -13,6 +13,8 @@ import { type Lang, LangService } from '../../core/i18n';
 import { SessionService } from '../../core/session';
 import { Store } from '../../core/store';
 import { type ThemeMode, ThemeService } from '../../core/theme';
+import { PhoneCard } from '../../shared/phone-card';
+import { HouseholdSection } from './household';
 
 @Component({
   selector: 'app-settings-page',
@@ -24,6 +26,8 @@ import { type ThemeMode, ThemeService } from '../../core/theme';
     MatButtonToggleGroup,
     MatButtonToggle,
     TranslocoDirective,
+    HouseholdSection,
+    PhoneCard,
   ],
   templateUrl: './settings.page.html',
   styles: `
