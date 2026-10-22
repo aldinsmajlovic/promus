@@ -13,3 +13,10 @@ export const setupRequestSchema = accountSchema.extend({
   locale: z.enum(['sv', 'en']),
 });
 export type SetupRequest = z.infer<typeof setupRequestSchema>;
+
+export const inviteTokenSchema = z.object({ token: z.string().min(1).max(100) });
+export const inviteAcceptSchema = accountSchema.extend(inviteTokenSchema.shape);
+export type InviteAccept = z.infer<typeof inviteAcceptSchema>;
+
+/** A household member, as Settings lists them. */
+export type Member = { username: string; role: string };

@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
 import { loginRequestSchema, normalizeName } from '@promus/shared';
+import type { Member } from '@promus/shared';
 import type { AppDeps, AppEnv } from '../app.ts';
 import { hashPassword, verifyPassword } from '../auth/password.ts';
 import { createLoginLimiter } from '../auth/rate-limit.ts';
@@ -51,7 +52,14 @@ export function authRoutes({ db, logger, now }: Pick<AppDeps, 'db' | 'logger' | 
       const { userId, username } = c.get('auth');
       const households = db
         .prepare('SELECT household_id AS id, role FROM household_members WHERE user_id = ? ORDER BY household_id')
-        .all(userId);
-      return c.json({ user: { id: userId, username }, households });
+        .all(userId) as { id: string; role: string }[];
+      const members = db.prepare(
+        `SELECT u.username, m.role FROM household_members m JOIN users u ON u.id = m.user_id
+         WHERE m.household_id = ? AND u.disabled_at IS NULL ORDER BY u.username_norm`,
+      );
+      return c.json({
+        user: { id: userId, username },
+        households: households.map((h) => ({ ...h, members: members.all(h.id) as Member[] })),
+      });
     });
 }

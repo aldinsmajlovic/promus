@@ -33,7 +33,7 @@ export class AlreadySetUpError extends Error {
   }
 }
 
-function checkPassword(password: string): void {
+export function checkPassword(password: string): void {
   if ([...password].length < MIN_PASSWORD_LENGTH) {
     throw new AccountError('password_too_short', `Password must be at least ${MIN_PASSWORD_LENGTH} characters`);
   }
@@ -46,6 +46,17 @@ export function checkUsername(raw: string): string {
     throw new AccountError('username_invalid', `Username must be 1 to ${LIMITS.nameMax} characters`);
   }
   return username;
+}
+
+/** Inside a transaction: throws UserExistsError when the name is taken, ignoring case and spaces. */
+export function insertUser(
+  db: DatabaseSync,
+  { userId, username, passwordHash, now }: { userId: string; username: string; passwordHash: string; now: number },
+): void {
+  const norm = normalizeName(username);
+  if (db.prepare('SELECT 1 FROM users WHERE username_norm = ?').get(norm)) throw new UserExistsError(username);
+  db.prepare('INSERT INTO users (id, username, username_norm, password_hash, created_at) VALUES (?, ?, ?, ?, ?)')
+    .run(userId, username, norm, passwordHash, now);
 }
 
 export async function createUser(
@@ -75,10 +86,7 @@ export async function createUser(
   );
   transaction(db, () => {
     if (opts.assertNoUsers && db.prepare('SELECT 1 FROM users LIMIT 1').get()) throw new AlreadySetUpError();
-    const norm = normalizeName(username);
-    if (db.prepare('SELECT 1 FROM users WHERE username_norm = ?').get(norm)) throw new UserExistsError(username);
-    db.prepare('INSERT INTO users (id, username, username_norm, password_hash, created_at) VALUES (?, ?, ?, ?, ?)')
-      .run(userId, username, norm, passwordHash, now);
+    insertUser(db, { userId, username, passwordHash, now });
     db.prepare('INSERT INTO households (id, created_at) VALUES (?, ?)').run(householdId, now);
     db.prepare("INSERT INTO household_members (household_id, user_id, role) VALUES (?, ?, 'owner')").run(householdId, userId);
     db.prepare(

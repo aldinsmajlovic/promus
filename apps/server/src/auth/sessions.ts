@@ -19,8 +19,8 @@ export type AuthContext = {
 
 type SessionRow = { id: string; user_id: string; username: string; kind: SessionKind; scopes: string; expires_at: number };
 
-// Only the hash is stored. Lookups go by hash, so a timing difference in the index reveals nothing about a token.
-const hashToken = (token: string): string => createHash('sha256').update(token).digest('hex');
+// Only the hash is stored, for sessions and invites alike. Lookups go by hash, so a timing difference in the index reveals nothing about a token.
+export const hashToken = (token: string): string => createHash('sha256').update(token).digest('hex');
 
 export function findSession(db: DatabaseSync, token: string, now: number): AuthContext | null {
   const row = db

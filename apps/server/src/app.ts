@@ -7,6 +7,7 @@ import { csrf } from './middleware/csrf.ts';
 import { security } from './middleware/security.ts';
 import { authRoutes } from './routes/auth.ts';
 import { healthRoutes } from './routes/health.ts';
+import { inviteRoutes } from './routes/invites.ts';
 import { setupRoutes } from './routes/setup.ts';
 import { syncRoutes } from './routes/sync.ts';
 import { serveWeb } from './static.ts';
@@ -52,6 +53,7 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
   app.route('/api', healthRoutes(deps));
   app.route('/api', authRoutes(deps));
   app.route('/api', setupRoutes(deps));
+  app.route('/api', inviteRoutes(deps));
   app.route('/api', syncRoutes(deps));
   app.all('/api/*', (c) => c.json({ error: 'not_found' }, 404));
   app.get('*', serveWeb(deps.webRoot));
