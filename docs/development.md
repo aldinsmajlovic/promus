@@ -61,7 +61,7 @@ git push origin main v0.2.0
 
 The app reports this version and links to the docs at this tag, so tag only commits whose docs match the code.
 
-The first time, the package is private. Open it under **Packages** on your GitHub profile, then **Package settings**, and change its visibility to **Public**.
+The package takes the repository's visibility. To check that anyone can pull it, run `docker manifest inspect ghcr.io/aldinsmajlovic/promus:0.2.0` while logged out of `ghcr.io`. If that's refused, open the package under **Packages** on your GitHub profile, then **Package settings**, and change its visibility to **Public**.
 
 ## Icons and screenshots
 
