@@ -1,4 +1,4 @@
-import { EnvironmentInjector, createEnvironmentInjector } from '@angular/core';
+import { EnvironmentInjector, createEnvironmentInjector, inject } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { entryKey, frequentItems, newId, toSnapshot } from '@promus/shared';
 import { describe, expect, it, onTestFinished, vi } from 'vitest';
@@ -20,7 +20,11 @@ async function setup() {
 /** Another tab: its own connection to the same database, and its own Store. */
 function otherTab(db: PromusDb): Store {
   const injector = createEnvironmentInjector(
-    [{ provide: PromusDb, useValue: new PromusDb(db.name) }, DexieSyncStorage, Store],
+    [
+      { provide: PromusDb, useValue: new PromusDb(db.name) },
+      { provide: DexieSyncStorage, useFactory: () => new DexieSyncStorage(inject(PromusDb)) },
+      Store,
+    ],
     TestBed.inject(EnvironmentInjector),
   );
   onTestFinished(() => injector.destroy());

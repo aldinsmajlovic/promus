@@ -87,7 +87,9 @@
     },
     "rejected": "Några ändringar nekades",
     "retry": "Försök igen",
+    "serverError": "Servern svarade inte som väntat",
     "syncing": "Synkar",
+    "tooLarge": "För många ändringar att skicka på en gång",
     "waiting": "Väntar på synkning"
   },
   "update": {

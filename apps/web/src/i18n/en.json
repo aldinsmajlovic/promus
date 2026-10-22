@@ -87,7 +87,9 @@
     },
     "rejected": "Some changes were refused",
     "retry": "Retry",
+    "serverError": "The server returned an error",
     "syncing": "Syncing",
+    "tooLarge": "Too many changes to send at once",
     "waiting": "Waiting to sync"
   },
   "update": {

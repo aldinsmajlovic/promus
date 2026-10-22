@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
-import { ApiError, AuthError, NetworkError, newId } from '@promus/shared';
-import type { EventInput, PullResponse, PushResponse, SyncApi } from '@promus/shared';
+import { ApiError, AuthError, NetworkError, formatHlc, makeEvent, newId } from '@promus/shared';
+import type { EventInput, PullResponse, PushResponse, StoredEvent, SyncApi } from '@promus/shared';
 import { describe, expect, it, onTestFinished, vi } from 'vitest';
 import { ApiClient } from './api';
 import { PromusDb } from './db';
@@ -94,7 +94,58 @@ describe('SyncService', () => {
     await sync.syncNow();
     expect(log).toHaveBeenCalledWith('sync failed', boom);
     log.mockRestore();
-    expect(sync.status()).toEqual({ kind: 'error', messageKey: 'sync.failed', pending: 2, rejected: 1 });
+    expect(sync.status()).toEqual({ kind: 'error', messageKey: 'sync.serverError', pending: 2, rejected: 1 });
+  });
+
+  it('names the failure: server error, too many changes, or failed', async () => {
+    const { api, sync } = await setup(async (events) => accepted(events));
+    const log = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const cases: [Error, string][] = [
+      [new ApiError(500, 'internal'), 'sync.serverError'],
+      [new ApiError(503, 'unknown'), 'sync.serverError'],
+      [new ApiError(502, 'pull_stalled'), 'sync.serverError'],
+      [new ApiError(413, 'payload_too_large'), 'sync.tooLarge'],
+      [new ApiError(403, 'csrf'), 'sync.failed'],
+      [new TypeError('not a function'), 'sync.failed'],
+    ];
+    for (const [err, messageKey] of cases) {
+      api.push.mockRejectedValueOnce(err);
+      await sync.syncNow();
+      expect(sync.status(), err.message).toMatchObject({ kind: 'error', messageKey });
+    }
+    log.mockRestore();
+  });
+
+  it('a pull that lands after the session changed writes nothing, quietly, and a fresh sync follows', async () => {
+    const { api, db, sync } = await setup(async (events) => accepted(events));
+    const old = makeEvent('item.created', { itemId: newId(), name: 'Mjölk' }, {
+      householdId: newId(),
+      hlc: formatHlc(Date.now(), 0, 'test'),
+      occurredAt: Date.now(),
+    });
+    const page: StoredEvent[] = [{ ...old, seq: 7, userId: newId(), receivedAt: old.occurredAt }];
+    let land = (): void => undefined;
+    api.pull.mockImplementationOnce(
+      () =>
+        new Promise<PullResponse>((resolve) => {
+          land = () => resolve({ events: page, lastSeq: 7, hasMore: false, serverTime: Date.now() });
+        }),
+    );
+    onTestFinished(() => sync.stop());
+    sync.start();
+    await vi.waitFor(() => expect(api.pull).toHaveBeenCalledOnce());
+    // signed out, then in as someone else, while the page was on its way
+    await db.wipe();
+    await db.setMeta('session', { userId: newId(), username: 'bea', householdId: newId() });
+    const log = vi.spyOn(console, 'error');
+    land();
+
+    await vi.waitFor(() => expect(api.pull).toHaveBeenCalledTimes(2));
+    expect(api.pull.mock.calls[1]?.[0]).toBe(0);
+    await vi.waitFor(async () => expect(await db.getMeta('cursor')).toBe(0));
+    expect(await db.events.count()).toBe(0);
+    expect(sync.status().kind).toBe('idle');
+    expect(log).not.toHaveBeenCalled();
   });
 
   it('reports a refusal until the next clean sync, and keeps counting it', async () => {

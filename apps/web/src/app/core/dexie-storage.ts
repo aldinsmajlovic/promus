@@ -1,7 +1,21 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { compareEvents, hlcNow, hlcReceive, newId, parseHlc } from '@promus/shared';
 import type { EventInput, HlcState, RejectedEvent, StoredEvent, SyncStorage } from '@promus/shared';
-import { PromusDb } from './db';
+import { PromusDb, type Session } from './db';
+
+/** Who a sync run works for: the session it started in. */
+export type SyncOwner = Pick<Session, 'userId' | 'householdId'>;
+
+/**
+ * A sync run's write found another session than the one it started in (signed out, another user, or the
+ * same user signed in again over a wiped copy), or a cursor another run had moved. It wrote nothing.
+ */
+export class StaleSyncError extends Error {
+  constructor() {
+    super('the session or cursor changed during the sync');
+    this.name = 'StaleSyncError';
+  }
+}
 
 const ZERO: HlcState = { wall: 0, counter: 0 };
 
@@ -19,13 +33,20 @@ const stateOf = (hlc: string): HlcState => {
 /**
  * SyncStorage over IndexedDB, mirroring MemorySyncStorage. The hlc state, the server offset and the
  * node id (`deviceId`) live in `meta`, so tabs share one clock and every change to it is transactional.
+ *
+ * With an `owner`, it is one sync run's: `applyPulled`, `markPushed`, `reject` and `restamp` throw
+ * StaleSyncError, in the transaction and before writing, once `meta.session` is no longer the owner's,
+ * and `applyPulled` also once the cursor is no longer the one this run last read or wrote.
  */
-@Injectable({ providedIn: 'root' })
+@Injectable({ providedIn: 'root', useFactory: () => new DexieSyncStorage(inject(PromusDb)) })
 export class DexieSyncStorage implements SyncStorage {
   private readonly db: PromusDb;
+  private readonly owner: SyncOwner | null;
+  private cursor: number | null = null;
 
-  constructor(db: PromusDb) {
+  constructor(db: PromusDb, owner?: SyncOwner) {
     this.db = db;
+    this.owner = owner ?? null;
   }
 
   /**
@@ -74,12 +95,17 @@ export class DexieSyncStorage implements SyncStorage {
   }
 
   async markPushed(ids: string[]): Promise<void> {
-    await this.db.outbox.where('id').anyOf(ids).modify({ pushed: 1 });
+    const db = this.db;
+    await db.transaction('rw', db.outbox, db.meta, async () => {
+      await this.checkOwner();
+      await db.outbox.where('id').anyOf(ids).modify({ pushed: 1 });
+    });
   }
 
   async reject(items: RejectedEvent[]): Promise<void> {
     const db = this.db;
-    await db.transaction('rw', db.outbox, db.rejected, async () => {
+    await db.transaction('rw', db.outbox, db.rejected, db.meta, async () => {
+      await this.checkOwner();
       await db.outbox.bulkDelete(items.map((i) => i.event.id));
       await db.rejected.bulkPut(items.map((i) => ({ id: i.event.id, ...i })));
     });
@@ -88,6 +114,7 @@ export class DexieSyncStorage implements SyncStorage {
   async restamp(ids: string[], serverOffsetMs: number): Promise<void> {
     const db = this.db;
     await db.transaction('rw', db.events, db.outbox, db.meta, async () => {
+      await this.checkOwner();
       await db.setMeta('serverOffset', serverOffsetMs);
       // lower the clock past the bad future values: only events others may have seen count
       const [pulled, pushed, targets] = await Promise.all([
@@ -109,12 +136,19 @@ export class DexieSyncStorage implements SyncStorage {
   }
 
   async getCursor(): Promise<number> {
-    return (await this.db.getMeta('cursor')) ?? 0;
+    const cursor = (await this.db.getMeta('cursor')) ?? 0;
+    this.cursor = cursor;
+    return cursor;
   }
 
   async applyPulled(events: StoredEvent[], lastSeq: number): Promise<void> {
     const db = this.db;
     await db.transaction('rw', db.events, db.outbox, db.meta, async () => {
+      await this.checkOwner();
+      // a wipe resets the cursor: these events would continue a log the database no longer holds
+      if (this.owner && this.cursor !== null && ((await db.getMeta('cursor')) ?? 0) !== this.cursor) {
+        throw new StaleSyncError();
+      }
       await db.events.bulkPut(events);
       await db.outbox.bulkDelete(events.map((e) => e.id));
       await db.setMeta('cursor', lastSeq);
@@ -123,10 +157,20 @@ export class DexieSyncStorage implements SyncStorage {
       const [hlc, offset] = await Promise.all([db.getMeta('hlc'), db.getMeta('serverOffset')]);
       await db.setMeta('hlc', hlcReceive(hlc ?? ZERO, top, Date.now() + (offset ?? 0)));
     });
+    this.cursor = lastSeq;
   }
 
+  // not owner-checked: the offset is the server's clock, the same for every session
   async setServerOffset(ms: number): Promise<void> {
     await this.db.setMeta('serverOffset', ms);
+  }
+
+  // called inside the caller's rw transaction over `meta`, so no sign-out or sign-in lands between check and write
+  private async checkOwner(): Promise<void> {
+    const owner = this.owner;
+    if (!owner) return;
+    const session = await this.db.getMeta('session');
+    if (session?.userId !== owner.userId || session.householdId !== owner.householdId) throw new StaleSyncError();
   }
 
   // made on first use; called inside the caller's rw transaction over `meta`, so tabs agree on it
