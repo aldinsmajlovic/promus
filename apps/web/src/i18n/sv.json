@@ -20,6 +20,7 @@
   "errors": {
     "actionFailed": "Ändringen kunde inte sparas",
     "nameEmpty": "Ange ett namn",
+    "nameTaken": "Det namnet finns redan",
     "nameTooLong": "Högst {{max}} tecken",
     "noteTooLong": "Högst {{max}} tecken"
   },

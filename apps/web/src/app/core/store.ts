@@ -20,8 +20,11 @@ import { DexieSyncStorage } from './dexie-storage';
 import { requestPersistence } from './persist';
 import { SyncService } from './sync.service';
 
-/** `messageKey` and `params` make the snackbar text, e.g. `snack.checked` with `{ name }`. */
-export type UndoToken = { messageKey: string; params: Record<string, string>; inverse: Draft[] };
+/**
+ * `messageKey` and `params` make the snackbar text, e.g. `snack.checked` with `{ name }`. `householdId` is
+ * the household the action changed: only its session can undo it.
+ */
+export type UndoToken = { messageKey: string; params: Record<string, string>; householdId: string; inverse: Draft[] };
 
 /** No action without the session this state was loaded for: signed out, or another user signed in. */
 export class SessionError extends Error {
@@ -32,7 +35,7 @@ export class SessionError extends Error {
 }
 
 export class ValidationError extends Error {
-  readonly code: 'name_empty' | 'name_too_long' | 'note_too_long';
+  readonly code: 'name_empty' | 'name_too_long' | 'name_taken' | 'note_too_long';
 
   constructor(code: ValidationError['code']) {
     super(code);
@@ -145,12 +148,23 @@ export class Store {
     return this.serial(() => this.read());
   }
 
-  /** Throws ValidationError; resolves to null when the item is already on the list. */
+  /**
+   * Throws ValidationError; resolves to null when the item is already on the list. An archived item of
+   * that name comes back, with its history and last note, rather than a new one beside it.
+   */
   addByName(listId: string, name: string): Promise<UndoToken | null> {
     return this.act((s) => {
       const clean = checkName(name);
-      const existing = s.byName.get(normalizeName(clean))?.values().next().value;
+      const normalized = normalizeName(clean);
+      const existing = s.byName.get(normalized)?.values().next().value;
       if (existing !== undefined) return this.readd(s, listId, existing);
+      // byName holds live items only
+      const archived = [...s.items.values()].find((i) => i.archived && i.normalized === normalized);
+      if (archived) {
+        const unarchive: Draft = { type: 'item.unarchived', payload: { itemId: archived.id } };
+        const readd = this.readd(s, listId, archived.id)?.drafts ?? [];
+        return { messageKey: 'snack.added', name: archived.name, drafts: [unarchive, ...readd] };
+      }
       const itemId = newId();
       return {
         messageKey: 'snack.added',
@@ -200,11 +214,14 @@ export class Store {
     });
   }
 
+  /** Throws ValidationError, `name_taken` too when another live item has that name in any case. */
   renameItem(itemId: string, name: string): Promise<UndoToken | null> {
     return this.act((s) => {
       const clean = checkName(name);
       const item = itemOf(s, itemId);
       if (!item || item.name === clean) return null;
+      const named = s.byName.get(normalizeName(clean)) ?? [];
+      if ([...named].some((id) => resolveItemId(s, id) !== item.id)) throw new ValidationError('name_taken');
       return one('snack.renamed', clean, { type: 'item.renamed', payload: { itemId: item.id, name: clean } });
     });
   }
@@ -244,8 +261,10 @@ export class Store {
     });
   }
 
+  /** Throws SessionError when the signed-in household is not the token's. */
   undo(token: UndoToken): Promise<void> {
     return this.serial(async () => {
+      if (token.householdId !== this.householdId) throw new SessionError('the undo is for another household');
       if (token.inverse.length > 0) await this.commit(token.inverse);
     });
   }
@@ -265,7 +284,9 @@ export class Store {
   }
 
   private async run({ messageKey, name, drafts }: Plan): Promise<UndoToken> {
-    return { messageKey, params: { name }, inverse: await this.commit(drafts) };
+    const householdId = this.householdId;
+    if (householdId === null) throw new SessionError('not signed in');
+    return { messageKey, params: { name }, householdId, inverse: await this.commit(drafts) };
   }
 
   /** Writes the drafts as events, then applies them; resolves to the drafts that undo them. */

@@ -10,6 +10,7 @@ const SNACK_MS = 5000;
 const REFUSALS: Record<ValidationError['code'], { key: string; params: Record<string, number> }> = {
   name_empty: { key: 'errors.nameEmpty', params: {} },
   name_too_long: { key: 'errors.nameTooLong', params: { max: LIMITS.nameMax } },
+  name_taken: { key: 'errors.nameTaken', params: {} },
   note_too_long: { key: 'errors.noteTooLong', params: { max: LIMITS.noteMax } },
 };
 

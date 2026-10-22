@@ -5,7 +5,7 @@ import { describe, expect, it, onTestFinished, vi } from 'vitest';
 import { PromusDb } from './db';
 import { DexieSyncStorage } from './dexie-storage';
 import { requestPersistence } from './persist';
-import { Store, ValidationError } from './store';
+import { SessionError, Store, ValidationError } from './store';
 
 async function setup() {
   const db = new PromusDb(`store-${newId()}`);
@@ -63,9 +63,41 @@ describe('Store', () => {
     expect(await db.outbox.count()).toBe(written);
   });
 
+  it('addByName brings an archived item back with its history, and undo archives it again', async () => {
+    const { store, listId } = await setup();
+    await store.addByName(listId, 'Mjölk');
+    const { id } = itemNamed(store, 'Mjölk');
+    await store.setNote(listId, id, 'laktosfri');
+    await store.check(listId, id);
+    await store.remove(listId, id);
+    await store.archiveItem(id);
+
+    const token = await store.addByName(listId, ' mjölk');
+    expect(token).toMatchObject({ messageKey: 'snack.added', params: { name: 'Mjölk' } });
+    expect([...store.state().items.values()]).toEqual([expect.objectContaining({ id, archived: false, purchaseCount: 1 })]);
+    expect(store.state().entries.get(entryKey(listId, id))).toMatchObject({ state: 'active', note: 'laktosfri' });
+
+    await store.undo(token!);
+    expect(itemNamed(store, 'Mjölk').archived).toBe(true);
+    expect(store.state().entries.has(entryKey(listId, id))).toBe(false);
+  });
+
+  it('renameItem refuses another item\'s name but takes a new case of its own', async () => {
+    const { db, store, listId } = await setup();
+    await store.addByName(listId, 'mjölk');
+    await store.addByName(listId, 'Ost');
+    const written = await db.outbox.count();
+    await expect(store.renameItem(itemNamed(store, 'Ost').id, ' MJÖLK ')).rejects.toEqual(new ValidationError('name_taken'));
+    expect(await db.outbox.count()).toBe(written);
+
+    const { id } = itemNamed(store, 'mjölk');
+    expect(await store.renameItem(id, 'Mjölk')).toMatchObject({ messageKey: 'snack.renamed', params: { name: 'Mjölk' } });
+    expect(itemNamed(store, 'Mjölk').id).toBe(id);
+  });
+
   it('rejects empty and over-long names', async () => {
     const { store, listId } = await setup();
-    await expect(store.addByName(listId, '​ ')).rejects.toEqual(new ValidationError('name_empty'));
+    await expect(store.addByName(listId, '\u200B ')).rejects.toEqual(new ValidationError('name_empty'));
     await expect(store.addByName(listId, 'a'.repeat(201))).rejects.toMatchObject({ code: 'name_too_long' });
     await expect(store.setNote(listId, newId(), 'a'.repeat(501))).rejects.toMatchObject({ code: 'note_too_long' });
     expect(await store.addByName(listId, 'a'.repeat(200))).not.toBeNull();
@@ -87,6 +119,16 @@ describe('Store', () => {
     expect(itemNamed(store, 'Gräddfil').archived).toBe(true);
     expect(store.state().entries.has(entryKey(listId, graddfil.id))).toBe(false);
     expect(frequentItems(store.state(), listId, store.now()).map((i) => i.name)).not.toContain('Gräddfil');
+  });
+
+  it('undo refuses a token from another household', async () => {
+    const { db, store, listId } = await setup();
+    const token = await store.addByName(listId, 'Mjölk');
+    await db.setMeta('session', { userId: newId(), username: 'bea', householdId: newId() });
+    await store.load();
+    const written = await db.outbox.count();
+    await expect(store.undo(token!)).rejects.toBeInstanceOf(SessionError);
+    expect(await db.outbox.count()).toBe(written);
   });
 
   it('actions survive a reload', async () => {

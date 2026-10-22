@@ -258,6 +258,17 @@ describe('ListPage', () => {
     expect(names(el)).toEqual(['Laktosfri mjölk']);
   });
 
+  it('edit sheet refuses the name of another item under the field', async () => {
+    const t = await setup([['Mjölk'], ['Ost']]);
+    const sheet = await editMjolk(t, { name: 'ost' });
+    await sheet.dismiss();
+    await t.fixture.whenStable();
+    expect(await t.loader.getAllHarnesses(MatBottomSheetHarness)).toHaveLength(1);
+    const field = await sheet.getHarness(MatFormFieldHarness.with({ floatingLabelText: 'Namn' }));
+    expect(await field.getTextErrors()).toEqual(['Det namnet finns redan']);
+    expect(names(t.el)).toEqual(['Mjölk', 'Ost']);
+  });
+
   it('a note saved before a refused name is undone with a later remove', async () => {
     const t = await setup([['Mjölk', '2 st']]);
     const sheet = await editMjolk(t, { name: ' ', note: 'laktosfri' });

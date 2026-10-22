@@ -20,6 +20,7 @@
   "errors": {
     "actionFailed": "Couldn't save the change",
     "nameEmpty": "Enter a name",
+    "nameTaken": "That name already exists",
     "nameTooLong": "At most {{max}} characters",
     "noteTooLong": "At most {{max}} characters"
   },
