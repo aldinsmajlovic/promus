@@ -1,138 +1,51 @@
 # Promus
 
-Promus is a self-hosted grocery list that works offline. It is an installable web app (PWA) for the phone, backed by a small Node.js server with SQLite that syncs your devices. Every change is stored as an event, so bringing back something you bought before takes one tap and never creates a duplicate.
+A self-hosted grocery list for your phone that works offline. Anything you've bought before comes back with a tap, never as a duplicate, and checked items clear themselves instead of piling up.
 
 In Latin, a *promus* is the household steward who brings provisions out of the storeroom.
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/list-dark.png">
+  <img src="docs/images/list-light.png" alt="The list screen: six items, three of them with notes, and two checked items under Done" width="320">
+</picture>
+
 ## Features
 
-- Re-add any item you've bought before with a few letters and a tap. The same item is reused, never duplicated.
-- Search handles typos and diacritics: "gradd" finds "grädd".
+- Re-add anything you've bought before with a few letters and a tap. Typos and diacritics are fine: "gradd" finds "grädd". The same item comes back, never a duplicate.
 - With the add field empty, your most-bought items that aren't on the list are one tap away.
-- Fully usable offline. Changes sync when the server is reachable, with nothing lost or duplicated.
-- Checked items move to a Done section and drop off the list after 24 hours.
+- Works fully offline in the store. Changes sync when the server is reachable, with nothing lost or duplicated.
+- Checked items move to a Done section and leave the list after 24 hours.
 - Every action can be undone from the snackbar. There are no confirmation dialogs.
 - Several lists, sharing one item history.
-- Swedish and English, plus light and dark themes.
-- Every change is logged with when it happened and who made it.
-- Accounts are created on the server. There is no public sign-up.
+- Swedish and English, with light and dark themes.
+- Runs on your own server, with no public sign-up. Every change is kept with when it happened and who made it.
 
-## Quick start with Docker
+## Status
+
+Early: the list, search, offline sync and undo are done, and being tried day to day.
+Stats, data export and a Home Assistant integration come next.
+
+## Quick start
+
+With Docker:
 
 ```sh
-git clone <repository-url> promus
+git clone https://github.com/aldinsmajlovic/promus.git
 cd promus
 cp .env.example .env
 docker compose up -d --build
 docker compose exec promus node apps/server/src/cli.ts user:create <username>
 ```
 
-Open <http://localhost:8080> on the same machine and sign in.
-- The container is published on `127.0.0.1:8080` only.
-- Phones and other machines need HTTPS in front, because the service worker and the `Secure` session cookie only work in a secure context. `localhost` counts as one, so a browser on the Docker host works over plain HTTP.
+Open <http://localhost:8080> on the same machine and sign in. Phones need HTTPS in front: the self-hosting guide sets that up with Tailscale and installs the app on the phone.
 
-## Self-hosting
+## Documentation
 
-[docs/self-hosting.md](docs/self-hosting.md) is the full guide. It covers:
-- a Proxmox LXC with a sandboxed systemd service
-- Tailscale with `tailscale serve`, and an optional policy lockdown
-- backups, restore and updating
-- the Docker setup in more detail
-
-The `deploy/` folder holds the systemd units for the service and for the nightly backup.
-
-### Configuration
-
-Configuration comes only from environment variables. See [.env.example](.env.example).
-
-| Variable | Default | Purpose |
-|---|---|---|
-| `PORT` | `8080` | TCP port to listen on |
-| `HOST` | `127.0.0.1` | Address to bind |
-| `DATA_DIR` | `./data` | Database (`promus.db`) and `backups/` |
-| `LOG_LEVEL` | `info` | `debug`, `info`, `warn` or `error` |
-
-### Accounts and backups
-
-The server CLI is `apps/server/src/cli.ts`, with three commands:
-
-```
-user:create <username> [--locale en|sv]
-user:password <username>
-backup
-```
-
-Run it against the server's own database:
-- **Docker:** `docker compose exec promus node apps/server/src/cli.ts <command>`
-- **systemd install:** run it as the `promus` user, with the service's `DATA_DIR`:
-
-  ```sh
-  cd /opt/promus
-  runuser -u promus -- env $(grep '^DATA_DIR=' /etc/promus/promus.env) node apps/server/src/cli.ts <command>
-  ```
-
-  For a backup, `systemctl start promus-backup.service` does the same. See the guide's sections on [accounts](docs/self-hosting.md#6-create-your-account) and [backups](docs/self-hosting.md#8-backups-and-restore).
-
-Without `DATA_DIR`, the CLI uses `./data`, which is a separate database. `user:create` would then create an account the server never sees. `backup` refuses a database that doesn't exist: it exits with `No database at <path>; check DATA_DIR` and creates nothing.
-
-What the commands do:
-- **`user:create`** asks for a password of at least 8 characters, on a hidden prompt. Without a TTY, it reads the first line of stdin.
-  - It also creates the user's default list.
-  - The list's name is English by default (`--locale en`). `--locale sv` gives it a Swedish name.
-- **`user:password`** sets a new password and signs that user out on every device.
-- **`backup`** writes a consistent copy of the database, as it is, to `DATA_DIR/backups/promus-YYYY-MM-DD.db`, and keeps the 14 newest. It doesn't migrate the database: the server does that on startup.
-
-### Updating
-
-- **Docker:** take a backup first, then run `git pull && docker compose up -d --build`. The guide's [Docker section](docs/self-hosting.md#10-alternative-docker) covers backups.
-- **systemd install:** see [Updating](docs/self-hosting.md#9-updating) in the guide.
-
-Database migrations run automatically on startup.
-
-## Development
-
-This needs Node.js 26 (see `.node-version`). The end-to-end tests also need Google Chrome.
-
-npm 11 skips the install scripts of esbuild, lmdb, msgpackr-extract and @parcel/watcher. That is intentional: the build, the tests and the Docker image work without them.
-
-```sh
-npm ci
-npm run dev:server   # API on http://127.0.0.1:8080, data in ./data, restarts on change
-npm run dev:web      # app on http://localhost:4200, proxies /api to the API
-node apps/server/src/cli.ts user:create dev
-```
-
-Checks:
-
-```sh
-npm run typecheck
-npm test             # unit and integration tests, against real SQLite files
-npm run lint         # no em dashes in tracked files
-npm run e2e          # Playwright in mobile Chrome, against a fresh build and database
-```
-
-To test on a real Android phone, connect it over USB with USB debugging enabled, then run:
-
-```sh
-adb reverse tcp:4200 tcp:4200
-```
-
-Then open <http://localhost:4200> in Chrome on the phone. The phone sees the dev server as `localhost`, which is a secure context, so signing in works without HTTPS.
-
-`npm run icons` regenerates `brand/promus-p.svg` and the app icons in `apps/web/public/icons` from the Fraunces font.
-
-Repository layout (npm workspaces):
-
-```
-apps/server       Hono API, serves the built app, CLI
-apps/web          Angular app
-packages/shared   event schemas, fold, name normalization, HLC
-deploy/           systemd units
-docs/             self-hosting guide
-e2e/              Playwright tests
-```
-
-`CLAUDE.md` lists the conventions for changes, including AI-assisted ones.
+- [Self-hosting](docs/self-hosting.md): a Proxmox container or Docker, Tailscale, the phone, backups and updates.
+- [Configuration](docs/configuration.md): the environment variables.
+- [Server commands](docs/cli.md): accounts and backups.
+- [Development](docs/development.md): running it locally, the checks and the project layout.
+- [Writing docs](docs/writing-docs.md): rules for these pages.
 
 ## License
 

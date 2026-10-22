@@ -13,6 +13,7 @@
   },
   "scripts": {
     "icons": "node scripts/build-icons.ts",
+    "screenshots": "node scripts/screenshots.ts",
     "test": "npm test --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present && tsc -p e2e",
     "e2e": "playwright test -c e2e/playwright.config.ts",

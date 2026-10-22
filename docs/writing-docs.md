@@ -36,7 +36,11 @@ Anything longer than a line or two goes to a page in `docs/` and the README link
 | Page | Owns |
 |---|---|
 | `README.md` | The front page |
-| `docs/self-hosting.md` | Installing, Tailscale, backups, restore, updating, Docker |
+| `docs/self-hosting.md` | Installing, Tailscale, the phone, backups, restore, updating, Docker |
+| `docs/configuration.md` | Environment variables |
+| `docs/cli.md` | Server commands: accounts and backups |
+| `docs/development.md` | Running locally, checks, phone testing, project layout |
+| `docs/images/` | Screenshots, retaken with `npm run screenshots` |
 | `docs/writing-docs.md` | These rules |
 | `CLAUDE.md` | Code conventions for changes |
 

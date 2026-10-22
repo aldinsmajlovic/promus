@@ -9,7 +9,6 @@ Placeholders used below:
 | Placeholder | Meaning |
 |---|---|
 | `<id>` | The Proxmox container ID |
-| `<repository-url>` | The Git URL of this repository |
 | `<name>` | The container's machine name on your tailnet |
 | `<your-tailnet>` | Your tailnet's DNS name, shown on the DNS page of the Tailscale admin console |
 | `<username>` | A Promus account name |
@@ -65,7 +64,7 @@ Create a system user, then fetch and build the app:
 
 ```sh
 useradd --system --user-group --home-dir /var/lib/promus --shell /usr/sbin/nologin promus
-git clone <repository-url> /opt/promus
+git clone https://github.com/aldinsmajlovic/promus.git /opt/promus
 cd /opt/promus
 npm ci
 npm run build -w apps/web
@@ -362,7 +361,7 @@ systemctl start promus
 ## 10. Alternative: Docker
 
 ```sh
-git clone <repository-url> promus
+git clone https://github.com/aldinsmajlovic/promus.git promus
 cd promus
 cp .env.example .env
 docker compose up -d --build
