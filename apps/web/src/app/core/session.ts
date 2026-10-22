@@ -16,6 +16,16 @@ export class PendingOtherUserError extends Error {
   }
 }
 
+/** Signed in, but the browser didn't keep the Secure cookie: the page isn't served over HTTPS. */
+export class CookieRejectedError extends Error {
+  readonly messageKey = 'https.cookie';
+
+  constructor() {
+    super('the browser dropped the session cookie');
+    this.name = 'CookieRejectedError';
+  }
+}
+
 @Injectable({ providedIn: 'root' })
 export class SessionService {
   private readonly db = inject(PromusDb);
@@ -36,13 +46,16 @@ export class SessionService {
    * included. Throws PendingOtherUserError while the cached user has unsynced changes.
    */
   async login(username: string, password: string): Promise<Session> {
-    const cached = await this.db.getMeta('session');
     // before the server sets the new user's cookie: with it, a sync would push the cached user's
     // queued events as the new user's, and the server would refuse (and the outbox drop) them
-    const otherName = cached !== undefined && normalizeName(username) !== normalizeName(cached.username);
-    if (otherName && (await this.storage.pendingCount()) > 0) throw new PendingOtherUserError(cached.username);
+    await this.assertCanSignIn(username);
+    const cached = await this.db.getMeta('session');
     const { user, householdId } = await this.api.login(username, password);
     if (householdId === null) throw new ApiError(403, 'no_household');
+    // some browsers count http://localhost as secure and still drop a Secure cookie there
+    await this.api.me().catch((err: unknown) => {
+      throw err instanceof AuthError ? new CookieRejectedError() : err;
+    });
     if (cached?.userId !== user.id) {
       await this.db.wipe().catch(async (err: unknown) => {
         if (!(err instanceof PendingChangesError)) throw err;
@@ -57,7 +70,14 @@ export class SessionService {
     return session;
   }
 
-  /** Throws PendingChangesError, and changes nothing, while changes are unsynced. */
+  /** Throws PendingOtherUserError while another user's changes wait here. Before anything that signs in. */
+  async assertCanSignIn(username: string): Promise<void> {
+    const cached = await this.db.getMeta('session');
+    const otherName = cached !== undefined && normalizeName(username) !== normalizeName(cached.username);
+    if (otherName && (await this.storage.pendingCount()) > 0) throw new PendingOtherUserError(cached.username);
+  }
+
+    /** Throws PendingChangesError, and changes nothing, while changes are unsynced. */
   async logout(): Promise<void> {
     // the wipe takes the session with it, so no action can be queued while the server call runs
     await this.db.wipe();

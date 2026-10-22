@@ -1,4 +1,16 @@
 {
+  "account": {
+    "errors": {
+      "setupCode": "Enter the setup code",
+      "username_invalid": "Enter a username",
+      "username_taken": "That username is taken"
+    },
+    "hide": "Hide password",
+    "minLength": "At least {{n}} characters",
+    "password": "Password",
+    "show": "Show password",
+    "username": "Username"
+  },
   "add": {
     "alreadyOnList": "Already on the list",
     "clear": "Clear",
@@ -24,6 +36,17 @@
     "nameTooLong": "At most {{max}} characters",
     "noteTooLong": "At most {{max}} characters"
   },
+  "https": {
+    "cookie": "Signed in, but this browser didn't keep the session. Open Promus over HTTPS.",
+    "guide": "How to set up HTTPS",
+    "how": "Signing in and offline use only work over HTTPS. Put HTTPS in front of the server, for example with tailscale funnel --bg 8080, and open its https:// address.",
+    "needed": "Promus needs HTTPS"
+  },
+  "install": {
+    "button": "Install app",
+    "ios": "To install: in Safari, tap Share, then Add to Home Screen.",
+    "other": "To install: open the browser menu and choose Install app or Add to Home screen."
+  },
   "list": {
     "add": "Add",
     "default": "Shopping list",
@@ -46,6 +69,11 @@
     "submit": "Sign in",
     "username": "Username"
   },
+  "phone": {
+    "local": "This is the server's own address, which your phone can't open. On your phone, use the server's https:// address.",
+    "scan": "Scan with your phone's camera to open Promus there.",
+    "title": "Open on your phone"
+  },
   "settings": {
     "account": "Account",
     "back": "Back",
@@ -62,6 +90,10 @@
     "system": "System",
     "theme": "Theme",
     "version": "Version {{version}}"
+  },
+  "setup": {
+    "code": "Setup code",
+    "codeHint": "In the server log, for example: docker logs promus"
   },
   "snack": {
     "added": "{{name}} added",

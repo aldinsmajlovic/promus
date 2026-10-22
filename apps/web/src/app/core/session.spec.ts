@@ -1,10 +1,10 @@
 import { TestBed } from '@angular/core/testing';
-import { ApiError, formatHlc, makeEvent, newId } from '@promus/shared';
+import { ApiError, AuthError, formatHlc, makeEvent, newId } from '@promus/shared';
 import { describe, expect, it, vi } from 'vitest';
 import { ApiClient } from './api';
 import { PendingChangesError, PromusDb } from './db';
 import { DexieSyncStorage } from './dexie-storage';
-import { PendingOtherUserError, SessionService } from './session';
+import { CookieRejectedError, PendingOtherUserError, SessionService } from './session';
 import { SessionError, Store } from './store';
 
 const anna = { user: { id: 'u1', username: 'anna' }, householdId: newId() };
@@ -12,7 +12,11 @@ const bo = { user: { id: 'u2', username: 'bo' }, householdId: newId() };
 
 async function setup() {
   const db = new PromusDb(`session-${newId()}`);
-  const api = { login: vi.fn<ApiClient['login']>(), logout: vi.fn<ApiClient['logout']>(async () => undefined) };
+  const api = {
+    login: vi.fn<ApiClient['login']>(),
+    logout: vi.fn<ApiClient['logout']>(async () => undefined),
+    me: vi.fn<ApiClient['me']>(async () => ({ user: anna.user, households: [] })),
+  };
   TestBed.configureTestingModule({
     providers: [
       { provide: PromusDb, useValue: db },
@@ -37,6 +41,27 @@ async function setup() {
 }
 
 describe('SessionService', () => {
+  it('a session cookie the browser dropped is reported, and nothing local changes', async () => {
+    const { db, api, sessions, queue } = await setup();
+    await queue();
+    api.login.mockResolvedValue(bo);
+    api.me.mockRejectedValueOnce(new AuthError());
+    const refused = await sessions.login('anna', 'pw').catch((err: unknown) => err);
+    expect(refused).toBeInstanceOf(CookieRejectedError);
+    expect(refused).toMatchObject({ messageKey: 'https.cookie' });
+    expect(await db.getMeta('session')).toMatchObject({ userId: anna.user.id });
+    expect(await db.outbox.count()).toBe(1);
+    expect(sessions.session()?.userId).toBe(anna.user.id);
+  });
+
+  it('assertCanSignIn refuses another user while changes are pending', async () => {
+    const { sessions, queue } = await setup();
+    await expect(sessions.assertCanSignIn('bo')).resolves.toBeUndefined();
+    await queue();
+    await expect(sessions.assertCanSignIn(' ANNA ')).resolves.toBeUndefined();
+    await expect(sessions.assertCanSignIn('bo')).rejects.toBeInstanceOf(PendingOtherUserError);
+  });
+
   it('the same user signing in again keeps everything, pending changes included', async () => {
     const { db, api, sessions, queue } = await setup();
     await db.setMeta('cursor', 42);

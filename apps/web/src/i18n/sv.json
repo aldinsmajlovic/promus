@@ -1,4 +1,16 @@
 {
+  "account": {
+    "errors": {
+      "setupCode": "Ange installationskoden",
+      "username_invalid": "Ange ett användarnamn",
+      "username_taken": "Användarnamnet är upptaget"
+    },
+    "hide": "Dölj lösenord",
+    "minLength": "Minst {{n}} tecken",
+    "password": "Lösenord",
+    "show": "Visa lösenord",
+    "username": "Användarnamn"
+  },
   "add": {
     "alreadyOnList": "Finns redan på listan",
     "clear": "Rensa",
@@ -24,6 +36,17 @@
     "nameTooLong": "Högst {{max}} tecken",
     "noteTooLong": "Högst {{max}} tecken"
   },
+  "https": {
+    "cookie": "Inloggad, men webbläsaren sparade inte sessionen. Öppna Promus över HTTPS.",
+    "guide": "Så sätter du upp HTTPS",
+    "how": "Inloggning och offlineläge fungerar bara över HTTPS. Sätt HTTPS framför servern, till exempel med tailscale funnel --bg 8080, och öppna dess https://-adress.",
+    "needed": "Promus behöver HTTPS"
+  },
+  "install": {
+    "button": "Installera appen",
+    "ios": "Så installerar du: tryck på Dela i Safari och sedan på Lägg till på hemskärmen.",
+    "other": "Så installerar du: öppna webbläsarens meny och välj Installera app eller Lägg till på startskärmen."
+  },
   "list": {
     "add": "Lägg till",
     "default": "Inköpslista",
@@ -46,6 +69,11 @@
     "submit": "Logga in",
     "username": "Användarnamn"
   },
+  "phone": {
+    "local": "Det här är serverns egen adress, som mobilen inte kan öppna. Använd serverns https://-adress i mobilen.",
+    "scan": "Skanna med mobilens kamera för att öppna Promus där.",
+    "title": "Öppna i mobilen"
+  },
   "settings": {
     "account": "Konto",
     "back": "Tillbaka",
@@ -62,6 +90,10 @@
     "system": "System",
     "theme": "Tema",
     "version": "Version {{version}}"
+  },
+  "setup": {
+    "code": "Installationskod",
+    "codeHint": "Finns i serverns logg, till exempel: docker logs promus"
   },
   "snack": {
     "added": "{{name}} tillagd",

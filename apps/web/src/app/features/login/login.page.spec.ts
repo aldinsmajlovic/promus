@@ -25,6 +25,8 @@ const bo = { user: { id: 'u2', username: 'bo' }, householdId: newId() };
 
 const json = (status: number, body: unknown) =>
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
+// what /api/me answers right after a sign-in, when the browser kept the cookie
+const meOf = ({ user }: { user: { id: string; username: string } }) => json(200, { user, households: [] });
 
 /** `home` guards the way to `/`, so a test can hold the navigation after signing in. */
 async function setup(cached?: Session, home: () => Promise<boolean> | boolean = () => true) {
@@ -124,12 +126,14 @@ describe('LoginPage', () => {
     const login = vi.spyOn(TestBed.inject(SessionService), 'login');
     const submit = () => t.el.querySelector('form')!.dispatchEvent(new Event('submit'));
     let answer = (_: Response): void => undefined;
-    t.fetch.mockReturnValue(new Promise((resolve) => (answer = resolve)));
+    const pending = new Promise<Response>((resolve) => (answer = resolve));
+    t.fetch.mockImplementation(async (url) => (url === '/api/me' ? meOf(bo) : pending));
+    const logins = () => t.fetch.mock.calls.filter(([url]) => url === '/api/auth/login');
     await t.signIn('bo', 'pw');
     // while the request runs
     submit();
     expect(login).toHaveBeenCalledOnce();
-    await vi.waitFor(() => expect(t.fetch).toHaveBeenCalledOnce());
+    await vi.waitFor(() => expect(logins()).toHaveLength(1));
     answer(json(200, bo));
     // signed in, and on the way home
     await vi.waitFor(async () => expect(await t.db.getMeta('session')).toMatchObject({ username: 'bo' }));
@@ -138,7 +142,7 @@ describe('LoginPage', () => {
     expect(login).toHaveBeenCalledOnce();
     arrive(true);
     await vi.waitFor(() => expect(t.router.url).toBe('/'));
-    expect(t.fetch).toHaveBeenCalledOnce();
+    expect(logins()).toHaveLength(1);
   });
 
   it("login with a different user wipes the previous user's local data", async () => {
@@ -147,7 +151,7 @@ describe('LoginPage', () => {
     await t.db.setMeta('cursor', 42);
     // the device's own settings stay
     await t.db.setMeta('theme', 'dark');
-    t.fetch.mockResolvedValueOnce(json(200, bo));
+    t.fetch.mockResolvedValueOnce(json(200, bo)).mockResolvedValueOnce(meOf(bo));
     await t.signIn('bo', 'pw');
     await vi.waitFor(() => expect(t.router.url).toBe('/'));
     const [url, init] = t.fetch.mock.calls[0]!;

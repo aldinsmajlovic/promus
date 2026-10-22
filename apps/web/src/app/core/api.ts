@@ -1,6 +1,14 @@
 import { Injectable, InjectionToken, inject } from '@angular/core';
-import { ApiError, AuthError, NetworkError, loginRequestSchema } from '@promus/shared';
-import type { EventInput, PullResponse, PushResponse, SyncApi } from '@promus/shared';
+import {
+  ApiError,
+  AuthError,
+  NetworkError,
+  inviteAcceptSchema,
+  inviteTokenSchema,
+  loginRequestSchema,
+  setupRequestSchema,
+} from '@promus/shared';
+import type { EventInput, InviteAccept, Member, PullResponse, PushResponse, SetupRequest, SyncApi } from '@promus/shared';
 
 export type User = { id: string; username: string };
 
@@ -33,8 +41,33 @@ export class ApiClient implements SyncApi {
     return this.request('POST', '/api/auth/logout');
   }
 
-  me(): Promise<{ user: User; households: { id: string; role: string }[] }> {
+  me(): Promise<{ user: User; households: { id: string; role: string; members: Member[] }[] }> {
     return this.request('GET', '/api/me');
+  }
+
+  async setupNeeded(): Promise<boolean> {
+    return (await this.request<{ needed: boolean }>('GET', '/api/setup')).needed;
+  }
+
+  setup(req: SetupRequest): Promise<void> {
+    return this.request('POST', '/api/setup', setupRequestSchema.parse(req));
+  }
+
+  createInvite(): Promise<{ id: string; token: string; expiresAt: number }> {
+    return this.request('POST', '/api/invites');
+  }
+
+  revokeInvite(id: string): Promise<void> {
+    return this.request('DELETE', `/api/invites/${encodeURIComponent(id)}`);
+  }
+
+  // tokens only ever in a body: the server logs every path
+  checkInvite(token: string): Promise<{ expiresAt: number }> {
+    return this.request('POST', '/api/invites/check', inviteTokenSchema.parse({ token }));
+  }
+
+  acceptInvite(req: InviteAccept): Promise<void> {
+    return this.request('POST', '/api/invites/accept', inviteAcceptSchema.parse(req));
   }
 
   push(events: EventInput[]): Promise<PushResponse> {

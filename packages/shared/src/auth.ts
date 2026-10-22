@@ -4,6 +4,9 @@ import * as z from 'zod';
 export const loginRequestSchema = z.object({ username: z.string(), password: z.string() });
 export type LoginRequest = z.infer<typeof loginRequestSchema>;
 
+/** The server refuses shorter passwords; the forms say so up front. */
+export const MIN_PASSWORD_LENGTH = 8;
+
 /** A new account's name and password; the server checks length and cleanliness and answers with a code. */
 export const accountSchema = z.object({ username: z.string(), password: z.string() });
 export type Account = z.infer<typeof accountSchema>;
