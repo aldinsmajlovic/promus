@@ -8,26 +8,60 @@ export type Locale = 'sv' | 'en';
 const DEFAULT_LIST_NAME: Record<Locale, string> = { sv: 'Inköpslista', en: 'Shopping list' };
 
 export class UserExistsError extends Error {
+  readonly code = 'username_taken';
   constructor(username: string) {
     super(`User "${username}" already exists`);
     this.name = 'UserExistsError';
   }
 }
 
+/** A username or password the server won't take; `code` is the API's error code. */
+export class AccountError extends Error {
+  readonly code: 'password_too_short' | 'username_invalid';
+  constructor(code: AccountError['code'], message: string) {
+    super(message);
+    this.name = 'AccountError';
+    this.code = code;
+  }
+}
+
+/** The first-run setup lost the race: another account exists by now. */
+export class AlreadySetUpError extends Error {
+  constructor() {
+    super('An account exists already');
+    this.name = 'AlreadySetUpError';
+  }
+}
+
 function checkPassword(password: string): void {
   if ([...password].length < MIN_PASSWORD_LENGTH) {
-    throw new Error(`Password must be at least ${MIN_PASSWORD_LENGTH} characters`);
+    throw new AccountError('password_too_short', `Password must be at least ${MIN_PASSWORD_LENGTH} characters`);
   }
+}
+
+/** The cleaned username; throws AccountError when it's empty or too long. */
+export function checkUsername(raw: string): string {
+  const username = cleanName(raw);
+  if (username === '' || username.length > LIMITS.nameMax) {
+    throw new AccountError('username_invalid', `Username must be 1 to ${LIMITS.nameMax} characters`);
+  }
+  return username;
 }
 
 export async function createUser(
   db: DatabaseSync,
-  opts: { username: string; password: string; locale: Locale; now: number },
+  opts: {
+    username: string;
+    password: string;
+    locale: Locale;
+    now: number;
+    /** The first-run setup: refuse with AlreadySetUpError if any user exists by the time of the insert. */
+    assertNoUsers?: boolean;
+    /** Recorded on the default list's event: where the account came from. */
+    sessionId?: 'cli' | 'setup';
+  },
 ): Promise<{ userId: string; householdId: string; listId: string }> {
-  const username = cleanName(opts.username);
-  if (username === '' || username.length > LIMITS.nameMax) {
-    throw new Error(`Username must be 1 to ${LIMITS.nameMax} characters`);
-  }
+  const username = checkUsername(opts.username);
   checkPassword(opts.password);
   const passwordHash = await hashPassword(opts.password);
   const { now } = opts;
@@ -40,6 +74,7 @@ export async function createUser(
     { householdId, hlc: formatHlc(now, 0, 'server'), occurredAt: now },
   );
   transaction(db, () => {
+    if (opts.assertNoUsers && db.prepare('SELECT 1 FROM users LIMIT 1').get()) throw new AlreadySetUpError();
     const norm = normalizeName(username);
     if (db.prepare('SELECT 1 FROM users WHERE username_norm = ?').get(norm)) throw new UserExistsError(username);
     db.prepare('INSERT INTO users (id, username, username_norm, password_hash, created_at) VALUES (?, ?, ?, ?, ?)')
@@ -48,8 +83,8 @@ export async function createUser(
     db.prepare("INSERT INTO household_members (household_id, user_id, role) VALUES (?, ?, 'owner')").run(householdId, userId);
     db.prepare(
       `INSERT INTO events (id, household_id, user_id, session_id, type, v, hlc, occurred_at, received_at, payload)
-       VALUES (?, ?, ?, 'cli', ?, ?, ?, ?, ?, ?)`,
-    ).run(event.id, householdId, userId, event.type, event.v, event.hlc, event.occurredAt, now, JSON.stringify(event.payload));
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ).run(event.id, householdId, userId, opts.sessionId ?? 'cli', event.type, event.v, event.hlc, event.occurredAt, now, JSON.stringify(event.payload));
   });
   return { userId, householdId, listId };
 }

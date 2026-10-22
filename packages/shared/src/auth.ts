@@ -3,3 +3,13 @@ import * as z from 'zod';
 
 export const loginRequestSchema = z.object({ username: z.string(), password: z.string() });
 export type LoginRequest = z.infer<typeof loginRequestSchema>;
+
+/** A new account's name and password; the server checks length and cleanliness and answers with a code. */
+export const accountSchema = z.object({ username: z.string(), password: z.string() });
+export type Account = z.infer<typeof accountSchema>;
+
+export const setupRequestSchema = accountSchema.extend({
+  setupCode: z.string().max(100),
+  locale: z.enum(['sv', 'en']),
+});
+export type SetupRequest = z.infer<typeof setupRequestSchema>;

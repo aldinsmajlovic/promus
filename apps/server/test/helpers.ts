@@ -29,7 +29,7 @@ export function makeTestApp(overrides: Partial<AppDeps> = {}) {
     webRoot,
     ...overrides,
   });
-  return { app, db, webRoot, now: () => now, setNow: (ms: number) => { now = ms; } };
+  return { app, db, config, webRoot, now: () => now, setNow: (ms: number) => { now = ms; } };
 }
 
 export function login(

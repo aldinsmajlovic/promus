@@ -68,7 +68,10 @@ describe('auth', { timeout: 30_000 }, () => {
     const { app, db } = makeTestApp({ logger: pino({ level: 'warn' }, { write: (line: string) => void lines.push(line) }) });
     await createUser(db, { username: 'Anna', password: PW, locale: 'sv', now: T0 });
     for (let i = 0; i < 11; i++) await login(app, ' ANNA ', 'wrong password');
-    const logged = lines.map((line) => JSON.parse(line) as { level: number; msg: string; username: string });
+    const logged = lines
+      .map((line) => JSON.parse(line) as { level: number; msg: string; username: string })
+      // an empty database also logs its setup code
+      .filter((l) => l.msg.startsWith('login'));
     expect(logged.map(({ level, msg, username }) => ({ level, msg, username }))).toEqual([
       ...Array<object>(10).fill({ level: 40, msg: 'login failed', username: 'anna' }),
       { level: 40, msg: 'login rate limited', username: 'anna' },
