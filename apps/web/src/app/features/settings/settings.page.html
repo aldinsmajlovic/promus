@@ -1,0 +1,49 @@
+<ng-container *transloco="let t">
+  <mat-toolbar>
+    <button matIconButton [attr.aria-label]="t('settings.back')" (click)="back()">
+      <mat-icon svgIcon="arrow_back" />
+    </button>
+    <h1 class="brand">{{ t('list.settings') }}</h1>
+  </mat-toolbar>
+
+  <main>
+    <section>
+      <h2 id="lang">{{ t('settings.language') }}</h2>
+      <mat-button-toggle-group aria-labelledby="lang" [value]="lang.pref()" (change)="setLang($event.value)">
+        @for (o of langs; track o.value) {
+          <mat-button-toggle [value]="o.value">{{ t(o.label) }}</mat-button-toggle>
+        }
+      </mat-button-toggle-group>
+    </section>
+
+    <section>
+      <h2 id="theme">{{ t('settings.theme') }}</h2>
+      <mat-button-toggle-group aria-labelledby="theme" [value]="theme.mode()" (change)="setTheme($event.value)">
+        @for (o of themes; track o.value) {
+          <mat-button-toggle [value]="o.value">{{ t(o.label) }}</mat-button-toggle>
+        }
+      </mat-button-toggle-group>
+    </section>
+
+    <section>
+      <h2>{{ t('settings.account') }}</h2>
+      @let n = pending();
+      <div class="account">
+        <span class="user">{{ user()?.username }}</span>
+        <button
+          matButton="outlined"
+          [disabled]="n > 0"
+          [attr.aria-describedby]="n > 0 ? 'pending' : null"
+          (click)="signOut()"
+        >
+          <mat-icon svgIcon="logout" />{{ t('settings.signOut') }}
+        </button>
+      </div>
+      @if (n > 0) {
+        <p id="pending" class="pending">{{ t(pendingKey(n), { n }) }}</p>
+      }
+    </section>
+
+    <p class="version">{{ t('settings.version', { version }) }}</p>
+  </main>
+</ng-container>

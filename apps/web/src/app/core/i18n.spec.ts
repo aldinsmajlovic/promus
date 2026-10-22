@@ -1,11 +1,11 @@
-import { ApplicationInitStatus } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { TRANSLOCO_LOADER, TranslocoService } from '@jsverse/transloco';
-import { normalizeName } from '@promus/shared';
+import { newId, normalizeName } from '@promus/shared';
 import { describe, expect, it, vi } from 'vitest';
 import en from '../../i18n/en.json';
 import sv from '../../i18n/sv.json';
-import { detectLang, provideI18n } from './i18n';
+import { PromusDb } from './db';
+import { LangService, detectLang, provideI18n } from './i18n';
 
 const keyPaths = (obj: object, prefix = ''): string[] =>
   Object.entries(obj)
@@ -23,11 +23,14 @@ describe('i18n', () => {
     expect(keyPaths(sv)).toEqual(keyPaths(en));
   });
 
-  it('preloads the browser language and mirrors it to the html lang', async () => {
+  it('without a saved language, loads the browser language and mirrors it to the html lang', async () => {
+    TestBed.configureTestingModule({
+      providers: [{ provide: PromusDb, useValue: new PromusDb(`i18n-${newId()}`) }, provideI18n()],
+    });
     const languages = vi.spyOn(navigator, 'languages', 'get').mockReturnValue(['sv-SE']);
-    TestBed.configureTestingModule({ providers: [provideI18n()] });
+    await TestBed.inject(LangService).load();
     languages.mockRestore();
-    await TestBed.inject(ApplicationInitStatus).donePromise;
+    expect(TestBed.inject(LangService).pref()).toBe('system');
     expect(document.documentElement.lang).toBe('sv');
     expect(TestBed.inject(TranslocoService).translate('update.reload')).toBe('Ladda om');
   });

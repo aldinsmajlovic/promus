@@ -8,9 +8,25 @@ import {
 import { provideRouter } from '@angular/router';
 import { provideServiceWorker } from '@angular/service-worker';
 import { routes } from './app.routes';
-import { provideI18n } from './core/i18n';
+import { LangService, provideI18n } from './core/i18n';
 import { registerIcons } from './core/icons';
+import { SessionService } from './core/session';
+import { SyncService } from './core/sync.service';
+import { ThemeService } from './core/theme';
 import { UpdateService } from './core/update';
+
+/** The first render needs only IndexedDB, never the network: sync starts in the background. */
+export async function startup(): Promise<void> {
+  const theme = inject(ThemeService);
+  const lang = inject(LangService);
+  const session = inject(SessionService);
+  const update = inject(UpdateService);
+  const sync = inject(SyncService);
+  await Promise.all([theme.load(), lang.load(), session.load()]);
+  update.start();
+  // without a session it stays off the network
+  sync.start();
+}
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -22,6 +38,6 @@ export const appConfig: ApplicationConfig = {
     }),
     provideI18n(),
     provideAppInitializer(registerIcons),
-    provideAppInitializer(() => inject(UpdateService).start()),
+    provideAppInitializer(startup),
   ],
 };

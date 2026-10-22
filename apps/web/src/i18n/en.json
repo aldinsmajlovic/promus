@@ -36,7 +36,30 @@
     "settings": "Settings"
   },
   "login": {
-    "pendingOtherUser": "Sync or sign in as {{username}} first"
+    "invalid": "Wrong username or password",
+    "offline": "Can't reach the server",
+    "password": "Password",
+    "pendingOtherUser": "Sync or sign in as {{username}} first",
+    "rateLimited": "Too many attempts. Try again later",
+    "submit": "Sign in",
+    "username": "Username"
+  },
+  "settings": {
+    "account": "Account",
+    "back": "Back",
+    "dark": "Dark",
+    "en": "English",
+    "language": "Language",
+    "light": "Light",
+    "pending": {
+      "one": "{{n}} unsynced change",
+      "other": "{{n}} unsynced changes"
+    },
+    "signOut": "Sign out",
+    "sv": "Svenska",
+    "system": "System",
+    "theme": "Theme",
+    "version": "Version {{version}}"
   },
   "snack": {
     "added": "{{name}} added",

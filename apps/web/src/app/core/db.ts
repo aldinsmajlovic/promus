@@ -22,6 +22,8 @@ export type Meta = {
   persistRequested: boolean;
 };
 type MetaKey = keyof Meta;
+// the device's choices, not the user's data: a wipe keeps them
+const DEVICE_KEYS: MetaKey[] = ['lang', 'theme'];
 
 /** Wiping now would drop events the server hasn't accepted yet. */
 export class PendingChangesError extends Error {
@@ -57,14 +59,19 @@ export class PromusDb extends Dexie {
   }
 
   /**
-   * Clears every table in one transaction, so open tabs see it through liveQuery and keep working.
-   * Throws PendingChangesError, and clears nothing, while the outbox holds unpushed events.
+   * Clears every table but the device's language and theme in one transaction, so open tabs see it
+   * through liveQuery and keep working. Throws PendingChangesError, and clears nothing, while the
+   * outbox holds unpushed events.
    */
   async wipe(): Promise<void> {
     await this.transaction('rw', this.tables, async () => {
       // checked inside the transaction: no tab can queue an event between the check and the clear
       if ((await this.outbox.where('pushed').equals(0).count()) > 0) throw new PendingChangesError();
-      await Promise.all(this.tables.map((t) => t.clear()));
+      await Promise.all(
+        this.tables.map((t) =>
+          t.name === this.meta.name ? this.meta.where('key').noneOf(DEVICE_KEYS).delete() : t.clear(),
+        ),
+      );
     });
   }
 }

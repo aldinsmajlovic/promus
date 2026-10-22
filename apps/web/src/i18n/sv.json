@@ -36,7 +36,30 @@
     "settings": "Inställningar"
   },
   "login": {
-    "pendingOtherUser": "Synka eller logga in som {{username}} först"
+    "invalid": "Fel användarnamn eller lösenord",
+    "offline": "Kan inte nå servern",
+    "password": "Lösenord",
+    "pendingOtherUser": "Synka eller logga in som {{username}} först",
+    "rateLimited": "För många försök. Försök igen senare",
+    "submit": "Logga in",
+    "username": "Användarnamn"
+  },
+  "settings": {
+    "account": "Konto",
+    "back": "Tillbaka",
+    "dark": "Mörkt",
+    "en": "English",
+    "language": "Språk",
+    "light": "Ljust",
+    "pending": {
+      "one": "{{n}} osynkad ändring",
+      "other": "{{n}} osynkade ändringar"
+    },
+    "signOut": "Logga ut",
+    "sv": "Svenska",
+    "system": "System",
+    "theme": "Tema",
+    "version": "Version {{version}}"
   },
   "snack": {
     "added": "{{name}} tillagd",

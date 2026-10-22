@@ -42,9 +42,11 @@
               "budgets": [
                 // Raised from 500kB for the data layer: Zod's classic runtime (~92 kB, one locale, validates
                 // every event on the client) and Dexie (~95 kB, IndexedDB). With them wired in: 615.5 kB.
+                // Raised again from 650kB: the route guards read the session from IndexedDB and startup
+                // starts sync, so the data layer (Dexie, Zod, the Store) loads before the first route: 712 kB.
                 {
                   "type": "initial",
-                  "maximumWarning": "650kB",
+                  "maximumWarning": "750kB",
                   "maximumError": "1MB"
                 },
                 {

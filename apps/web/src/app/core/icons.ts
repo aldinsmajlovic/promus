@@ -2,6 +2,7 @@ import { inject } from '@angular/core';
 import { MatIconRegistry } from '@angular/material/icon';
 import { DomSanitizer } from '@angular/platform-browser';
 import add from '@material-symbols/svg-400/rounded/add.svg';
+import arrowBack from '@material-symbols/svg-400/rounded/arrow_back.svg';
 import arrowDropDown from '@material-symbols/svg-400/rounded/arrow_drop_down.svg';
 import arrowDropUp from '@material-symbols/svg-400/rounded/arrow_drop_up.svg';
 import check from '@material-symbols/svg-400/rounded/check.svg';
@@ -34,6 +35,7 @@ const ICONS: Record<string, string> = {
   // The package has no expand_more/expand_less; Material Symbols draws them as keyboard_arrow_down/up.
   expand_more: keyboardArrowDown,
   expand_less: keyboardArrowUp,
+  arrow_back: arrowBack,
   arrow_drop_down: arrowDropDown,
   arrow_drop_up: arrowDropUp,
   close,

@@ -1,0 +1,35 @@
+<ng-container *transloco="let t">
+  <h1 class="brand">{{ appName }}</h1>
+  <form [formGroup]="form" (ngSubmit)="submit()">
+    <mat-form-field subscriptSizing="dynamic" hideRequiredMarker>
+      <mat-label>{{ t('login.username') }}</mat-label>
+      <input
+        matInput
+        formControlName="username"
+        autocomplete="username"
+        autocapitalize="none"
+        spellcheck="false"
+        enterkeyhint="next"
+        required
+      />
+    </mat-form-field>
+    <mat-form-field subscriptSizing="dynamic" hideRequiredMarker>
+      <mat-label>{{ t('login.password') }}</mat-label>
+      <input
+        matInput
+        type="password"
+        formControlName="password"
+        autocomplete="current-password"
+        enterkeyhint="go"
+        required
+      />
+    </mat-form-field>
+    <!-- always there, so screen readers announce what appears in it -->
+    <p class="error" role="alert">
+      @if (error(); as e) {
+        {{ t(e.key, e.params) }}
+      }
+    </p>
+    <button matButton="filled" type="submit" [disabled]="busy()">{{ t('login.submit') }}</button>
+  </form>
+</ng-container>
