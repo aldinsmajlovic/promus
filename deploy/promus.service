@@ -1,0 +1,25 @@
+[Unit]
+Description=Promus grocery list server
+After=network.target
+
+[Service]
+User=promus
+Group=promus
+WorkingDirectory=/opt/promus
+EnvironmentFile=/etc/promus/promus.env
+ExecStart=/usr/bin/node apps/server/src/main.ts
+StateDirectory=promus
+Restart=on-failure
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+LockPersonality=yes
+# MemoryDenyWriteExecute is left off on purpose: V8's JIT needs writable executable memory.
+
+[Install]
+WantedBy=multi-user.target

@@ -9,3 +9,4 @@ initial.md
 .superpowers/
 docs/superpowers/
 e2e/.auth.json
+.env

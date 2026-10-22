@@ -1,0 +1,13 @@
+.git
+.env
+**/node_modules
+**/dist
+**/.angular
+data
+**/*.db
+.superpowers
+docs/superpowers
+initial.md
+e2e/.auth.json
+test-results
+playwright-report

@@ -1,0 +1,17 @@
+services:
+  promus:
+    build: .
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - promus-data:/data
+    env_file: .env
+    # Override HOST and DATA_DIR from .env: inside the container the server must listen on all
+    # interfaces of the container and keep its data on the volume.
+    environment:
+      HOST: 0.0.0.0
+      DATA_DIR: /data
+    restart: unless-stopped
+
+volumes:
+  promus-data:
