@@ -1,4 +1,5 @@
-FROM node:26-trixie-slim AS build
+# The built web app is the same on every platform: build it natively, emulate only the small runtime stage.
+FROM --platform=$BUILDPLATFORM node:26-trixie-slim AS build
 WORKDIR /app
 COPY package.json package-lock.json ./
 COPY packages/shared/package.json packages/shared/

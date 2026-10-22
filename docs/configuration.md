@@ -11,4 +11,4 @@ Configuration comes only from environment variables. [`.env.example`](../.env.ex
 
 Keep `HOST` at `127.0.0.1` and put HTTPS in front, with `tailscale serve` or a reverse proxy. The [self-hosting guide](self-hosting.md) covers both.
 
-In Docker, `compose.yaml` sets `HOST` and `DATA_DIR` itself, overriding `.env`. To use a different host port, change the left side of `ports`, not `PORT`.
+In Docker, the image sets `HOST=0.0.0.0` and `DATA_DIR=/data` itself, so the server listens inside the container and keeps its data on the volume. Nothing else needs setting. To use a different host port, change the left side of `-p` or `ports`, not `PORT`. To set `LOG_LEVEL`, pass `-e LOG_LEVEL=debug` to `docker run`, or add it under `environment:` in `compose.yaml`.
