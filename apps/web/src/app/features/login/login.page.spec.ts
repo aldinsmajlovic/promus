@@ -14,6 +14,7 @@ import { FETCH } from '../../core/api';
 import { PromusDb, type Session } from '../../core/db';
 import { DexieSyncStorage } from '../../core/dexie-storage';
 import { SessionService } from '../../core/session';
+import { SECURE_CONTEXT } from '../../core/platform';
 import { SyncService, type SyncStatus } from '../../core/sync.service';
 import { LoginPage } from './login.page';
 
@@ -29,7 +30,7 @@ const json = (status: number, body: unknown) =>
 const meOf = ({ user }: { user: { id: string; username: string } }) => json(200, { user, households: [] });
 
 /** `home` guards the way to `/`, so a test can hold the navigation after signing in. */
-async function setup(cached?: Session, home: () => Promise<boolean> | boolean = () => true) {
+async function setup(cached?: Session, home: () => Promise<boolean> | boolean = () => true, secure = true) {
   const db = new PromusDb(`login-${newId()}`);
   if (cached) await db.setMeta('session', cached);
   const fetch = vi.fn<typeof globalThis.fetch>();
@@ -42,6 +43,7 @@ async function setup(cached?: Session, home: () => Promise<boolean> | boolean = 
       { provide: PromusDb, useValue: db },
       { provide: FETCH, useValue: fetch },
       { provide: SyncService, useValue: sync },
+      { provide: SECURE_CONTEXT, useValue: secure },
       { provide: MATERIAL_ANIMATIONS, useValue: { animationsDisabled: true } },
       provideRouter([
         { path: '', component: Home, canActivate: [home] },
@@ -173,6 +175,21 @@ describe('LoginPage', () => {
     expect(t.fetch).not.toHaveBeenCalled();
     expect(await t.db.outbox.count()).toBe(1);
     expect(await t.db.getMeta('session')).toEqual(anna);
+    expect(t.router.url).toBe('/login');
+  });
+
+  it('over plain HTTP, shows what to do instead of a form', async () => {
+    const t = await setup(undefined, () => true, false);
+    expect(t.el.textContent).toContain(sv.https.needed);
+    expect(t.el.querySelector('form')).toBeNull();
+  });
+
+  it('a session cookie the browser dropped shows the HTTPS notice', async () => {
+    const t = await setup();
+    t.fetch.mockResolvedValueOnce(json(200, bo)).mockResolvedValueOnce(json(401, { error: 'unauthenticated' }));
+    await t.signIn('bo', 'pw');
+    await vi.waitFor(() => expect(t.el.textContent).toContain(sv.https.cookie));
+    expect(t.el.querySelector('form')).toBeNull();
     expect(t.router.url).toBe('/login');
   });
 });

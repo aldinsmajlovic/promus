@@ -47,6 +47,12 @@
     "ios": "Så installerar du: tryck på Dela i Safari och sedan på Lägg till på hemskärmen.",
     "other": "Så installerar du: öppna webbläsarens meny och välj Installera app eller Lägg till på startskärmen."
   },
+  "join": {
+    "intro": "Du har bjudits in att dela ett hushålls listor. Välj användarnamn och lösenord.",
+    "invalid": "Länken har gått ut eller redan använts. Be om en ny.",
+    "submit": "Gå med",
+    "title": "Gå med i ett hushåll"
+  },
   "list": {
     "add": "Lägg till",
     "default": "Inköpslista",
@@ -93,7 +99,15 @@
   },
   "setup": {
     "code": "Installationskod",
-    "codeHint": "Finns i serverns logg, till exempel: docker logs promus"
+    "codeHint": "Finns i serverns logg, till exempel: docker logs promus",
+    "codeInvalid": "Koden stämmer inte. Kolla serverns logg efter den aktuella koden.",
+    "create": "Skapa konto",
+    "done": "Klar",
+    "intro": "Skapa det första kontot. Resten av hushållet kan du bjuda in från Inställningar efteråt.",
+    "language": "Språk",
+    "next": "Nästa",
+    "phoneTitle": "Få in den i mobilen",
+    "title": "Kom igång med Promus"
   },
   "snack": {
     "added": "{{name}} tillagd",

@@ -47,6 +47,12 @@
     "ios": "To install: in Safari, tap Share, then Add to Home Screen.",
     "other": "To install: open the browser menu and choose Install app or Add to Home screen."
   },
+  "join": {
+    "intro": "You've been invited to share a household's lists. Choose a username and password.",
+    "invalid": "This link has expired or was already used. Ask for a new one.",
+    "submit": "Join",
+    "title": "Join a household"
+  },
   "list": {
     "add": "Add",
     "default": "Shopping list",
@@ -93,7 +99,15 @@
   },
   "setup": {
     "code": "Setup code",
-    "codeHint": "In the server log, for example: docker logs promus"
+    "codeHint": "In the server log, for example: docker logs promus",
+    "codeInvalid": "That code doesn't match. Check the server log for the current code.",
+    "create": "Create account",
+    "done": "Done",
+    "intro": "Create the first account. You can invite the rest of your household from Settings afterwards.",
+    "language": "Language",
+    "next": "Next",
+    "phoneTitle": "Get it on your phone",
+    "title": "Set up Promus"
   },
   "snack": {
     "added": "{{name}} added",

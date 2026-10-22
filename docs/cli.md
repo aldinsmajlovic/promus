@@ -21,10 +21,12 @@ Run it against the server's own database:
 
 Without `DATA_DIR`, the CLI uses `./data`, which is a separate database. `user:create` would then create an account the server never sees. `backup` refuses a database that doesn't exist: it exits with `No database at <path>; check DATA_DIR` and creates nothing.
 
+You rarely need `user:create`. The first account comes from the setup wizard in the browser, and everyone else joins through an invite from **Settings**. The setup code the wizard asks for is in the server's log: `docker logs promus`, or `journalctl -u promus` for a systemd install.
+
 ## What the commands do
 
 - **`user:create`** asks for a password of at least 8 characters, on a hidden prompt. Without a TTY, it reads the first line of stdin.
-  - It also creates the user's default list.
+  - It creates the user in a household of their own, with a default list. To share a household, invite the person from **Settings** instead.
   - The list's name is English by default (`--locale en`). `--locale sv` gives it a Swedish name.
 - **`user:password`** sets a new password and signs that user out on every device.
 - **`backup`** writes a consistent copy of the database, as it is, to `DATA_DIR/backups/promus-YYYY-MM-DD.db`, and keeps the 14 newest. It doesn't migrate the database: the server does that on startup.

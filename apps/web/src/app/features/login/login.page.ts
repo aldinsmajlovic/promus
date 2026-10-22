@@ -6,8 +6,10 @@ import { MatInput } from '@angular/material/input';
 import { Router } from '@angular/router';
 import { TranslocoDirective } from '@jsverse/transloco';
 import { ApiError, NetworkError } from '@promus/shared';
-import { PendingOtherUserError, SessionService } from '../../core/session';
+import { SECURE_CONTEXT } from '../../core/platform';
+import { CookieRejectedError, PendingOtherUserError, SessionService } from '../../core/session';
 import { SyncService } from '../../core/sync.service';
+import { HttpsNotice } from '../../shared/https-notice';
 
 // a proper noun: the same in every language
 const APP_NAME = 'Promus';
@@ -25,7 +27,7 @@ function messageOf(err: unknown): Message {
 
 @Component({
   selector: 'app-login-page',
-  imports: [ReactiveFormsModule, MatFormField, MatLabel, MatInput, MatButton, TranslocoDirective],
+  imports: [ReactiveFormsModule, MatFormField, MatLabel, MatInput, MatButton, TranslocoDirective, HttpsNotice],
   templateUrl: './login.page.html',
   styles: `
     :host {
@@ -68,6 +70,8 @@ export class LoginPage {
   });
   protected readonly busy = signal(false);
   protected readonly error = signal<Message | null>(null);
+  protected readonly secure = inject(SECURE_CONTEXT);
+  protected readonly cookieRejected = signal(false);
 
   protected async submit(): Promise<void> {
     if (this.busy()) return;
@@ -81,7 +85,8 @@ export class LoginPage {
       const { username, password } = this.form.getRawValue();
       await this.session.login(username, password);
     } catch (err) {
-      this.error.set(messageOf(err));
+      if (err instanceof CookieRejectedError) this.cookieRejected.set(true);
+      else this.error.set(messageOf(err));
       this.busy.set(false);
       return;
     }

@@ -5,7 +5,8 @@ import { MatError, MatFormField, MatHint, MatLabel, MatSuffix } from '@angular/m
 import { MatIcon } from '@angular/material/icon';
 import { MatInput } from '@angular/material/input';
 import { TranslocoDirective } from '@jsverse/transloco';
-import { MIN_PASSWORD_LENGTH } from '@promus/shared';
+import { ApiError, MIN_PASSWORD_LENGTH, NetworkError } from '@promus/shared';
+import { PendingOtherUserError } from '../core/session';
 
 export type AccountValue = { setupCode: string; username: string; password: string };
 
@@ -13,6 +14,20 @@ export type AccountValue = { setupCode: string; username: string; password: stri
 export type FormError = { field: keyof AccountValue | null; key: string; params?: Record<string, string> };
 
 type Message = { key: string; params?: Record<string, string | number> };
+
+/** The refusals every account form shares. Anything else is logged and named for what it is: unknown. */
+export function formErrorOf(err: unknown): FormError {
+  if (err instanceof PendingOtherUserError) return { field: null, key: err.messageKey, params: err.params };
+  if (err instanceof NetworkError) return { field: null, key: 'login.offline' };
+  if (err instanceof ApiError) {
+    if (err.code === 'password_too_short') return { field: 'password', key: 'account.minLength', params: { n: String(MIN_PASSWORD_LENGTH) } };
+    if (err.code === 'username_invalid') return { field: 'username', key: 'account.errors.username_invalid' };
+    if (err.code === 'username_taken') return { field: 'username', key: 'account.errors.username_taken' };
+    if (err.code === 'rate_limited') return { field: null, key: 'login.rateLimited' };
+  }
+  console.error('account failed', err);
+  return { field: null, key: 'login.failed' };
+}
 
 /** A new account's username and password, for the setup wizard (with its code) and for joining. */
 @Component({

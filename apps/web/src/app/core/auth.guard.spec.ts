@@ -11,6 +11,7 @@ import { routes } from '../app.routes';
 import { FETCH } from './api';
 import { PromusDb } from './db';
 import { registerIcons } from './icons';
+import { SECURE_CONTEXT } from './platform';
 import { SyncService, type SyncStatus } from './sync.service';
 
 const session = { userId: newId(), username: 'anna', householdId: newId() };
@@ -25,6 +26,8 @@ async function setup(realSync = false) {
     providers: [
       { provide: PromusDb, useValue: db },
       { provide: FETCH, useValue: fetch },
+      // jsdom has no isSecureContext
+      { provide: SECURE_CONTEXT, useValue: true },
       realSync ? [] : { provide: SyncService, useValue: sync },
       { provide: MATERIAL_ANIMATIONS, useValue: { animationsDisabled: true } },
       provideRouter(routes),
@@ -51,6 +54,8 @@ describe('route guards', () => {
   it('guard allows a cached session and redirects without one', async () => {
     const { db, fetch, visit } = await setup();
     for (const url of ['/', '/add', '/settings']) expect(await visit(url)).toBe('/login');
+    // the way to /login asks whether the server needs its first account
+    fetch.mockClear();
     await db.setMeta('session', session);
     for (const url of ['/', '/add', '/settings']) expect(await visit(url)).toBe(url);
     // the cached session is enough: the app opens offline
@@ -78,5 +83,22 @@ describe('route guards', () => {
     await sync.syncNow();
     expect(sync.status().kind).toBe('auth');
     expect(await visit('/login')).toBe('/login');
+  });
+
+  it('login sends a server without accounts to the setup wizard, and stays when offline', async () => {
+    const { fetch, visit } = await setup();
+    const json = (body: unknown) => new Response(JSON.stringify(body), { status: 200 });
+    fetch.mockResolvedValueOnce(json({ needed: true })).mockResolvedValueOnce(json({ needed: true }));
+    expect(await visit('/login')).toBe('/setup');
+    fetch.mockResolvedValueOnce(json({ needed: false }));
+    expect(await visit('/login')).toBe('/login');
+    fetch.mockRejectedValueOnce(new TypeError('Failed to fetch'));
+    expect(await visit('/login')).toBe('/login');
+  });
+
+  it('setup sends you to sign in once the server has an account', async () => {
+    const { fetch, visit } = await setup();
+    fetch.mockResolvedValue(new Response(JSON.stringify({ needed: false }), { status: 200 }));
+    expect(await visit('/setup')).toBe('/login');
   });
 });

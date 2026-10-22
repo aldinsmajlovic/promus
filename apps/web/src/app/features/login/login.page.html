@@ -1,5 +1,8 @@
 <ng-container *transloco="let t">
   <h1 class="brand">{{ appName }}</h1>
+  @if (!secure || cookieRejected()) {
+    <app-https-notice [reason]="cookieRejected() ? 'https.cookie' : 'https.how'" />
+  } @else {
   <form [formGroup]="form" (ngSubmit)="submit()">
     <mat-form-field subscriptSizing="dynamic" hideRequiredMarker>
       <mat-label>{{ t('login.username') }}</mat-label>
@@ -32,4 +35,5 @@
     </p>
     <button matButton="filled" type="submit" [disabled]="busy()">{{ t('login.submit') }}</button>
   </form>
+  }
 </ng-container>
