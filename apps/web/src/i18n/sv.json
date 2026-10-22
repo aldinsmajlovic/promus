@@ -44,7 +44,7 @@
   },
   "install": {
     "button": "Installera appen",
-    "ios": "Så installerar du: tryck på Dela i Safari och sedan på Lägg till på hemskärmen.",
+    "ios": "Så installerar du: tryck på Dela i Safari och sedan på Lägg till på hemskärmen. Öppna sedan Promus från hemskärmen och logga in igen: den installerade appen har en egen inloggning, skild från Safaris.",
     "other": "Så installerar du: öppna webbläsarens meny och välj Installera app eller Lägg till på startskärmen."
   },
   "invite": {

@@ -32,10 +32,10 @@ On a machine with Docker and [Tailscale](https://tailscale.com/download):
 ```sh
 docker run -d --name promus -p 127.0.0.1:8080:8080 -v promus-data:/data --restart unless-stopped ghcr.io/aldinsmajlovic/promus
 tailscale funnel --bg 8080
-docker logs promus
+docker logs promus | grep 'Setup code'
 ```
 
-Open the `https://` address that `tailscale funnel` prints, enter the setup code from `docker logs`, and follow the wizard. It ends with a QR code that opens Promus on your phone. Then invite your household from **Settings**.
+Open the `https://` address that `tailscale funnel` prints, enter the setup code, and follow the wizard. It ends with a QR code that opens Promus on your phone. Then invite your household from **Settings**.
 
 Funnel makes the sign-in page reachable from the internet. To keep Promus private to your own devices, or to use your own domain, see the [self-hosting guide](docs/self-hosting.md).
 

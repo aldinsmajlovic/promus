@@ -101,4 +101,10 @@ describe('route guards', () => {
     fetch.mockResolvedValue(new Response(JSON.stringify({ needed: false }), { status: 200 }));
     expect(await visit('/setup')).toBe('/login');
   });
+
+  it('an invite link opens the join page on a device where someone is signed in', async () => {
+    const { db, visit } = await setup();
+    await db.setMeta('session', session);
+    expect(await visit('/join#tok')).toBe('/join#tok');
+  });
 });

@@ -25,7 +25,7 @@ const json = (status: number, body: unknown) =>
 const anna: Session = { userId: 'u1', username: 'anna', householdId: newId() };
 const bo = { id: 'u2', username: 'bo' };
 
-type Answers = { check?: () => Response; accept?: (body: { username: string }) => Response };
+type Answers = { check?: () => Response; accept?: (body: { username: string }) => Response; login?: () => Response };
 
 async function setup(answers: Answers = {}, cached?: Session) {
   const db = new PromusDb(`join-${newId()}`);
@@ -33,7 +33,7 @@ async function setup(answers: Answers = {}, cached?: Session) {
   const fetch = vi.fn<typeof globalThis.fetch>(async (url, init) => {
     if (url === '/api/invites/check') return (answers.check ?? (() => json(200, { expiresAt: Date.now() + 1000 })))();
     if (url === '/api/invites/accept') return (answers.accept ?? (() => json(201, {})))(JSON.parse(init!.body as string));
-    if (url === '/api/auth/login') return json(200, { user: bo, householdId: anna.householdId });
+    if (url === '/api/auth/login') return (answers.login ?? (() => json(200, { user: bo, householdId: anna.householdId })))();
     if (url === '/api/me') return json(200, { user: bo, households: [] });
     throw new Error(`unexpected ${String(url)}`);
   });
@@ -109,5 +109,23 @@ describe('JoinPage', () => {
     await t.join('bo');
     await vi.waitFor(() => expect(t.el.textContent).toContain(sv.phone.scan));
     expect(t.accepts()).toHaveLength(2);
+  });
+
+  it('a sign-in that fails after joining is retried as a sign-in, not as a second join', async () => {
+    let signIns = 0;
+    const t = await setup({
+      login: () => {
+        signIns++;
+        if (signIns === 1) throw new TypeError('Failed to fetch');
+        return json(200, { user: bo, householdId: anna.householdId });
+      },
+    });
+    await vi.waitFor(() => expect(t.el.textContent).toContain(sv.join.intro));
+    await t.join('bo');
+    await vi.waitFor(() => expect(t.el.querySelector('[role="alert"]')?.textContent).toContain(sv.login.offline));
+    await t.join('bo');
+    await vi.waitFor(() => expect(t.el.textContent).toContain(sv.phone.scan));
+    expect(t.accepts()).toHaveLength(1);
+    expect(signIns).toBe(2);
   });
 });

@@ -83,6 +83,8 @@ export class JoinPage {
   protected readonly busy = signal(false);
   protected readonly error = signal<FormError | null>(null);
   protected readonly cookieRejected = signal(false);
+  // the account exists once accept succeeds: a retry only signs in, the invite is spent
+  private accepted = false;
 
   constructor() {
     if (!this.secure) return;
@@ -106,7 +108,10 @@ export class JoinPage {
     try {
       // before the invite is used up: a sign-in that this device refuses must leave it usable
       await this.session.assertCanSignIn(username);
-      await this.api.acceptInvite({ token: this.token, username, password });
+      if (!this.accepted) {
+        await this.api.acceptInvite({ token: this.token, username, password });
+        this.accepted = true;
+      }
       await this.session.login(username, password);
     } catch (err) {
       this.busy.set(false);

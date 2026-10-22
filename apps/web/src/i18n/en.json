@@ -44,7 +44,7 @@
   },
   "install": {
     "button": "Install app",
-    "ios": "To install: in Safari, tap Share, then Add to Home Screen.",
+    "ios": "To install: in Safari, tap Share, then Add to Home Screen. Then open Promus from the Home Screen and sign in again: the installed app keeps its own sign-in, apart from Safari's.",
     "other": "To install: open the browser menu and choose Install app or Add to Home screen."
   },
   "invite": {

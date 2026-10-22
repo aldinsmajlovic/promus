@@ -77,7 +77,7 @@ export class SessionService {
     if (otherName && (await this.storage.pendingCount()) > 0) throw new PendingOtherUserError(cached.username);
   }
 
-    /** Throws PendingChangesError, and changes nothing, while changes are unsynced. */
+  /** Throws PendingChangesError, and changes nothing, while changes are unsynced. */
   async logout(): Promise<void> {
     // the wipe takes the session with it, so no action can be queued while the server call runs
     await this.db.wipe();

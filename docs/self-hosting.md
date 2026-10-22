@@ -93,17 +93,17 @@ Open the server's `https://` address. A new server shows the setup wizard:
 The setup code is in the server's log:
 
 ```sh
-docker logs promus
+docker logs promus | grep 'Setup code'
 ```
 
-Look for the line `Setup code: XXXX-XXXX`. Case and the dash don't matter. A restart prints a new code, and once the first account exists, no code works any more.
+It prints a line with `Setup code: XXXX-XXXX`. Case and the dash don't matter. A restart prints a new code, and once the first account exists, no code works any more.
 
 ## Install the app on your phone
 
 The wizard's last step, and **Settings > Open on your phone**, show the server's address as a QR code. Scan it with the phone's camera.
 
 - **Android:** in Chrome, tap **Install app** in Promus, or choose **Install app** from Chrome's menu.
-- **iPhone:** in Safari, tap **Share**, then **Add to Home Screen**. Install it before relying on it. Safari may clear a website's data after 7 days without use, and changes that haven't synced yet would go with it. An app on the Home Screen counts only its own days of use.
+- **iPhone:** in Safari, tap **Share**, then **Add to Home Screen**. Open Promus from the Home Screen and sign in once more: the installed app keeps its own sign-in, apart from Safari's. Install it before relying on it. Safari may clear a website's data after 7 days without use, and changes that haven't synced yet would go with it. An app on the Home Screen counts only its own days of use.
 
 The installed app works offline and syncs whenever the phone can reach the server.
 

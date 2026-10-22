@@ -61,6 +61,8 @@ describe('PhoneCard', () => {
   it('tells iPhone users how to add it to the home screen', async () => {
     const { el } = await setup('https://x.example', { platform: 'ios' });
     expect(el.textContent).toContain(en.install.ios);
+    // a Home Screen app on iOS keeps its own cookies, apart from Safari's
+    expect(el.textContent).toMatch(/sign in again/);
   });
 
   it('offers the browser install prompt where there is one', async () => {

@@ -27,9 +27,9 @@ export const routes: Routes = [
     canActivate: [loginGuard, setupGuard],
     loadComponent: () => import('./features/setup/setup.page').then((m) => m.SetupPage),
   },
+  // no loginGuard: an invite also turns someone who shared another's login into their own user
   {
     path: 'join',
-    canActivate: [loginGuard],
     loadComponent: () => import('./features/join/join.page').then((m) => m.JoinPage),
   },
 ];
