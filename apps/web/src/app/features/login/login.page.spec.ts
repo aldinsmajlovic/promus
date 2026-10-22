@@ -13,6 +13,7 @@ import sv from '../../../i18n/sv.json';
 import { FETCH } from '../../core/api';
 import { PromusDb, type Session } from '../../core/db';
 import { DexieSyncStorage } from '../../core/dexie-storage';
+import { SessionService } from '../../core/session';
 import { SyncService, type SyncStatus } from '../../core/sync.service';
 import { LoginPage } from './login.page';
 
@@ -25,7 +26,8 @@ const bo = { user: { id: 'u2', username: 'bo' }, householdId: newId() };
 const json = (status: number, body: unknown) =>
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
 
-async function setup(cached?: Session) {
+/** `home` guards the way to `/`, so a test can hold the navigation after signing in. */
+async function setup(cached?: Session, home: () => Promise<boolean> | boolean = () => true) {
   const db = new PromusDb(`login-${newId()}`);
   if (cached) await db.setMeta('session', cached);
   const fetch = vi.fn<typeof globalThis.fetch>();
@@ -40,7 +42,7 @@ async function setup(cached?: Session) {
       { provide: SyncService, useValue: sync },
       { provide: MATERIAL_ANIMATIONS, useValue: { animationsDisabled: true } },
       provideRouter([
-        { path: '', component: Home },
+        { path: '', component: Home, canActivate: [home] },
         { path: 'login', component: LoginPage },
       ]),
       importProvidersFrom(
@@ -97,23 +99,44 @@ describe('LoginPage', () => {
     const log = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     t.fetch.mockResolvedValueOnce(json(500, { error: 'internal' }));
     await t.signIn('anna', 'pw');
-    await vi.waitFor(() => expect(t.message()).toBe('Ändringen kunde inte sparas'));
-    expect(log).toHaveBeenCalledWith('login failed', expect.any(ApiError));
+    await vi.waitFor(() => expect(t.message()).toBe('Inloggningen misslyckades'));
+    // a user without a household, say
+    t.fetch.mockResolvedValueOnce(json(200, { ...bo, householdId: null }));
+    await t.signIn('bo', 'pw');
+    await vi.waitFor(() => expect(log).toHaveBeenCalledTimes(2));
+    expect(t.message()).toBe('Inloggningen misslyckades');
+    expect(log.mock.calls).toEqual([
+      ['login failed', expect.objectContaining({ code: 'internal' })],
+      ['login failed', expect.objectContaining({ code: 'no_household' })],
+    ]);
+    expect(log.mock.calls.every(([, err]) => err instanceof ApiError)).toBe(true);
     log.mockRestore();
 
-    expect(t.fetch).toHaveBeenCalledTimes(4);
+    expect(t.fetch).toHaveBeenCalledTimes(5);
     expect(t.router.url).toBe('/login');
     expect(t.sync.syncNow).not.toHaveBeenCalled();
   });
 
-  it('signs in once however often the form is submitted', async () => {
-    const t = await setup();
+  it('signs in once however often the form is submitted, until the page is left', async () => {
+    let arrive = (_: boolean): void => undefined;
+    const t = await setup(undefined, () => new Promise<boolean>((resolve) => (arrive = resolve)));
+    // a submit that gets through calls login at once
+    const login = vi.spyOn(TestBed.inject(SessionService), 'login');
+    const submit = () => t.el.querySelector('form')!.dispatchEvent(new Event('submit'));
     let answer = (_: Response): void => undefined;
     t.fetch.mockReturnValue(new Promise((resolve) => (answer = resolve)));
     await t.signIn('bo', 'pw');
-    t.el.querySelector('form')!.dispatchEvent(new Event('submit'));
+    // while the request runs
+    submit();
+    expect(login).toHaveBeenCalledOnce();
     await vi.waitFor(() => expect(t.fetch).toHaveBeenCalledOnce());
     answer(json(200, bo));
+    // signed in, and on the way home
+    await vi.waitFor(async () => expect(await t.db.getMeta('session')).toMatchObject({ username: 'bo' }));
+    await vi.waitFor(() => expect(t.router.currentNavigation()).not.toBeNull());
+    submit();
+    expect(login).toHaveBeenCalledOnce();
+    arrive(true);
     await vi.waitFor(() => expect(t.router.url).toBe('/'));
     expect(t.fetch).toHaveBeenCalledOnce();
   });

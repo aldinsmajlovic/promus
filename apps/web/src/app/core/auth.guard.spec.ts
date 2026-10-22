@@ -15,16 +15,17 @@ import { SyncService, type SyncStatus } from './sync.service';
 
 const session = { userId: newId(), username: 'anna', householdId: newId() };
 
-/** The app's own routes, with the real pages. */
-async function setup() {
+/** The app's own routes, with the real pages; `realSync` keeps the real SyncService, never started. */
+async function setup(realSync = false) {
   const db = new PromusDb(`guard-${newId()}`);
   const status = signal<SyncStatus>({ kind: 'idle', pending: 0, rejected: 0 });
   const fetch = vi.fn<typeof globalThis.fetch>();
+  const sync = { status, syncNow: async () => undefined, soon: () => undefined };
   TestBed.configureTestingModule({
     providers: [
       { provide: PromusDb, useValue: db },
       { provide: FETCH, useValue: fetch },
-      { provide: SyncService, useValue: { status, syncNow: async () => undefined, soon: () => undefined } },
+      realSync ? [] : { provide: SyncService, useValue: sync },
       { provide: MATERIAL_ANIMATIONS, useValue: { animationsDisabled: true } },
       provideRouter(routes),
       provideAppInitializer(registerIcons),
@@ -64,6 +65,18 @@ describe('route guards', () => {
     expect(await visit('/login')).toBe('/');
     // the sync status asks to sign in again
     status.set({ kind: 'auth', pending: 1, rejected: 0 });
+    expect(await visit('/login')).toBe('/login');
+  });
+
+  it('a 401 from the server opens login again, with the session still cached', async () => {
+    const { db, fetch, visit } = await setup(true);
+    fetch.mockResolvedValue(new Response(JSON.stringify({ error: 'unauthenticated' }), { status: 401 }));
+    await db.setMeta('session', session);
+    expect(await visit('/settings')).toBe('/settings');
+    expect(await visit('/login')).toBe('/');
+    const sync = TestBed.inject(SyncService);
+    await sync.syncNow();
+    expect(sync.status().kind).toBe('auth');
     expect(await visit('/login')).toBe('/login');
   });
 });

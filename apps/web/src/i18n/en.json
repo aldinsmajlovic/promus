@@ -36,6 +36,7 @@
     "settings": "Settings"
   },
   "login": {
+    "failed": "Sign-in failed",
     "invalid": "Wrong username or password",
     "offline": "Can't reach the server",
     "password": "Password",

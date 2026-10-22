@@ -7,12 +7,12 @@ import { MATERIAL_ANIMATIONS } from '@angular/material/core';
 import { Router, provideRouter } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
 import { TranslocoTestingModule } from '@jsverse/transloco';
-import { newId } from '@promus/shared';
+import { formatHlc, makeEvent, newId } from '@promus/shared';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import en from '../../../i18n/en.json';
 import sv from '../../../i18n/sv.json';
 import { FETCH } from '../../core/api';
-import { PromusDb } from '../../core/db';
+import { PendingChangesError, PromusDb } from '../../core/db';
 import { DexieSyncStorage } from '../../core/dexie-storage';
 import { registerIcons } from '../../core/icons';
 import { SessionService } from '../../core/session';
@@ -97,7 +97,35 @@ describe('SettingsPage', () => {
 
     await synced(t.db);
     await vi.waitFor(async () => expect(await button.isDisabled()).toBe(false));
-    expect(t.text('.pending')).toBeUndefined();
+    // always there, so a screen reader announces the count when it appears
+    expect(t.el.querySelector('.pending')?.getAttribute('aria-live')).toBe('polite');
+    // :empty, so it takes no room
+    expect(t.el.querySelector('.pending:empty')).not.toBeNull();
+  });
+
+  it('a change queued in another tab a moment before sign out keeps the session', async () => {
+    const t = await setup();
+    const button = await t.signOut();
+    expect(await button.isDisabled()).toBe(false);
+    const session = TestBed.inject(SessionService);
+    const logout = vi.spyOn(session, 'logout');
+    const log = vi.spyOn(console, 'error');
+    // written straight to IndexedDB, as another tab would, and tapped before this tab has seen it
+    const { householdId } = session.session()!;
+    const hlc = formatHlc(Date.now(), 0, 'tab2');
+    await new DexieSyncStorage(t.db).append([
+      makeEvent('list.created', { listId: newId(), name: 'Lidl' }, { householdId, hlc, occurredAt: Date.now() }),
+    ]);
+    t.el.querySelector<HTMLButtonElement>('.account button')!.click();
+    await expect(logout.mock.results[0]!.value).rejects.toBeInstanceOf(PendingChangesError);
+    await vi.waitFor(() => expect(t.text('.pending')).toBe('1 osynkad ändring'));
+    expect(await button.isDisabled()).toBe(true);
+    expect(log).not.toHaveBeenCalled();
+    log.mockRestore();
+    expect(t.router.url).toBe('/settings');
+    expect(t.fetch).not.toHaveBeenCalled();
+    expect(await t.db.getMeta('session')).toEqual(session.session());
+    expect(await t.db.outbox.count()).toBe(1);
   });
 
   it('sign out wipes local data and goes to login', async () => {

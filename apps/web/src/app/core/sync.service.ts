@@ -94,9 +94,10 @@ export class SyncService {
 
   private async run(): Promise<void> {
     const before = await this.countRejected();
-    // signed out: a still-valid cookie (logout while offline) must not pull the data back in
+    // signed out: a still-valid cookie (logout while offline) must not pull the data back in. Not
+    // `auth`: that is for a session the server ended, and would flash the sign-in icon after login
     if (!(await this.db.getMeta('session'))) {
-      this.outcome.set({ kind: 'auth' });
+      this.outcome.set({ kind: 'idle' });
       return;
     }
     this.outcome.set({ kind: 'syncing' });

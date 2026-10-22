@@ -36,6 +36,7 @@
     "settings": "Inställningar"
   },
   "login": {
+    "failed": "Inloggningen misslyckades",
     "invalid": "Fel användarnamn eller lösenord",
     "offline": "Kan inte nå servern",
     "password": "Lösenord",

@@ -1,4 +1,3 @@
-import { Location } from '@angular/common';
 import { Component, inject } from '@angular/core';
 import { MatButton, MatIconButton } from '@angular/material/button';
 import { MatButtonToggle, MatButtonToggleGroup } from '@angular/material/button-toggle';
@@ -8,6 +7,7 @@ import { Router } from '@angular/router';
 import { TranslocoDirective } from '@jsverse/transloco';
 import { version } from '../../../../../../package.json';
 import { Actions } from '../../core/actions';
+import { injectBack } from '../../core/back';
 import { PendingChangesError } from '../../core/db';
 import { type Lang, LangService } from '../../core/i18n';
 import { SessionService } from '../../core/session';
@@ -75,8 +75,10 @@ import { type ThemeMode, ThemeService } from '../../core/theme';
       color: var(--mat-sys-on-surface-variant);
     }
     .pending {
-      margin-top: 0.5rem;
       text-align: end;
+    }
+    .pending:not(:empty) {
+      margin-top: 0.5rem;
     }
     .version {
       padding: 1rem;
@@ -88,12 +90,12 @@ export class SettingsPage {
   private readonly store = inject(Store);
   private readonly actions = inject(Actions);
   private readonly router = inject(Router);
-  private readonly location = inject(Location);
   protected readonly lang = inject(LangService);
   protected readonly theme = inject(ThemeService);
   protected readonly user = this.session.session;
   protected readonly pending = this.store.pendingCount;
   protected readonly version = version;
+  protected readonly back = injectBack();
   protected readonly langs: { value: Lang | 'system'; label: string }[] = [
     { value: 'system', label: 'settings.system' },
     { value: 'sv', label: 'settings.sv' },
@@ -128,11 +130,5 @@ export class SettingsPage {
       return;
     }
     await this.router.navigateByUrl('/login', { replaceUrl: true });
-  }
-
-  /** Back to the list the way it was opened, so Back from there doesn't reopen settings. */
-  protected back(): void {
-    if (this.router.lastSuccessfulNavigation()?.previousNavigation) this.location.back();
-    else void this.router.navigateByUrl('/', { replaceUrl: true });
   }
 }

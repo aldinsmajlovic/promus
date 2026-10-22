@@ -1,4 +1,3 @@
-import { Location } from '@angular/common';
 import { Component, ElementRef, afterNextRender, computed, inject, signal, untracked, viewChild } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
@@ -16,10 +15,10 @@ import {
 } from '@angular/material/list';
 import type { MatSnackBarConfig } from '@angular/material/snack-bar';
 import { MatToolbar } from '@angular/material/toolbar';
-import { Router } from '@angular/router';
 import { TranslocoDirective } from '@jsverse/transloco';
 import { cleanName, frequentItems, normalizeName } from '@promus/shared';
 import { Actions, refuse } from '../../core/actions';
+import { injectBack } from '../../core/back';
 import { CurrentList } from '../../core/current-list';
 import { Store, ValidationError } from '../../core/store';
 import { type SearchResult, resultOf, searchItems, segments } from './search';
@@ -53,12 +52,12 @@ const FLASH_MS = 600;
 export class AddPage {
   private readonly store = inject(Store);
   private readonly actions = inject(Actions);
-  private readonly router = inject(Router);
-  private readonly location = inject(Location);
   private readonly input = viewChild.required<ElementRef<HTMLInputElement>>('input');
   protected readonly list = inject(CurrentList).list;
   private readonly listId = computed(() => this.list()?.id);
   protected readonly query = new FormControl('', { nonNullable: true });
+  /** Back to the list the way it was opened, so Back from there doesn't reopen this view. */
+  protected readonly close = injectBack();
   protected readonly text = toSignal(this.query.valueChanges, { initialValue: '' });
   /** The row just added and the text it was found with: the field clears, the rows stay a moment. */
   protected readonly flash = signal<{ itemId: string; text: string } | null>(null);
@@ -134,11 +133,5 @@ export class AddPage {
   protected cleared(): void {
     this.query.setValue('');
     this.input().nativeElement.focus();
-  }
-
-  /** Back to the list the way it was opened, so Back from there doesn't reopen this view. */
-  protected close(): void {
-    if (this.router.lastSuccessfulNavigation()?.previousNavigation) this.location.back();
-    else void this.router.navigateByUrl('/', { replaceUrl: true });
   }
 }

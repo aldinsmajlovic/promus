@@ -45,13 +45,22 @@ describe('SyncService', () => {
     expect(await db.outbox.count()).toBe(1);
   });
 
-  it('reports auth when the session is gone', async () => {
+  it('reports auth when the server has ended the session', async () => {
     const { db, sync } = await setup(async () => {
       throw new AuthError();
     });
     await sync.syncNow();
     expect(sync.status()).toEqual({ kind: 'auth', pending: 1, rejected: 0 });
     expect(await db.outbox.count()).toBe(1);
+  });
+
+  it('signed out, stays off the network and idle: only a 401 asks to sign in', async () => {
+    const { api, db, sync } = await setup(async (events) => accepted(events));
+    await db.meta.delete('session');
+    await sync.syncNow();
+    expect(api.push).not.toHaveBeenCalled();
+    expect(api.pull).not.toHaveBeenCalled();
+    expect(sync.status().kind).toBe('idle');
   });
 
   it('runs one sync at a time', async () => {

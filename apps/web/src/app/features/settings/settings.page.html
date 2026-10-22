@@ -39,9 +39,12 @@
           <mat-icon svgIcon="logout" />{{ t('settings.signOut') }}
         </button>
       </div>
-      @if (n > 0) {
-        <p id="pending" class="pending">{{ t(pendingKey(n), { n }) }}</p>
-      }
+      <!-- always there, so screen readers announce the count when it appears -->
+      <p id="pending" class="pending" aria-live="polite">
+        @if (n > 0) {
+          {{ t(pendingKey(n), { n }) }}
+        }
+      </p>
     </section>
 
     <p class="version">{{ t('settings.version', { version }) }}</p>

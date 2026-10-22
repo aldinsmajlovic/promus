@@ -20,7 +20,7 @@ function messageOf(err: unknown): Message {
   if (err instanceof ApiError && err.code === 'invalid_credentials') return { key: 'login.invalid' };
   if (err instanceof ApiError && err.code === 'rate_limited') return { key: 'login.rateLimited' };
   console.error('login failed', err);
-  return { key: 'errors.actionFailed' };
+  return { key: 'login.failed' };
 }
 
 @Component({
@@ -82,11 +82,16 @@ export class LoginPage {
       await this.session.login(username, password);
     } catch (err) {
       this.error.set(messageOf(err));
-      return;
-    } finally {
       this.busy.set(false);
+      return;
     }
-    await this.router.navigateByUrl('/', { replaceUrl: true });
+    // busy until the page is left: a tap on the way home must not sign in again
+    let left = false;
+    try {
+      left = await this.router.navigateByUrl('/', { replaceUrl: true });
+    } finally {
+      if (!left) this.busy.set(false);
+    }
     void this.sync.syncNow();
   }
 }
