@@ -15,6 +15,22 @@ async function add(page: Page, name: string): Promise<void> {
 // the sync indicator while changes wait, named for the count its badge shows
 const unsynced = (page: Page) => page.getByRole('button', { name: /osynkade? ändring/ });
 
+/** No sync running ("Synkar") and none failed ("Synkfel"), refusals included. */
+async function settled(page: Page): Promise<void> {
+  await expect(page.getByRole('button', { name: /^Synk/ })).toHaveCount(0);
+}
+
+// proves the fixture's watch: the violation alone fails it
+test('a CSP violation fails the test', async ({ page }) => {
+  test.fail();
+  await page.goto('/login');
+  await page.evaluate(() => {
+    const script = document.createElement('script');
+    script.textContent = 'void 0';
+    document.head.append(script);
+  });
+});
+
 test('the secure session cookie works on localhost', async ({ page, context }) => {
   await login(page, 'e2e-a');
   const cookie = (await context.cookies()).find((c) => c.name === '__Host-session');
@@ -37,6 +53,16 @@ test('add, check off and undo', async ({ page }) => {
   await expect(page.getByRole('button', { name: /^Klart/ })).toBeHidden();
   // 5 s, plus the animations
   await expect(page.getByText('mjölk tillbaka på listan')).toBeHidden({ timeout: 8_000 });
+
+  // the add view's snackbar, under its toolbar, takes taps too
+  await page.getByRole('link', { name: 'Lägg till' }).click();
+  await page.getByPlaceholder('Lägg till vara').fill('te');
+  await page.getByPlaceholder('Lägg till vara').press('Enter');
+  await expect(page.getByText('te tillagd')).toBeVisible();
+  await page.getByRole('button', { name: 'Ångra' }).click({ timeout: 2_000 });
+  await page.getByRole('button', { name: 'Stäng' }).click();
+  await expect(page.getByRole('checkbox', { name: 'mjölk' })).toBeVisible();
+  await expect(page.getByRole('checkbox')).toHaveCount(1);
 });
 
 test('works offline and syncs later', async ({ page, context, device }) => {
@@ -61,6 +87,7 @@ test('works offline and syncs later', async ({ page, context, device }) => {
   // `online` is a sync trigger, but Playwright fires none in a page loaded offline; the 60 s timer would catch it too
   await page.evaluate(() => window.dispatchEvent(new Event('online')));
   await expect(unsynced(page)).toBeHidden({ timeout: 70_000 });
+  await settled(page);
 
   const other = await device();
   await login(other, 'e2e-a');
@@ -89,7 +116,10 @@ test('two devices adding the same item offline end up with one', async ({ page, 
   await page.reload();
   await expect(page.getByRole('checkbox', { name: 'Smör' })).toBeVisible();
 
-  for (const p of [page, other]) await expect(p.getByRole('checkbox', { name: 'Ägg' })).toHaveCount(1);
+  for (const p of [page, other]) {
+    await settled(p);
+    await expect(p.getByRole('checkbox', { name: 'Ägg' })).toHaveCount(1);
+  }
 });
 
 test('two tabs stay in step', async ({ page, context }) => {
@@ -98,10 +128,16 @@ test('two tabs stay in step', async ({ page, context }) => {
   await tab.goto('/');
   await expect(tab.getByRole('link', { name: 'Lägg till' })).toBeVisible();
 
+  // one acts in the tab in front: Chrome gives the one behind a frame about once a second, too slow for Close
+  await page.bringToFront();
   await add(page, 'Kaffe');
+  await expect(page.getByRole('checkbox', { name: 'Kaffe' })).toBeVisible();
   await expect(tab.getByRole('checkbox', { name: 'Kaffe' })).toBeVisible({ timeout: 3_000 });
+  await tab.bringToFront();
   await tab.getByRole('checkbox', { name: 'Kaffe' }).click();
-  await expect(page.getByRole('checkbox', { name: 'Kaffe', checked: false })).toBeHidden({ timeout: 3_000 });
+  // the household's only checked item
+  await expect(page.getByRole('button', { name: 'Klart (1)' })).toBeVisible({ timeout: 3_000 });
+  await expect(page.getByRole('checkbox', { name: 'Kaffe' })).toBeHidden();
   // the first tab is behind the second: its snackbar still goes
   await expect(page.getByText('Kaffe tillagd')).toBeHidden({ timeout: 8_000 });
 });
