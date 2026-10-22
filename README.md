@@ -132,3 +132,7 @@ e2e/              Playwright tests
 ```
 
 `CLAUDE.md` lists the conventions for changes, including AI-assisted ones.
+
+## License
+
+[MIT](LICENSE).
