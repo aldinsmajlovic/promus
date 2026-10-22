@@ -36,10 +36,13 @@ Anything longer than a line or two goes to a page in `docs/` and the README link
 | Page | Owns |
 |---|---|
 | `README.md` | The front page |
-| `docs/self-hosting.md` | Installing, Tailscale, the phone, backups, restore, updating, Docker |
+| `docs/self-hosting.md` | Installing with Docker, HTTPS, setup, the phone, invites, backups, restore, updating |
+| `docs/proxmox.md` | The Proxmox LXC and systemd install |
+| `docs/tailscale-policy.md` | The tailnet access policy |
 | `docs/configuration.md` | Environment variables |
 | `docs/cli.md` | Server commands: accounts and backups |
-| `docs/development.md` | Running locally, checks, phone testing, project layout |
+| `docs/development.md` | Running locally, checks, phone testing, releasing, project layout |
+| `docs/decisions.md` | Changes from the plan, with the why |
 | `docs/images/` | Screenshots, retaken with `npm run screenshots` |
 | `docs/writing-docs.md` | These rules |
 | `CLAUDE.md` | Code conventions for changes |

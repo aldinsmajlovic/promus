@@ -9,8 +9,8 @@ backup
 ```
 
 Run it against the server's own database:
-- **Docker:** `docker compose exec promus node apps/server/src/cli.ts <command>`
-- **systemd install:** run it as the `promus` user, with the service's `DATA_DIR`:
+- **Docker:** `docker exec promus node apps/server/src/cli.ts <command>`. Add `-it` for the commands that ask for a password.
+- **systemd install** ([Proxmox](proxmox.md)): run it as the `promus` user, with the service's `DATA_DIR`:
 
   ```sh
   cd /opt/promus
@@ -31,4 +31,4 @@ You rarely need `user:create`. The first account comes from the setup wizard in 
 - **`user:password`** sets a new password and signs that user out on every device.
 - **`backup`** writes a consistent copy of the database, as it is, to `DATA_DIR/backups/promus-YYYY-MM-DD.db`, and keeps the 14 newest. It doesn't migrate the database: the server does that on startup.
 
-Restoring a backup is in the self-hosting guide, under [backups and restore](self-hosting.md#8-backups-and-restore).
+Restoring a backup is in the self-hosting guide, under [backups and restore](self-hosting.md#backups-and-restore), and for a systemd install in [Proxmox](proxmox.md#7-backups-and-restore).

@@ -1,334 +1,143 @@
 # Self-hosting Promus
 
-This guide installs Promus in an unprivileged Debian 13 container (LXC) on Proxmox VE. Tailscale makes it reachable from your devices and from nowhere else. The server listens on `127.0.0.1:8080` only. `tailscale serve` puts HTTPS with a real `*.ts.net` certificate in front of it. The app needs HTTPS because its service worker and its `Secure` session cookie only work in a secure context.
+Promus runs as one Docker container. Phones need HTTPS in front of it, because the app's service worker and its `Secure` session cookie only work in a secure context. This guide puts HTTPS in front with Tailscale, or with your own domain.
 
-The Docker alternative is at the end.
+To install it in a Proxmox LXC container as a systemd service instead, see [Promus on Proxmox](proxmox.md).
 
-Placeholders used below:
+## Requirements
 
-| Placeholder | Meaning |
-|---|---|
-| `<id>` | The Proxmox container ID |
-| `<name>` | The container's machine name on your tailnet |
-| `<your-tailnet>` | Your tailnet's DNS name, shown on the DNS page of the Tailscale admin console |
-| `<username>` | A Promus account name |
-| `you@example.com` | The address you log in to Tailscale with |
+- An always-on machine with Docker, on amd64 or arm64: a home server, a NAS, a Raspberry Pi 4 or 5, or a small VPS. On Proxmox, run Docker in a VM, or use the [LXC setup](proxmox.md).
+- Memory: the server uses about 60 MiB, plus 128 MiB for each sign-in in progress, which runs scrypt.
+- For HTTPS, one of:
+  - a Tailscale account, which is free for personal use, for the [Funnel](#public-with-tailscale-funnel) and [private](#private-on-your-tailnet) setups;
+  - a domain name and a reverse proxy, for the [own domain](#your-own-domain) setup.
+- Phones: Android with Chrome, or an iPhone with Safari on iOS 17 or later.
 
-All commands inside the container run as root, for example from `pct enter <id>` on the Proxmox host.
-
-## 1. Requirements
-
-- Proxmox VE 8.4 or 9, fully updated. Older `pve-container` releases refuse Debian 13 point releases.
-- A Tailscale account with permission to edit the tailnet policy file and generate auth keys (Owner, Admin or Network admin).
-- An Android phone with the Tailscale app and Chrome.
-- For the container:
-  - 1 CPU core.
-  - **2 GB of RAM, or 1 GB with the container's default 512 MB of swap kept.** Each login runs scrypt with 128 MiB of memory, and building the web app peaks at about 1 GB.
-  - 8 GB of disk.
-
-## 2. Create the container on Proxmox
-
-1. Create a container from the Debian 13 template:
-   - Keep **Unprivileged container** checked.
-   - Under **Options → Features**, make sure **Nesting** is enabled. systemd needs it to sandbox services. Without it, the Promus service fails with `status=226/NAMESPACE`. From the host shell, `pct set <id> --features nesting=1` sets it, replacing the container's whole features list.
-   - Pick a neutral hostname that says nothing about you or the software. Section 4 explains why.
-2. Pass `/dev/net/tun` through, so that Tailscale can run in kernel mode. On the Proxmox host, add these two lines to `/etc/pve/lxc/<id>.conf`:
-
-   ```
-   lxc.cgroup2.devices.allow: c 10:200 rwm
-   lxc.mount.entry: /dev/net/tun dev/net/tun none bind,create=file
-   ```
-
-   If the container is running, shut it down and start it again.
-3. Inside the container, check that the device is there. `ls -l /dev/net/tun` should list a character device with the numbers `10, 200`.
-
-These lines come from Tailscale's guide for [unprivileged LXC containers](https://tailscale.com/kb/1130/lxc-unprivileged).
-
-## 3. Install Promus
-
-Install Node.js 26 from NodeSource, and Git:
+## Start Promus
 
 ```sh
-apt update
-apt install -y ca-certificates curl git
-curl -fsSL https://deb.nodesource.com/setup_26.x -o nodesource_setup.sh
-bash nodesource_setup.sh
-apt install -y nodejs
-node --version
-command -v node
+docker run -d --name promus -p 127.0.0.1:8080:8080 -v promus-data:/data --restart unless-stopped ghcr.io/aldinsmajlovic/promus
 ```
 
-`command -v node` should print `/usr/bin/node`, which the systemd units use. If your Node.js lives somewhere else, change `ExecStart=` in both `.service` files to that path.
+Or, with Compose, download [`compose.yaml`](../compose.yaml) into a folder of its own and run `docker compose up -d` there. Both name the container `promus`, which the commands below use.
 
-Create a system user, then fetch and build the app:
+- **Where it listens:** the server is reachable only from this machine, on `127.0.0.1:8080`. To use another port, change the left side of `-p` or `ports`.
+- **Where the data lives:** the `promus-data` volume holds the database and its backups.
+- **Configuration:** nothing needs setting. [Configuration](configuration.md) lists what can be set.
 
-```sh
-useradd --system --user-group --home-dir /var/lib/promus --shell /usr/sbin/nologin promus
-git clone https://github.com/aldinsmajlovic/promus.git /opt/promus
-cd /opt/promus
-npm ci
-npm run build -w apps/web
-```
+<!-- linked from the app: keep this heading -->
+## Put HTTPS in front
 
-`npm ci` may warn that four packages' install scripts aren't covered by `allowScripts`. The build doesn't need them.
+Pick one of the three setups below.
 
-The code stays owned by root, so the service can read it but can't change it.
+### Public, with Tailscale Funnel
 
-Write the configuration and start the service and the nightly backup timer:
+The quickest setup: no domain and no router changes, and phones need nothing but the app. Funnel publishes the server on the internet under a `*.ts.net` name with a real certificate.
 
-```sh
-install -d /etc/promus
-cp .env.example /etc/promus/promus.env
-cp deploy/promus.service deploy/promus-backup.service deploy/promus-backup.timer /etc/systemd/system/
-systemctl daemon-reload
-systemctl enable --now promus.service promus-backup.timer
-curl -fsS --retry 5 --retry-connrefused --retry-delay 1 http://127.0.0.1:8080/api/health
-```
+1. [Install Tailscale](https://tailscale.com/download) on the machine that runs Promus, on the machine itself, not in a container. Log in with `tailscale up`.
+2. Pick a machine name that says nothing about you or what runs on it, for example `tailscale set --hostname=larder`. The name ends up in the public [Certificate Transparency logs](https://tailscale.com/kb/1153/enabling-https), which anyone can search.
+3. Start Funnel:
 
-The health check prints `{"status":"ok",...}`.
-
-Notes:
-- `/etc/promus/promus.env` sets `PORT`, `HOST`, `DATA_DIR` and `LOG_LEVEL`. Keep `HOST=127.0.0.1`.
-- `DATA_DIR=/var/lib/promus` matches `StateDirectory=promus` in the unit. systemd creates that directory, owned by `promus` with mode `0700`. Apart from its private `/tmp`, it is the only place the sandboxed service can write to. If you change `DATA_DIR`, keep it under `/var/lib/promus`.
-- Both units set `UMask=0077`, because the database and its backups hold password and session hashes.
-- The service logs JSON lines to the journal. Follow them with `journalctl -u promus -f`.
-
-## 4. Tailscale
-
-### Install it in kernel mode
-
-These are Tailscale's [package instructions](https://pkgs.tailscale.com/stable/#debian-trixie) for Debian 13 (trixie). Don't run `tailscale up` yet.
-
-```sh
-mkdir -p --mode=0755 /usr/share/keyrings
-curl -fsSL https://pkgs.tailscale.com/stable/debian/trixie.noarmor.gpg | tee /usr/share/keyrings/tailscale-archive-keyring.gpg >/dev/null
-curl -fsSL https://pkgs.tailscale.com/stable/debian/trixie.tailscale-keyring.list | tee /etc/apt/sources.list.d/tailscale.list
-apt update && apt install -y tailscale
-```
-
-The package runs `tailscaled` in kernel mode, through the `tailscale0` interface. Keep it that way: `FLAGS` in `/etc/default/tailscaled` must not contain `--tun=userspace-networking`. If `tailscaled` fails because it can't open `/dev/net/tun`, fix the passthrough from section 2. Don't switch to userspace mode.
-
-**Why not userspace mode:** in userspace mode, Tailscale [proxies incoming connections to the same port on `127.0.0.1`](https://tailscale.com/docs/reference/faq/other-vpns). Every service bound only to localhost becomes reachable from the tailnet, including Promus on port 8080 over plain HTTP, bypassing `tailscale serve`.
-
-### Create a tag and a pre-tagged auth key
-
-1. In the admin console, open **Access controls** and add the tag to `tagOwners`. If the section already exists, add only the `tag:promus` line to it.
-
-   ```jsonc
-   "tagOwners": {
-     "tag:promus": ["autogroup:admin"],
-   },
+   ```sh
+   tailscale funnel --bg 8080
    ```
 
-2. Open the **Keys** page (**Settings → Keys**) and select **Generate auth key**:
-   - Leave **Reusable** off. Tailscale revokes a one-off key once it has been used.
-   - Leave **Ephemeral** off.
-   - Turn on **Tags** and choose `tag:promus`.
-   - If your tailnet requires device approval, turn on **Pre-approved**.
+   The first time, it prints a link to approve HTTPS and Funnel for your tailnet. Then it prints the address, `https://<name>.<your-tailnet>.ts.net`. `--bg` keeps it running across reboots.
 
-A tagged device has no user identity: its access comes only from its tag. Key expiry is disabled by default for tagged devices, so the server doesn't drop off the tailnet after 180 days.
+What a public server means:
+- Anyone can open the sign-in page. There's no sign-up, and the first account needs the setup code from the server's log.
+- Choose strong passwords. Promus allows 10 failed sign-ins per username every 15 minutes.
+- To check Funnel, run `tailscale funnel status`. To stop it, run `tailscale funnel reset`.
 
-### Pick a neutral name and join
+### Private, on your tailnet
 
-With HTTPS on, the certificate for `<name>.<your-tailnet>.ts.net` is published in public [Certificate Transparency logs](https://tailscale.com/kb/1153/enabling-https), which anyone can search. Pick a machine name that says nothing about you or what runs on it.
+Only devices on your tailnet can reach Promus, and every phone needs the Tailscale app.
 
-```sh
-tailscale up --auth-key=tskey-auth-XXXXXXXX --hostname=<name>
-ip link show tailscale0
-```
+1. Install Tailscale and pick a name, as in steps 1 and 2 above.
+2. Turn on **MagicDNS** and **HTTPS Certificates** on the **DNS** page of the Tailscale admin console.
+3. Serve the app:
 
-`ip link show tailscale0` confirms kernel mode: in userspace mode, that interface doesn't exist. To keep the key out of shell history, write it to a file and pass `--auth-key=file:/root/authkey`, then delete the file.
+   ```sh
+   tailscale serve --bg 8080
+   tailscale funnel status
+   ```
 
-`/var/lib/tailscale` now holds the node key, which is this machine's identity on your tailnet. Proxmox backups (vzdump) of the container include it, so protect them as you would the container itself.
+   Every entry must say `(tailnet only)`. If one says `Funnel on`, run `tailscale funnel reset` and `tailscale serve --bg 8080` again.
+4. For someone in your household with their own Tailscale account, [share the machine](https://tailscale.com/kb/1084/sharing) with them from the **Machines** page of the admin console. Once they accept, they reach that machine and nothing else of yours, at the same `https://` address. A machine with a tag can't be shared.
 
-### Enable MagicDNS and HTTPS
+To limit what each device can reach, see [Tailscale access policy](tailscale-policy.md).
 
-On the **DNS** page of the admin console:
-1. Check that MagicDNS is enabled. It's on by default for tailnets created on or after 2022-10-20. Otherwise select **Enable MagicDNS**.
-2. Under **HTTPS Certificates**, select **Enable HTTPS**.
+Run Tailscale on the host, not as a sidecar container. The official image's `TS_USERSPACE` setting is on by default, and in userspace mode Tailscale [proxies incoming connections to the same port on `127.0.0.1`](https://tailscale.com/docs/reference/faq/other-vpns). Port 8080 would then be reachable from the tailnet over plain HTTP, bypassing `tailscale serve`.
 
-### Serve the app
+### Your own domain
 
-```sh
-tailscale serve --bg 8080
-tailscale serve status
-```
-
-`--bg` keeps the configuration across reboots and restarts of Tailscale. The status should read:
+Forward port 443 on your router to a reverse proxy that terminates TLS and forwards to `http://127.0.0.1:8080`. With [Caddy](https://caddyserver.com), which gets the certificate itself, the whole configuration is:
 
 ```
-https://<name>.<your-tailnet>.ts.net (tailnet only)
-|-- / proxy http://127.0.0.1:8080
-```
-
-### Check that Funnel is off
-
-Funnel would publish the server to the whole internet. It is off by default. Check it:
-
-```sh
-tailscale funnel status
-```
-
-Every entry must say `(tailnet only)`, never `Funnel on`.
-- If one says `Funnel on`, run `tailscale funnel reset`, which clears the serve configuration as well. Then run `tailscale serve --bg 8080` again.
-- Funnel also needs a `funnel` attribute in the policy file's `nodeAttrs`. Never add `tag:promus` to its `target`.
-
-## 5. Optional: tighten the Tailscale policy
-
-This step isn't required: the app has its own login whatever the network policy is. It limits the damage if a device or the server is ever compromised.
-
-The target policy:
-- Your own devices keep reaching each other on every port, as they do under allow-all.
-- Your devices reach the server on `tcp:443` only, which is the HTTPS port that `tailscale serve` listens on.
-- Home Assistant reaches the server on `tcp:443`, if its device is tagged. A Home Assistant node logged in as a user is already covered by the first two rules.
-- The server reaches nothing. No grant has `tag:promus` as `src`. Grants are directional, so letting your devices connect to the server doesn't let the server connect to them. A compromised container can't reach Proxmox or anything else on the tailnet.
-
-### First, list what allow-all was covering
-
-`autogroup:member` covers only devices logged in as a user, and only their Tailscale addresses. Removing the allow-all rule cuts off, unless a grant covers them:
-- **Tagged devices**, such as other servers or a tagged Home Assistant.
-- **Subnet routes and exit nodes** that your devices advertise. A grant to the router device doesn't cover the networks behind it, or the internet through it.
-
-On the **Machines** page of the admin console:
-- Each device shows its tags.
-- The **Subnets** and **Exit Node** badges mark routers. The `property:subnet` and `property:exit-node` filters list them.
-
-Or, from one of your devices with `jq` installed:
-
-```sh
-tailscale status --json | jq -r '(.Self, .Peer[]?) | select(.Tags or .PrimaryRoutes or .ExitNodeOption) | "\(.HostName) tags=\(.Tags // [] | join(",")) routes=\(.PrimaryRoutes // [] | join(",")) exit-node=\(.ExitNodeOption)"'
-```
-
-For each one, add a grant to the `grants` below. For example:
-
-```jsonc
-// Your devices may use exit nodes.
-{"src": ["autogroup:member"], "dst": ["autogroup:internet"], "ip": ["*"]},
-// Your devices reach a subnet that a router advertises. Use your route instead of this example range.
-{"src": ["autogroup:member"], "dst": ["192.0.2.0/24"], "ip": ["*"]},
-```
-
-These forms come from Tailscale's [grant examples](https://tailscale.com/docs/reference/examples/grants) for exit nodes and its [subnet router docs](https://tailscale.com/docs/features/subnet-routers) for CIDR destinations.
-
-### The policy
-
-Open **Access controls** and change only these parts:
-- Remove the allow-all rule. In the default policy it is the `acls` entry `{"action": "accept", "src": ["*"], "dst": ["*:*"]}`. In a policy written with grants it is `{"src": ["*"], "dst": ["*"], "ip": ["*"]}`. `acls` and `grants` can coexist and both apply, so check both.
-- Keep your other sections, such as `ssh`, `nodeAttrs` and `groups`, as they are.
-
-Then merge in the following. Replace `you@example.com` with your Tailscale login. If your Home Assistant isn't tagged, remove `tag:homeassistant` everywhere: its `tagOwners` line, its grant, its test and the `tag:homeassistant:8123` entry.
-
-```jsonc
-{
-  "tagOwners": {
-    "tag:promus": ["autogroup:admin"],
-    "tag:homeassistant": ["autogroup:admin"],
-  },
-
-  "grants": [
-    // Your devices reach each other on every port, as before.
-    {"src": ["autogroup:member"], "dst": ["autogroup:member"], "ip": ["*"]},
-    // Your devices reach Promus over HTTPS only.
-    {"src": ["autogroup:member"], "dst": ["tag:promus"], "ip": ["tcp:443"]},
-    // A tagged Home Assistant reaches Promus over HTTPS only.
-    {"src": ["tag:homeassistant"], "dst": ["tag:promus"], "ip": ["tcp:443"]},
-    // Add grants here for the tagged devices, subnet routes and exit nodes you listed above.
-    // No grant has tag:promus as src: the server reaches nothing.
-  ],
-
-  "tests": [
-    {
-      "src": "you@example.com",
-      "proto": "tcp",
-      "accept": ["tag:promus:443", "you@example.com:22"],
-      "deny": ["tag:promus:22", "tag:promus:8080"],
-    },
-    {
-      "src": "tag:homeassistant",
-      "proto": "tcp",
-      "accept": ["tag:promus:443"],
-      "deny": ["tag:promus:22"],
-    },
-    {
-      "src": "tag:promus",
-      "deny": ["you@example.com:22", "you@example.com:443", "tag:homeassistant:8123"],
-    },
-  ],
+promus.example.com {
+	reverse_proxy 127.0.0.1:8080
 }
 ```
 
-Tailscale runs the `tests` on every save and rejects the policy if one fails.
+- The proxy must keep the original `Host` header, which Caddy does. The server compares a request's `Origin` with its `Host` to block cross-site requests.
+- Forwarding port 8080 itself doesn't work. That's plain HTTP: browsers won't keep the sign-in, and passwords would cross the internet unencrypted.
+- The same applies as for Funnel: anyone can open the sign-in page.
 
-The syntax was checked against Tailscale's [policy file syntax](https://tailscale.com/kb/1337/policy-syntax) and [grants syntax](https://tailscale.com/docs/reference/syntax/grants) references:
-- `autogroup:member` is valid as both `src` and `dst`.
-- A test's `src` takes a user, a group, a tag or a host, not an autogroup. That's why the tests use your login.
-- If several people use your tailnet and each should reach only their own devices, use `"dst": ["autogroup:self"]` in the first grant.
+## Set up your account
 
-Afterwards:
-- Open the app on your phone.
-- Check that Home Assistant still syncs.
-- Check that every tagged device, subnet route and exit node you listed still works.
+Open the server's `https://` address. A new server shows the setup wizard:
+1. Pick Swedish or English. It also names your first list.
+2. Enter the setup code, then choose a username and a password of at least 8 characters.
+3. Get it onto your phone, as described below.
 
-From now on, manage the container from the Proxmox console (`pct enter <id>`), because the tailnet allows only port 443 to it.
-
-## 6. Create your account
-
-There is no sign-up page. Create accounts on the server, as the `promus` user:
+The setup code is in the server's log:
 
 ```sh
-cd /opt/promus
-runuser -u promus -- env $(grep '^DATA_DIR=' /etc/promus/promus.env) node apps/server/src/cli.ts user:create <username>
+docker logs promus
 ```
 
-- `$(grep ...)` passes the `DATA_DIR` line from `/etc/promus/promus.env`, so the CLI opens the service's database.
-- Without it, the CLI falls back to `./data`, a separate, empty database the server never reads.
+Look for the line `Setup code: XXXX-XXXX`. Case and the dash don't matter. A restart prints a new code, and once the first account exists, no code works any more.
 
-- The password prompt is hidden. The password must be at least 8 characters.
-- Without a TTY, for example in a script, the CLI reads the password from the first line of stdin.
-- The account gets a default list. Its name is in English by default (`--locale en`). Add `--locale sv` for a Swedish name.
+## Install the app on your phone
 
-To change a password, which also signs that user out on every device:
+The wizard's last step, and **Settings > Open on your phone**, show the server's address as a QR code. Scan it with the phone's camera.
+
+- **Android:** in Chrome, tap **Install app** in Promus, or choose **Install app** from Chrome's menu.
+- **iPhone:** in Safari, tap **Share**, then **Add to Home Screen**. Install it before relying on it. Safari may clear a website's data after 7 days without use, and changes that haven't synced yet would go with it. An app on the Home Screen counts only its own days of use.
+
+The installed app works offline and syncs whenever the phone can reach the server.
+
+## Invite your household
+
+In **Settings**, under **Household**, tap **Invite someone**. The link shows as a QR code to scan, with **Share** and **Copy**.
+- **The link:** it works once, for 7 days. **Undo** in the snackbar cancels it.
+- **Joining:** whoever opens it chooses their own username and password, joins your household, and sees the same lists and item history.
+- **Removing someone:** not possible yet. Until it is, `user:password` from the [server commands](cli.md) signs them out everywhere.
+
+## Backups and restore
+
+Back up every night from cron or a systemd timer on the host, and copy the backups somewhere else:
 
 ```sh
-runuser -u promus -- env $(grep '^DATA_DIR=' /etc/promus/promus.env) node apps/server/src/cli.ts user:password <username>
+docker exec promus node apps/server/src/cli.ts backup
+docker cp promus:/data/backups ./backups
 ```
 
-## 7. Install the app on your phone
-
-1. Install the Tailscale app on the phone and log in to the same tailnet.
-2. In Chrome, open `https://<name>.<your-tailnet>.ts.net` and sign in.
-3. Open Chrome's menu and choose **Install app**. On some Chrome versions this is **Add to home screen**, then **Install**.
-
-The installed app works offline. It syncs whenever the phone can reach the server through Tailscale.
-
-## 8. Backups and restore
-
-The `promus-backup.timer` unit runs the backup every night at 03:30, and catches up after downtime.
-- Each backup is a complete, consistent copy of the database, written with `VACUUM INTO`. It is saved as `/var/lib/promus/backups/promus-YYYY-MM-DD.db`, named by the UTC date.
-- The 14 newest backups are kept.
-
-To run a backup now, and to check when the next one is due:
-
-```sh
-systemctl start promus-backup.service
-systemctl list-timers promus-backup.timer
-```
-
-To keep copies off the machine, copy files from `backups/`, or rely on Proxmox backups (vzdump) of the container on top. Those also contain the Tailscale node key in `/var/lib/tailscale`, so store them accordingly. Never copy the live `promus.db` on its own. Recent changes live in `promus.db-wal` until SQLite folds them in.
+- **What a backup is:** a complete, consistent copy of the database, written to `/data/backups/promus-YYYY-MM-DD.db` and named by the UTC date. The 14 newest are kept.
+- **Where it lives:** in the `promus-data` volume, so `docker volume rm promus-data` deletes the backups along with the database. Keep copies outside the volume.
+- **Never copy the live `promus.db` on its own.** Recent changes live in `promus.db-wal` until SQLite folds them in.
 
 To restore a backup:
 
 ```sh
-systemctl stop promus
-cp /var/lib/promus/backups/promus-YYYY-MM-DD.db /var/lib/promus/promus.db
-rm -f /var/lib/promus/promus.db-wal /var/lib/promus/promus.db-shm
-chown promus:promus /var/lib/promus/promus.db
-systemctl start promus
+docker stop promus
+docker run --rm -v promus-data:/data ghcr.io/aldinsmajlovic/promus sh -c 'cp /data/backups/promus-YYYY-MM-DD.db /data/promus.db && rm -f /data/promus.db-wal /data/promus.db-shm'
+docker start promus
 ```
 
-Removing the `-wal` and `-shm` files matters: if they're there, they belong to the old database, and SQLite would apply them to the restored one.
+Removing the `-wal` and `-shm` files matters: they belong to the old database, and SQLite would apply them to the restored one.
 
-**A restore loses every change made after the backup.** That covers list changes, and also accounts, passwords and sessions, which all return to their state in the backup.
+**A restore loses every change made after the backup.** That covers list changes, and also accounts, passwords, invites and sessions, which all return to their state in the backup.
 
 **Then reset every device.** Each device remembers how far it has synced by its position in the server's log. A restored server hands out those positions again.
 - A device that had synced past the backup would never receive new changes.
@@ -341,64 +150,17 @@ On every device:
    2. Let it sync, until the badge with the number of unsynced changes is gone.
    3. Open **Settings**, sign out, and sign in again.
 
-## 9. Updating
+## Updating
+
+Back up first: database migrations run on startup and are forward-only.
 
 ```sh
-systemctl start promus-backup.service
-systemctl stop promus
-cd /opt/promus
-git pull
-npm ci
-npm run build -w apps/web
-systemctl start promus
+docker exec promus node apps/server/src/cli.ts backup
+docker pull ghcr.io/aldinsmajlovic/promus
+docker rm -f promus
+docker run -d --name promus -p 127.0.0.1:8080:8080 -v promus-data:/data --restart unless-stopped ghcr.io/aldinsmajlovic/promus
 ```
 
-- Database migrations run on startup and are forward-only, which is why the backup comes first.
-- The service is stopped while `npm ci` replaces `node_modules` underneath it.
-- If a release changes the files in `deploy/`, copy them to `/etc/systemd/system/` again and run `systemctl daemon-reload`.
-- Installed apps pick up the new version on their own and offer a reload.
+With Compose, the last three lines are `docker compose pull && docker compose up -d`.
 
-## 10. Alternative: Docker
-
-```sh
-git clone https://github.com/aldinsmajlovic/promus.git promus
-cd promus
-cp .env.example .env
-docker compose up -d --build
-docker compose exec promus node apps/server/src/cli.ts user:create <username>
-```
-
-How the container is set up:
-- `compose.yaml` publishes the app on `127.0.0.1:8080` only.
-- Inside the container, the server listens on all interfaces of the container's own network, and keeps its data in the `promus-data` volume at `/data`. `compose.yaml` sets `HOST` and `DATA_DIR` for that, overriding `.env`.
-- To use a different host port, change the left side of `ports`, not `PORT`.
-- The image runs as the unprivileged `node` user and has a healthcheck on `/api/health`.
-
-Put HTTPS in front, with one of:
-- **Tailscale on the Docker host**, in kernel mode as in section 4, followed by `tailscale serve --bg 8080`.
-- **A reverse proxy** that terminates TLS and forwards to `http://127.0.0.1:8080`. It must keep the original `Host` header, because the server compares a request's `Origin` with its `Host` to block cross-site requests.
-
-Two warnings:
-- **A Tailscale sidecar container defaults to userspace mode.** The official image's `TS_USERSPACE` setting is on by default. As explained in section 4, every port bound to localhost in the shared network namespace then becomes reachable from the tailnet. Use Tailscale on the host instead. If you do use a sidecar, set `TS_USERSPACE=false` and give it `/dev/net/tun` and the capabilities listed in Tailscale's [Docker parameters](https://tailscale.com/docs/features/containers/docker/docker-params).
-- **Docker inside a Proxmox LXC is not recommended.** It has broken on Proxmox updates before, and the Proxmox documentation recommends nesting containers inside a VM when isolation matters. On Proxmox, use the LXC setup above, or run Docker in a VM.
-
-Backups, restore and updates:
-
-```sh
-# backup (run it from cron or a systemd timer on the host), then copy the backups out of the volume
-docker compose exec -T promus node apps/server/src/cli.ts backup
-docker compose cp promus:/data/backups ./backups
-
-# restore
-docker compose stop promus
-docker compose run --rm promus sh -c 'cp /data/backups/promus-YYYY-MM-DD.db /data/promus.db && rm -f /data/promus.db-wal /data/promus.db-shm'
-docker compose start promus
-
-# update: back up first
-docker compose exec -T promus node apps/server/src/cli.ts backup
-git pull
-docker compose up -d --build
-```
-
-- The backups live in the `promus-data` volume, so `docker compose down -v` deletes them along with the database. Keep copies outside the volume.
-- After a restore, reset every device as described in [section 8](#8-backups-and-restore). A restore loses every change made after the backup.
+Installed apps pick up the new version on their own and offer a reload.

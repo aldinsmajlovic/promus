@@ -16,35 +16,38 @@ In Latin, a *promus* is the household steward who brings provisions out of the s
 - Works fully offline in the store. Changes sync when the server is reachable, with nothing lost or duplicated.
 - Checked items move to a Done section and leave the list after 24 hours.
 - Every action can be undone from the snackbar. There are no confirmation dialogs.
-- Several lists, sharing one item history.
-- Swedish and English, with light and dark themes.
+- Share several lists and one item history with your household. Invite someone with a link or a QR code, and each person gets their own account.
+- Installs on Android and iPhone. Swedish and English, with light and dark themes.
 - Runs on your own server, with no public sign-up. Every change is kept with when it happened and who made it.
 
 ## Status
 
-Early: the list, search, offline sync and undo are done, and being tried day to day.
+Early: the list, search, offline sync, undo, the setup wizard and household invites are done, and being tried day to day.
 Stats, data export and a Home Assistant integration come next.
 
 ## Quick start
 
-With Docker:
+On a machine with Docker and [Tailscale](https://tailscale.com/download):
 
 ```sh
-git clone https://github.com/aldinsmajlovic/promus.git
-cd promus
-cp .env.example .env
-docker compose up -d --build
-docker compose exec promus node apps/server/src/cli.ts user:create <username>
+docker run -d --name promus -p 127.0.0.1:8080:8080 -v promus-data:/data --restart unless-stopped ghcr.io/aldinsmajlovic/promus
+tailscale funnel --bg 8080
+docker logs promus
 ```
 
-Open <http://localhost:8080> on the same machine and sign in. Phones need HTTPS in front: the self-hosting guide sets that up with Tailscale and installs the app on the phone.
+Open the `https://` address that `tailscale funnel` prints, enter the setup code from `docker logs`, and follow the wizard. It ends with a QR code that opens Promus on your phone. Then invite your household from **Settings**.
+
+Funnel makes the sign-in page reachable from the internet. To keep Promus private to your own devices, or to use your own domain, see the [self-hosting guide](docs/self-hosting.md).
 
 ## Documentation
 
-- [Self-hosting](docs/self-hosting.md): a Proxmox container or Docker, Tailscale, the phone, backups and updates.
+- [Self-hosting](docs/self-hosting.md): Docker, HTTPS with Tailscale or your own domain, the phone, invites, backups and updates.
+- [Promus on Proxmox](docs/proxmox.md): an LXC container with systemd, built from source.
+- [Tailscale access policy](docs/tailscale-policy.md): limiting what each device on your tailnet can reach.
 - [Configuration](docs/configuration.md): the environment variables.
 - [Server commands](docs/cli.md): accounts and backups.
-- [Development](docs/development.md): running it locally, the checks and the project layout.
+- [Development](docs/development.md): running it locally, the checks, releasing and the project layout.
+- [Decisions](docs/decisions.md): what changed from the original plan, and why.
 - [Writing docs](docs/writing-docs.md): rules for these pages.
 
 ## License

@@ -42,6 +42,27 @@ tailscale serve --bg 8080
 
 Then open the `https://` address that `tailscale serve` prints in Safari on the iPhone.
 
+## Releasing
+
+Pushing a version tag publishes the Docker image:
+
+```sh
+npm version 0.2.0 --no-git-tag-version
+git commit -am "release: v0.2.0"
+git tag v0.2.0
+git push origin main v0.2.0
+```
+
+`.github/workflows/image.yml` then:
+1. checks that the tag matches `version` in `package.json`;
+2. builds the image for amd64 and arm64;
+3. starts it and waits for `/api/health`;
+4. pushes it to `ghcr.io/aldinsmajlovic/promus` as `0.2.0` and `latest`.
+
+The app reports this version and links to the docs at this tag, so tag only commits whose docs match the code.
+
+The first time, the package is private. Open it under **Packages** on your GitHub profile, then **Package settings**, and change its visibility to **Public**.
+
 ## Icons and screenshots
 
 - `npm run icons` regenerates `brand/promus-p.svg` and the app icons in `apps/web/public/icons` from the Fraunces font.
@@ -56,7 +77,8 @@ The repository is a set of npm workspaces.
 | `apps/server` | Hono API, serves the built app, CLI |
 | `apps/web` | Angular app |
 | `packages/shared` | Event schemas, fold, name normalization, HLC |
-| `deploy/` | systemd units |
+| `deploy/` | systemd units, for the Proxmox setup |
+| `.github/workflows/` | The release workflow, which publishes the image |
 | `docs/` | Guides, and screenshots in `docs/images/` |
 | `e2e/` | Playwright tests |
 | `scripts/` | Icon and screenshot generators |

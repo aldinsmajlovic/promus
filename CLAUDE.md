@@ -10,7 +10,7 @@ Self-hosted offline-first grocery list. npm workspaces: `packages/shared`, `apps
 - One logger: structured JSON lines (pino) to stdout. No `console.log`, no leftover debug output.
 - Schema changes only through new numbered `.sql` migration files. Forward-only. Never edit an applied migration; never update or delete stored events.
 - Validate with Zod 4 schemas from `packages/shared`, on server and client.
-- Configuration only from environment variables (`PORT`, `HOST`, `DATA_DIR`, `LOG_LEVEL`). No URLs, hostnames, ports or secrets in code.
+- Configuration only from environment variables (`PORT`, `HOST`, `DATA_DIR`, `LOG_LEVEL`). No URLs, hostnames, ports or secrets for configuration in code. Links to the project's own docs are fine.
 - Angular: standalone components, signals, zoneless, `@if`/`@for`. No NgModules, no zone.js, no `*ngIf`.
 - Every user-visible string goes through Transloco (`sv` and `en`).
 - Every action is undoable from a snackbar. No confirmation dialogs.
