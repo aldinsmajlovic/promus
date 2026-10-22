@@ -1,6 +1,6 @@
 # Development
 
-This needs Node.js 26 (see `.node-version`). The end-to-end tests and the screenshots also need Google Chrome.
+This needs Node.js 26 (see `.node-version`). The end-to-end tests and the screenshots also need Google Chrome, and the end-to-end tests need Playwright's WebKit: `npx playwright install webkit`.
 
 npm 11 skips the install scripts of esbuild, lmdb, msgpackr-extract and @parcel/watcher. That is intentional: the build, the tests and the Docker image work without them.
 
@@ -17,8 +17,10 @@ node apps/server/src/cli.ts user:create dev
 npm run typecheck
 npm test             # unit and integration tests, against real SQLite files
 npm run lint         # no em dashes in tracked files
-npm run e2e          # Playwright in mobile Chrome, against a fresh build and database
+npm run e2e          # Playwright in mobile Chrome and WebKit, against a fresh build and database
 ```
+
+WebKit, like Safari, drops the `Secure` session cookie on `http://localhost`, so it can't stay signed in to the test server. The WebKit run only checks that the app says it needs HTTPS. The signed-in flows run in Chrome, and `e2e/setup.spec.ts` starts a server of its own on an empty database for the setup wizard and invites.
 
 ## On a real phone
 
@@ -29,6 +31,16 @@ adb reverse tcp:4200 tcp:4200
 ```
 
 Then open <http://localhost:4200> in Chrome on the phone. The phone sees the dev server as `localhost`, which is a secure context, so signing in works without HTTPS.
+
+An iPhone needs HTTPS, even for testing. Build the app and serve it through Tailscale, with the phone on your tailnet:
+
+```sh
+npm run build -w apps/web
+npm run dev:server
+tailscale serve --bg 8080
+```
+
+Then open the `https://` address that `tailscale serve` prints in Safari on the iPhone.
 
 ## Icons and screenshots
 

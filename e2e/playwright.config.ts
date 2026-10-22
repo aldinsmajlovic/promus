@@ -16,12 +16,23 @@ export default defineConfig({
   projects: [
     {
       name: 'mobile',
+      testIgnore: 'webkit.spec.ts',
       use: {
         ...devices['Pixel 7'],
         channel: 'chrome',
         // the UI language follows the browser's
         locale: 'sv-SE',
         // `localhost` is a secure context, so Chrome keeps the Secure `__Host-` session cookie over http
+        baseURL: 'http://localhost:8181',
+      },
+    },
+    {
+      // only what WebKit can show over http://localhost: see webkit.spec.ts
+      name: 'iphone',
+      testMatch: 'webkit.spec.ts',
+      use: {
+        ...devices['iPhone 15'],
+        locale: 'sv-SE',
         baseURL: 'http://localhost:8181',
       },
     },
