@@ -107,6 +107,7 @@ Checks:
 ```sh
 npm run typecheck
 npm test             # unit and integration tests, against real SQLite files
+npm run lint         # no em dashes in tracked files
 npm run e2e          # Playwright in mobile Chrome, against a fresh build and database
 ```
 

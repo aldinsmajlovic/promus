@@ -16,6 +16,7 @@ Self-hosted offline-first grocery list. npm workspaces: `packages/shared`, `apps
 - Every action is undoable from a snackbar. No confirmation dialogs.
 - No empty `catch`, no swallowed errors, no commented-out code, no TODOs.
 - Never commit `initial.md`, `.superpowers/`, `docs/superpowers/`, `data/`, `*.db`, `node_modules/`, `dist/`, `.angular/`.
+- Docs follow `docs/writing-docs.md`: a change is not done until its docs are updated in the same commit, and `npm run lint` passes.
 - Commit messages end with `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`.
 
 ## Local design docs
