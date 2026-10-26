@@ -1,6 +1,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join, sep } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import pkg from '../../../package.json' with { type: 'json' };
 import { makeTestApp } from './helpers.ts';
 
 describe('app', () => {
@@ -8,7 +9,7 @@ describe('app', () => {
     const { app } = makeTestApp();
     const res = await app.request('/api/health');
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ status: 'ok', version: '0.1.0' });
+    expect(await res.json()).toEqual({ status: 'ok', version: pkg.version });
   });
 
   it('sets security headers', async () => {

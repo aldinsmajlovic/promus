@@ -9,6 +9,7 @@ import { RouterTestingHarness } from '@angular/router/testing';
 import { TranslocoTestingModule } from '@jsverse/transloco';
 import { formatHlc, makeEvent, newId } from '@promus/shared';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { version } from '../../../../../../package.json';
 import en from '../../../i18n/en.json';
 import sv from '../../../i18n/sv.json';
 import { FETCH } from '../../core/api';
@@ -88,7 +89,7 @@ describe('SettingsPage', () => {
     const t = await setup();
     expect(t.text('h1')).toBe('Inställningar');
     expect(t.text('.user')).toBe('anna');
-    expect(t.text('.version')).toBe('Version 0.1.0');
+    expect(t.text('.version')).toBe(`Version ${version}`);
   });
 
   it('sign out is disabled while changes are unsynced', async () => {
