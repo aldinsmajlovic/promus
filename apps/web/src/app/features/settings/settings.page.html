@@ -1,62 +1,92 @@
 <ng-container *transloco="let t">
-  <mat-toolbar>
-    <button matIconButton [attr.aria-label]="t('settings.back')" (click)="back()">
-      <mat-icon svgIcon="arrow_back" />
-    </button>
-    <h1 class="brand">{{ t('list.settings') }}</h1>
-  </mat-toolbar>
+  <div class="frame">
+    <header class="band slim">
+      <button matIconButton [attr.aria-label]="t('settings.back')" (click)="back()">
+        <mat-icon svgIcon="arrow_back" />
+      </button>
+      <h1 class="title">{{ t('list.settings') }}</h1>
+    </header>
 
-  <main>
-    <section>
-      <h2 id="lang">{{ t('settings.language') }}</h2>
-      <mat-button-toggle-group aria-labelledby="lang" [value]="lang.pref()" (change)="setLang($event.value)">
-        @for (o of langs; track o.value) {
-          <mat-button-toggle [value]="o.value">{{ t(o.label) }}</mat-button-toggle>
+    <main class="sheet">
+      <div class="group">
+        @if (user(); as u) {
+          @let b = badge();
+          <a class="row profile" routerLink="account">
+            <app-face [member]="{ id: u.userId, username: u.username }" [badge]="b?.mark ?? null" />
+            <span class="txt">
+              <span class="main">{{ u.username }}</span>
+              <span class="sub">{{ b ? t(b.key, b.params) : t('settings.profileHint') }}</span>
+            </span>
+            <mat-icon class="go" svgIcon="chevron_right" />
+          </a>
         }
-      </mat-button-toggle-group>
-    </section>
-
-    <section>
-      <h2 id="theme">{{ t('settings.theme') }}</h2>
-      <mat-button-toggle-group aria-labelledby="theme" [value]="theme.mode()" (change)="setTheme($event.value)">
-        @for (o of themes; track o.value) {
-          <mat-button-toggle [value]="o.value">{{ t(o.label) }}</mat-button-toggle>
-        }
-      </mat-button-toggle-group>
-    </section>
-
-    <section>
-      <h2>{{ t('settings.household') }}</h2>
-      <app-household />
-    </section>
-
-    <section>
-      <h2>{{ t('phone.title') }}</h2>
-      <app-phone-card />
-    </section>
-
-    <section>
-      <h2>{{ t('settings.account') }}</h2>
-      @let n = pending();
-      <div class="account">
-        <span class="user">{{ user()?.username }}</span>
-        <button
-          matButton="outlined"
-          [disabled]="n > 0"
-          [attr.aria-describedby]="n > 0 ? 'pending' : null"
-          (click)="signOut()"
-        >
-          <mat-icon svgIcon="logout" />{{ t('settings.signOut') }}
-        </button>
       </div>
-      <!-- always there, so screen readers announce the count when it appears -->
-      <p id="pending" class="pending" aria-live="polite">
-        @if (n > 0) {
-          {{ t(pendingKey(n), { n }) }}
-        }
-      </p>
-    </section>
 
-    <p class="version">{{ t('settings.version', { version }) }}</p>
-  </main>
+      <div class="group">
+        <a class="row household-row" routerLink="household">
+          <span class="ic"><mat-icon svgIcon="group" /></span>
+          <span class="txt">
+            <span class="main">{{ t('settings.household') }}</span>
+            <span class="sub">{{ faces().length > 1 ? names() : t('settings.onlyYou') }}</span>
+          </span>
+          <span class="faces">
+            @for (m of faces(); track m.id) {
+              <app-face [member]="m" />
+            }
+          </span>
+          <mat-icon class="go" svgIcon="chevron_right" />
+        </a>
+      </div>
+
+      <div class="group">
+        <button class="row theme-row" type="button" [matMenuTriggerFor]="themeMenu">
+          <span class="ic"><mat-icon svgIcon="contrast" /></span>
+          <span class="txt"><span class="main">{{ t('settings.theme') }}</span></span>
+          <span class="val">{{ t(labelOf(themes, theme.mode())) }}</span>
+        </button>
+        <mat-menu #themeMenu="matMenu">
+          @for (o of themes; track o.value) {
+            <button
+              mat-menu-item
+              role="menuitemradio"
+              [attr.aria-checked]="o.value === theme.mode()"
+              [class.selected]="o.value === theme.mode()"
+              (click)="setTheme(o.value)"
+            >
+              {{ t(o.label) }}
+            </button>
+          }
+        </mat-menu>
+
+        <button class="row lang-row" type="button" [matMenuTriggerFor]="langMenu">
+          <span class="ic"><mat-icon svgIcon="translate" /></span>
+          <span class="txt"><span class="main">{{ t('settings.language') }}</span></span>
+          <span class="val">{{ t(labelOf(langs, lang.pref())) }}</span>
+        </button>
+        <mat-menu #langMenu="matMenu">
+          @for (o of langs; track o.value) {
+            <button
+              mat-menu-item
+              role="menuitemradio"
+              [attr.aria-checked]="o.value === lang.pref()"
+              [class.selected]="o.value === lang.pref()"
+              (click)="setLang(o.value)"
+            >
+              {{ t(o.label) }}
+            </button>
+          }
+        </mat-menu>
+      </div>
+
+      <div class="group">
+        <div class="row install">
+          <span class="ic"><mat-icon svgIcon="install_mobile" /></span>
+          <span class="txt"><span class="main">{{ t('settings.install') }}</span></span>
+        </div>
+        <app-phone-card />
+      </div>
+
+      <p class="version">{{ t('settings.version', { version }) }}</p>
+    </main>
+  </div>
 </ng-container>

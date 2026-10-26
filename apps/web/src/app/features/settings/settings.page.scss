@@ -1,0 +1,112 @@
+.sheet {
+  padding-block: 1.125rem 1.75rem;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 3.625rem;
+  padding: 0.5rem 0.875rem 0.5rem 1rem;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+a.row,
+button.row {
+  cursor: pointer;
+
+  @media (hover: hover) {
+    &:hover {
+      background: color-mix(in srgb, currentColor 6%, transparent);
+    }
+  }
+}
+
+.row + .row,
+.row + app-phone-card,
+.row + mat-menu + .row {
+  box-shadow: inset 0 1px 0 var(--promus-sheet-edge);
+}
+
+.ic {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 0.75rem;
+  background: var(--promus-sheet);
+  color: var(--mat-sys-primary);
+}
+
+.txt {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.main {
+  font-size: 1.0625rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sub,
+.val {
+  color: var(--promus-muted);
+  font-size: 0.875rem;
+}
+
+.sub {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.go {
+  flex: none;
+  color: var(--promus-muted);
+}
+
+.profile {
+  --face-size: 3rem;
+  min-height: 4.75rem;
+}
+
+.profile .main {
+  font-size: 1.375rem;
+  font-weight: 600;
+}
+
+.faces {
+  display: flex;
+  padding-inline-start: 0.5rem;
+  --face-size: 1.625rem;
+}
+
+.faces app-face {
+  margin-inline-start: -0.5rem;
+  border: 2px solid var(--promus-field);
+  border-radius: 50%;
+}
+
+app-phone-card {
+  padding: 0.25rem 1rem 1rem;
+}
+
+.version {
+  margin: 1.25rem 0 0;
+  color: var(--promus-muted);
+  font-size: 0.8125rem;
+  text-align: center;
+}

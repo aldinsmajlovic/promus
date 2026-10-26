@@ -1,0 +1,32 @@
+<ng-container *transloco="let t">
+  <div class="frame">
+    <header class="band slim">
+      <button matIconButton [attr.aria-label]="t('settings.back')" (click)="back()">
+        <mat-icon svgIcon="arrow_back" />
+      </button>
+      <h1 class="title">{{ t('settings.household') }}</h1>
+    </header>
+
+    <main class="sheet">
+      <p class="intro">{{ t('settings.householdIntro') }}</p>
+      @if (members().length > 0) {
+        <ul>
+          @for (m of members(); track m.id) {
+            <li>
+              <app-face [member]="m" />
+              <span class="name">{{ m.username }}</span>
+              @if (m.id === you()) {
+                <span class="role">{{ t('settings.you') }}</span>
+              }
+            </li>
+          }
+        </ul>
+      }
+      <div class="acts">
+        <button matButton="tonal" type="button" (click)="invite()">
+          <mat-icon svgIcon="person_add" />{{ t('settings.invite') }}
+        </button>
+      </div>
+    </main>
+  </div>
+</ng-container>

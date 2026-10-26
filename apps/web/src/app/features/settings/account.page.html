@@ -1,0 +1,56 @@
+<ng-container *transloco="let t">
+  <div class="frame">
+    <header class="band slim">
+      <button matIconButton [attr.aria-label]="t('settings.back')" (click)="back()">
+        <mat-icon svgIcon="arrow_back" />
+      </button>
+      <h1 class="title">{{ t('settings.account') }}</h1>
+    </header>
+
+    <main class="sheet">
+      @if (user(); as u) {
+        <div class="who">
+          <app-face [member]="{ id: u.userId, username: u.username }" />
+          <span class="user">{{ u.username }}</span>
+        </div>
+      }
+
+      @if (statusKey(); as key) {
+        <div class="group">
+          <div class="row">
+            <p class="status" aria-live="polite">{{ t(key.key, key.params) }}</p>
+            @if (kind() === 'error') {
+              <button matButton="tonal" type="button" (click)="retry()">
+                <mat-icon svgIcon="refresh" />{{ t('sync.retry') }}
+              </button>
+            } @else if (kind() === 'auth') {
+              <a matButton="tonal" routerLink="/login">{{ t('sync.auth') }}</a>
+            }
+          </div>
+        </div>
+      }
+
+      @let n = pending();
+      <div class="group">
+        <div class="row">
+          <!-- always there, so screen readers announce the count when it appears -->
+          <p id="pending" class="pending" aria-live="polite">
+            @if (n > 0) {
+              {{ t(pendingKey(n), { n }) }}
+            }
+          </p>
+          <button
+            class="signout"
+            matButton="outlined"
+            type="button"
+            [disabled]="n > 0"
+            [attr.aria-describedby]="n > 0 ? 'pending' : null"
+            (click)="signOut()"
+          >
+            <mat-icon svgIcon="logout" />{{ t('settings.signOut') }}
+          </button>
+        </div>
+      </div>
+    </main>
+  </div>
+</ng-container>

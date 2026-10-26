@@ -18,6 +18,16 @@ export const routes: Routes = [
     loadComponent: () => import('./features/settings/settings.page').then((m) => m.SettingsPage),
   },
   {
+    path: 'settings/account',
+    canActivate: [authGuard],
+    loadComponent: () => import('./features/settings/account.page').then((m) => m.AccountPage),
+  },
+  {
+    path: 'settings/household',
+    canActivate: [authGuard],
+    loadComponent: () => import('./features/settings/household.page').then((m) => m.HouseholdPage),
+  },
+  {
     path: 'login',
     canActivate: [loginGuard, setupNeededGuard],
     loadComponent: () => import('./features/login/login.page').then((m) => m.LoginPage),

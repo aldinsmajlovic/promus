@@ -98,18 +98,23 @@
     "dark": "Dark",
     "en": "English",
     "household": "Household",
+    "householdIntro": "Everyone here shares all of the household's lists.",
+    "install": "Install app",
     "invite": "Invite someone",
     "language": "Language",
     "light": "Light",
+    "onlyYou": "Only you",
     "pending": {
       "one": "{{n}} unsynced change",
       "other": "{{n}} unsynced changes"
     },
+    "profileHint": "Account and signing out",
     "signOut": "Sign out",
     "sv": "Svenska",
     "system": "System",
     "theme": "Theme",
-    "version": "Version {{version}}"
+    "version": "Version {{version}}",
+    "you": "You"
   },
   "setup": {
     "code": "Setup code",

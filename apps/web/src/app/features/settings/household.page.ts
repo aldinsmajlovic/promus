@@ -1,13 +1,15 @@
 import { Component, inject } from '@angular/core';
-import { MatButton } from '@angular/material/button';
+import { MatButton, MatIconButton } from '@angular/material/button';
 import { MatBottomSheet } from '@angular/material/bottom-sheet';
 import { MatIcon } from '@angular/material/icon';
 import { MatSnackBar, type MatSnackBarConfig } from '@angular/material/snack-bar';
 import { TranslocoDirective, TranslocoService } from '@jsverse/transloco';
 import { Actions } from '../../core/actions';
 import { ApiClient } from '../../core/api';
+import { injectBack } from '../../core/back';
 import { Household } from '../../core/household';
 import { ORIGIN } from '../../core/platform';
+import { Face } from '../../shared/face';
 import { InviteSheet, type InviteSheetData } from './invite-sheet';
 
 // at the top: the invite sheet takes the bottom of the screen
@@ -15,36 +17,12 @@ const SNACK: MatSnackBarConfig = { duration: 5000, verticalPosition: 'top' };
 
 /** Who shares this household's lists, and inviting someone new. Members are cached for offline. */
 @Component({
-  selector: 'app-household',
-  imports: [MatButton, MatIcon, TranslocoDirective],
-  template: `
-    <ng-container *transloco="let t">
-      @if (members().length > 0) {
-        <ul>
-          @for (m of members(); track m.username) {
-            <li>{{ m.username }}</li>
-          }
-        </ul>
-      }
-      <button matButton="outlined" type="button" (click)="invite()">
-        <mat-icon svgIcon="person_add" />{{ t('settings.invite') }}
-      </button>
-    </ng-container>
-  `,
-  styles: `
-    ul {
-      margin: 0 0 0.75rem;
-      padding: 0;
-      list-style: none;
-      font: var(--mat-sys-body-large);
-      letter-spacing: var(--mat-sys-body-large-tracking);
-    }
-    li {
-      padding-block: 0.25rem;
-    }
-  `,
+  selector: 'app-household-page',
+  imports: [MatButton, MatIconButton, MatIcon, TranslocoDirective, Face],
+  templateUrl: './household.page.html',
+  styleUrl: './household.page.scss',
 })
-export class HouseholdSection {
+export class HouseholdPage {
   private readonly api = inject(ApiClient);
   private readonly sheet = inject(MatBottomSheet);
   private readonly snackBar = inject(MatSnackBar);
@@ -53,6 +31,8 @@ export class HouseholdSection {
   private readonly origin = inject(ORIGIN);
   private readonly household = inject(Household);
   protected readonly members = this.household.members;
+  protected readonly you = this.household.you;
+  protected readonly back = injectBack();
 
   constructor() {
     void this.household.refresh();

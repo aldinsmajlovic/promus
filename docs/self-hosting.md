@@ -64,7 +64,7 @@ It prints a line with `Setup code: XXXX-XXXX`. Case and the dash don't matter. A
 
 ## Install the app on your phone
 
-The wizard's last step, and **Settings > Open on your phone**, show the server's address as a QR code. Scan it with the phone's camera.
+The wizard's last step, and **Settings > Install app**, show the server's address as a QR code. Scan it with the phone's camera.
 
 - **Android:** in Chrome, tap **Install app** in Promus, or choose **Install app** from Chrome's menu.
 - **iPhone:** in Safari, tap **Share**, then **Add to Home Screen**. Open Promus from the Home Screen and sign in once more: the installed app keeps its own sign-in, apart from Safari's. Install it before relying on it. Safari may clear a website's data after 7 days without use, and changes that haven't synced yet would go with it. An app on the Home Screen counts only its own days of use.
@@ -73,7 +73,7 @@ The installed app works offline and syncs whenever the phone can reach the serve
 
 ## Invite your household
 
-In **Settings**, under **Household**, tap **Invite someone**. The link shows as a QR code to scan, with **Share** and **Copy**.
+In **Settings**, open **Household** and tap **Invite someone**. The link shows as a QR code to scan, with **Share** and **Copy**.
 - **The link:** it works once, for 7 days. **Undo** in the snackbar cancels it.
 - **Joining:** whoever opens it chooses their own username and password, joins your household, and sees the same lists and item history.
 - **Removing someone:** not possible yet. Until it is, `user:password` from the [server commands](cli.md) signs them out everywhere.
@@ -108,11 +108,11 @@ Removing the `-wal` and `-shm` files matters: they belong to the old database, a
 - Its own changes from after the backup would stay on that device only.
 
 On every device:
-1. Open **Settings**, sign out, and sign back in. Signing out clears the device's local copy. It refuses while the device has unsynced changes, so let it sync first.
+1. Open **Settings**, tap your name, and sign out, then sign back in. Signing out clears the device's local copy. It refuses while the device has unsynced changes, so let it sync first.
 2. If the app already shows the sign-in page, don't delete its site data: the device may still hold changes it hasn't synced. Instead:
    1. Sign in again as the **same** user. That keeps the local copy and its unsynced changes.
-   2. Let it sync, until the badge with the number of unsynced changes is gone.
-   3. Open **Settings**, sign out, and sign in again.
+   2. Let it sync, until the badge on your initial is gone.
+   3. Open **Settings**, tap your name, sign out, and sign in again.
 
 ## Updating
 

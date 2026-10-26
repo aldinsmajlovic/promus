@@ -98,18 +98,23 @@
     "dark": "Mörkt",
     "en": "English",
     "household": "Hushåll",
+    "householdIntro": "Alla här delar alla hushållets listor.",
+    "install": "Installera appen",
     "invite": "Bjud in någon",
     "language": "Språk",
     "light": "Ljust",
+    "onlyYou": "Bara du",
     "pending": {
       "one": "{{n}} osynkad ändring",
       "other": "{{n}} osynkade ändringar"
     },
+    "profileHint": "Konto och utloggning",
     "signOut": "Logga ut",
     "sv": "Svenska",
     "system": "System",
     "theme": "Tema",
-    "version": "Version {{version}}"
+    "version": "Version {{version}}",
+    "you": "Du"
   },
   "setup": {
     "code": "Installationskod",

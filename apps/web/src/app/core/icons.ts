@@ -5,9 +5,15 @@ import add from '@material-symbols/svg-400/rounded/add.svg';
 import arrowBack from '@material-symbols/svg-400/rounded/arrow_back.svg';
 import arrowDropDown from '@material-symbols/svg-400/rounded/arrow_drop_down.svg';
 import check from '@material-symbols/svg-400/rounded/check.svg';
+import chevronRight from '@material-symbols/svg-400/rounded/chevron_right.svg';
+import group from '@material-symbols/svg-400/rounded/group.svg';
+import contrast from '@material-symbols/svg-400/rounded/contrast.svg';
+import translate from '@material-symbols/svg-400/rounded/translate.svg';
+import refresh from '@material-symbols/svg-400/rounded/refresh.svg';
 import close from '@material-symbols/svg-400/rounded/close.svg';
 import contentCopy from '@material-symbols/svg-400/rounded/content_copy.svg';
 import deleteIcon from '@material-symbols/svg-400/rounded/delete.svg';
+import download from '@material-symbols/svg-400/rounded/download.svg';
 import edit from '@material-symbols/svg-400/rounded/edit.svg';
 import historyToggleOff from '@material-symbols/svg-400/rounded/history_toggle_off.svg';
 import keyboardArrowDown from '@material-symbols/svg-400/rounded/keyboard_arrow_down.svg';
@@ -34,6 +40,13 @@ const ICONS: Record<string, string> = {
   remove_shopping_cart: removeShoppingCart,
   history_toggle_off: historyToggleOff,
   logout,
+  chevron_right: chevronRight,
+  group,
+  contrast,
+  translate,
+  // The package has no install_mobile; download is the nearest in it.
+  install_mobile: download,
+  refresh,
   edit,
   delete: deleteIcon,
   content_copy: contentCopy,

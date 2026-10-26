@@ -1,103 +1,59 @@
-import { Component, inject } from '@angular/core';
-import { MatButton, MatIconButton } from '@angular/material/button';
-import { MatButtonToggle, MatButtonToggleGroup } from '@angular/material/button-toggle';
+import { Component, computed, inject } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { MatIconButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
-import { MatToolbar } from '@angular/material/toolbar';
-import { Router } from '@angular/router';
-import { TranslocoDirective } from '@jsverse/transloco';
+import { MatMenu, MatMenuItem, MatMenuTrigger } from '@angular/material/menu';
+import { RouterLink } from '@angular/router';
+import { TranslocoDirective, TranslocoService } from '@jsverse/transloco';
 import { version } from '../../../../../../package.json';
 import { Actions } from '../../core/actions';
 import { injectBack } from '../../core/back';
-import { PendingChangesError } from '../../core/db';
+import { Household } from '../../core/household';
 import { type Lang, LangService } from '../../core/i18n';
 import { SessionService } from '../../core/session';
-import { Store } from '../../core/store';
+import { syncBadge } from '../../core/sync-badge';
+import { SyncService } from '../../core/sync.service';
 import { type ThemeMode, ThemeService } from '../../core/theme';
+import { Face } from '../../shared/face';
 import { PhoneCard } from '../../shared/phone-card';
-import { HouseholdSection } from './household';
 
 @Component({
   selector: 'app-settings-page',
   imports: [
-    MatToolbar,
     MatIconButton,
-    MatButton,
     MatIcon,
-    MatButtonToggleGroup,
-    MatButtonToggle,
+    MatMenu,
+    MatMenuItem,
+    MatMenuTrigger,
+    RouterLink,
     TranslocoDirective,
-    HouseholdSection,
+    Face,
     PhoneCard,
   ],
   templateUrl: './settings.page.html',
-  styles: `
-    :host {
-      display: block;
-      max-width: 40rem;
-      margin-inline: auto;
-    }
-    mat-toolbar {
-      gap: 0.25rem;
-      padding-inline: 0.25rem 1rem;
-    }
-    h1 {
-      margin: 0;
-      font: inherit;
-    }
-    section {
-      padding: 1rem;
-    }
-    h2 {
-      margin: 0 0 0.75rem;
-      font: var(--mat-sys-title-small);
-      letter-spacing: var(--mat-sys-title-small-tracking);
-      color: var(--mat-sys-primary);
-    }
-    mat-button-toggle-group {
-      display: flex;
-    }
-    mat-button-toggle {
-      flex: 1;
-    }
-    .account {
-      display: flex;
-      align-items: center;
-      gap: 1rem;
-    }
-    .user {
-      flex: 1;
-      overflow: hidden;
-      font: var(--mat-sys-body-large);
-      letter-spacing: var(--mat-sys-body-large-tracking);
-      text-overflow: ellipsis;
-    }
-    .pending,
-    .version {
-      margin: 0;
-      font: var(--mat-sys-body-small);
-      letter-spacing: var(--mat-sys-body-small-tracking);
-      color: var(--mat-sys-on-surface-variant);
-    }
-    .pending {
-      text-align: end;
-    }
-    .pending:not(:empty) {
-      margin-top: 0.5rem;
-    }
-    .version {
-      padding: 1rem;
-    }
-  `,
+  styleUrl: './settings.page.scss',
 })
 export class SettingsPage {
-  private readonly session = inject(SessionService);
-  private readonly store = inject(Store);
   private readonly actions = inject(Actions);
-  private readonly router = inject(Router);
+  private readonly sync = inject(SyncService);
+  private readonly household = inject(Household);
+  private readonly transloco = inject(TranslocoService);
+  private readonly activeLang = toSignal(this.transloco.langChanges$, { initialValue: this.transloco.getActiveLang() });
   protected readonly lang = inject(LangService);
   protected readonly theme = inject(ThemeService);
-  protected readonly user = this.session.session;
-  protected readonly pending = this.store.pendingCount;
+  protected readonly user = inject(SessionService).session;
+  protected readonly you = this.household.you;
+  protected readonly badge = computed(() => syncBadge(this.sync.status()));
+  /** You first, then the others; "You and maja". */
+  protected readonly faces = computed(() => {
+    const { members, you } = this.household;
+    return [...members().filter((m) => m.id === you()), ...this.household.others()];
+  });
+  protected readonly names = computed(() => {
+    const you = this.household.you();
+    const names = this.faces().map((m) => (m.id === you ? this.transloco.translate('settings.you') : m.username));
+    return new Intl.ListFormat(this.activeLang(), { type: 'conjunction' }).format(names);
+  });
   protected readonly version = version;
   protected readonly back = injectBack();
   protected readonly langs: { value: Lang | 'system'; label: string }[] = [
@@ -111,9 +67,12 @@ export class SettingsPage {
     { value: 'dark', label: 'settings.dark' },
   ];
 
-  // sv and en need only one and other
-  protected pendingKey(n: number): string {
-    return n === 1 ? 'settings.pending.one' : 'settings.pending.other';
+  constructor() {
+    void this.household.refresh();
+  }
+
+  protected labelOf(options: { value: string; label: string }[], value: string): string {
+    return options.find((o) => o.value === value)?.label ?? '';
   }
 
   protected setLang(pref: Lang | 'system'): void {
@@ -122,17 +81,5 @@ export class SettingsPage {
 
   protected setTheme(mode: ThemeMode): void {
     this.theme.set(mode).catch((err: unknown) => this.actions.failed(err));
-  }
-
-  protected async signOut(): Promise<void> {
-    try {
-      await this.session.logout();
-    } catch (err) {
-      // another tab queued a change a moment ago: reading it shows the count and disables Sign out
-      if (err instanceof PendingChangesError) await this.store.load();
-      else this.actions.failed(err);
-      return;
-    }
-    await this.router.navigateByUrl('/login', { replaceUrl: true });
   }
 }

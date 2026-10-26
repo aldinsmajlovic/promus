@@ -52,7 +52,7 @@ test('a new server: setup wizard, then an invite joins a second phone to the sam
     await page.getByRole('button', { name: 'Klar' }).click();
     await expect(page.getByRole('link', { name: 'Lägg till eller hitta' })).toBeVisible();
 
-    await page.goto(`${BASE}/settings`);
+    await page.goto(`${BASE}/settings/household`);
     await page.getByRole('button', { name: 'Bjud in någon' }).click();
     const link = (await page.locator('app-invite-sheet .url').textContent())!.trim();
     expect(link).toMatch(new RegExp(`^${BASE}/join#[\\w-]{43}$`));

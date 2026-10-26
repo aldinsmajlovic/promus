@@ -2,6 +2,7 @@
 
 What changed from the original plan, and why. Newest first, one line each.
 
+- **2026-10-26, Settings as rows that lead to pages.** Your account and the household each get a page, and theme and language change in place. More to explore, less on screen at once.
 - **2026-10-26, computer layout.** On a computer the list and an always-open Add or find sit side by side under the band, so items can be typed one after another and seen landing. Tablets held upright get the phone layout in a centered column.
 - **2026-10-26, Add or find is the search.** Typing finds items already on the list, and they check off right there. The owner asked for search, and this covers it without a second field.
 - **2026-10-26, gestures.** Long-press (or right-click) opens an item's options and swiping left removes it, instead of a ⋮ on every row. Left, because that's where both platforms put delete.

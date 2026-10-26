@@ -5,17 +5,22 @@ import { MatButtonHarness } from '@angular/material/button/testing';
 import { MATERIAL_ANIMATIONS } from '@angular/material/core';
 import { MatSnackBarHarness } from '@angular/material/snack-bar/testing';
 import { TranslocoTestingModule } from '@jsverse/transloco';
+import { newId } from '@promus/shared';
 import { describe, expect, it, vi } from 'vitest';
 import sv from '../../../i18n/sv.json';
 import { FETCH } from '../../core/api';
+import { PromusDb } from '../../core/db';
 import { registerIcons } from '../../core/icons';
 import { ORIGIN } from '../../core/platform';
-import { HouseholdSection } from './household';
+import { SessionService } from '../../core/session';
+import { HouseholdPage } from './household.page';
 
 const json = (status: number, body: unknown) =>
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
 
 async function setup(origin = 'https://promus.example') {
+  const db = new PromusDb(`household-${newId()}`);
+  await db.setMeta('session', { userId: 'u1', username: 'anna', householdId: 'h1' });
   const fetch = vi.fn<typeof globalThis.fetch>(async (url, init) => {
     if (url === '/api/me') {
       const members = [{ id: 'u1', username: 'anna', role: 'owner' }, { id: 'u2', username: 'bo', role: 'member' }];
@@ -27,6 +32,7 @@ async function setup(origin = 'https://promus.example') {
   });
   TestBed.configureTestingModule({
     providers: [
+      { provide: PromusDb, useValue: db },
       { provide: FETCH, useValue: fetch },
       { provide: ORIGIN, useValue: origin },
       { provide: MATERIAL_ANIMATIONS, useValue: { animationsDisabled: true } },
@@ -40,7 +46,8 @@ async function setup(origin = 'https://promus.example') {
       ),
     ],
   });
-  const fixture = TestBed.createComponent(HouseholdSection);
+  await TestBed.inject(SessionService).load();
+  const fixture = TestBed.createComponent(HouseholdPage);
   fixture.detectChanges();
   const el: HTMLElement = fixture.nativeElement;
   const root = TestbedHarnessEnvironment.documentRootLoader(fixture);
@@ -49,11 +56,25 @@ async function setup(origin = 'https://promus.example') {
   return { fetch, el, root, invite, sheet };
 }
 
-describe('HouseholdSection', () => {
+// the face is only decoration, so a row reads as its name and role
+const row = (li: Element | null | undefined) =>
+  [...(li?.querySelectorAll('.name, .role') ?? [])].map((e) => e.textContent?.trim()).join(' ');
+
+describe('HouseholdPage', () => {
   it('lists the members', async () => {
     const t = await setup();
     await vi.waitFor(() => expect(t.el.textContent).toContain('bo'));
-    expect([...t.el.querySelectorAll('li')].map((li) => li.textContent?.trim())).toEqual(['anna', 'bo']);
+    expect([...t.el.querySelectorAll('li')].map(row)).toEqual([
+      'anna Du',
+      'bo',
+    ]);
+  });
+
+  it('marks you', async () => {
+    const t = await setup();
+    await vi.waitFor(() => expect(t.el.querySelectorAll('li').length).toBe(2));
+    expect(row(t.el.querySelector('li'))).toBe('anna Du');
+    expect(t.el.textContent).toContain(sv.settings.householdIntro);
   });
 
   it('creates an invite, shows its link as a QR code, and undo revokes it', async () => {
