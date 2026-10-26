@@ -71,10 +71,19 @@ async function setup(setupAnswer: () => Response, secure = true) {
     await (await field('[autocomplete="new-password"]')).setValue('correct horse');
     await button('Skapa konto');
   };
-  return { db, fetch, el, router, create, button };
+  return { db, fetch, el, router, create, button, loader };
 }
 
 describe('SetupPage', () => {
+  it('the step bar says where you are', async () => {
+    const t = await setup(() => json(201, {}));
+    await (await t.loader.getHarness(MatButtonToggleHarness.with({ text: 'Svenska' }))).check();
+    const bar = () => t.el.querySelector('[role="img"]')?.getAttribute('aria-label');
+    expect(bar()).toBe('Steg 1 av 3');
+    await t.button('Nästa');
+    expect(bar()).toBe('Steg 2 av 3');
+  });
+
   it('creates the first account in the chosen language, signs in and ends on the phone step', async () => {
     const t = await setup(() => json(201, {}));
     await t.create('7kqm-p4x2');

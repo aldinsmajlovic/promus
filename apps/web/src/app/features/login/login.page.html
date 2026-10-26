@@ -1,39 +1,55 @@
 <ng-container *transloco="let t">
-  <h1 class="brand">{{ appName }}</h1>
-  @if (!secure || cookieRejected()) {
-    <app-https-notice [reason]="cookieRejected() ? 'https.cookie' : 'https.how'" />
-  } @else {
-  <form [formGroup]="form" (ngSubmit)="submit()">
-    <mat-form-field subscriptSizing="dynamic" hideRequiredMarker>
-      <mat-label>{{ t('login.username') }}</mat-label>
-      <input
-        matInput
-        formControlName="username"
-        autocomplete="username"
-        autocapitalize="none"
-        spellcheck="false"
-        enterkeyhint="next"
-        required
-      />
-    </mat-form-field>
-    <mat-form-field subscriptSizing="dynamic" hideRequiredMarker>
-      <mat-label>{{ t('login.password') }}</mat-label>
-      <input
-        matInput
-        type="password"
-        formControlName="password"
-        autocomplete="current-password"
-        enterkeyhint="go"
-        required
-      />
-    </mat-form-field>
-    <!-- always there, so screen readers announce what appears in it -->
-    <p class="error" role="alert">
-      @if (error(); as e) {
-        {{ t(e.key, e.params) }}
+  <div class="frame">
+    <header class="band hero">
+      <span class="mark"><mat-icon svgIcon="promus" /></span>
+      <h1 class="brand">{{ appName }}</h1>
+      <p class="lede">{{ t('login.tagline') }}</p>
+    </header>
+
+    <main class="sheet pad">
+      @if (!secure || cookieRejected()) {
+        <app-https-notice [reason]="cookieRejected() ? 'https.cookie' : 'https.how'" />
+      } @else {
+        <form [formGroup]="form" (ngSubmit)="submit()">
+          <mat-form-field subscriptSizing="dynamic" hideRequiredMarker>
+            <mat-label>{{ t('login.username') }}</mat-label>
+            <input
+              matInput
+              formControlName="username"
+              autocomplete="username"
+              autocapitalize="none"
+              spellcheck="false"
+              enterkeyhint="next"
+              required
+            />
+          </mat-form-field>
+          <mat-form-field subscriptSizing="dynamic" hideRequiredMarker>
+            <mat-label>{{ t('login.password') }}</mat-label>
+            <input
+              matInput
+              type="password"
+              formControlName="password"
+              autocomplete="current-password"
+              enterkeyhint="go"
+              required
+            />
+          </mat-form-field>
+          <!-- always there, so screen readers announce what appears in it -->
+          <p class="error" role="alert">
+            @if (error(); as e) {
+              {{ t(e.key, e.params) }}
+            }
+          </p>
+          <button matButton="filled" type="submit" [disabled]="busy()">{{ t('login.submit') }}</button>
+        </form>
       }
-    </p>
-    <button matButton="filled" type="submit" [disabled]="busy()">{{ t('login.submit') }}</button>
-  </form>
-  }
+      <div class="langs">
+        @for (l of langs; track l.value) {
+          <button matButton type="button" [attr.aria-pressed]="lang() === l.value" (click)="setLang(l.value)">
+            {{ t(l.label) }}
+          </button>
+        }
+      </div>
+    </main>
+  </div>
 </ng-container>

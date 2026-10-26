@@ -9,6 +9,7 @@ import { CookieRejectedError, SessionService } from '../../core/session';
 import { SyncService } from '../../core/sync.service';
 import { AccountForm, type AccountValue, type FormError, formErrorOf } from '../../shared/account-form';
 import { HttpsNotice } from '../../shared/https-notice';
+import { initialOf } from '../../shared/face';
 import { PhoneCard } from '../../shared/phone-card';
 
 type State = 'checking' | 'form' | 'invalid' | 'phone';
@@ -19,56 +20,52 @@ type State = 'checking' | 'form' | 'invalid' | 'phone';
   imports: [MatButton, TranslocoDirective, AccountForm, HttpsNotice, PhoneCard],
   template: `
     <ng-container *transloco="let t">
-      <h1 class="brand">Promus</h1>
-      @if (!secure || cookieRejected()) {
-        <app-https-notice [reason]="cookieRejected() ? 'https.cookie' : 'https.how'" />
-      } @else {
-        @switch (state()) {
-          @case ('form') {
-            <h2>{{ t('join.title') }}</h2>
-            <p>{{ t('join.intro') }}</p>
-            <app-account-form submitLabel="join.submit" [busy]="busy()" [error]="error()" (submitted)="join($event)" />
+      <div class="frame">
+        <header class="band hero">
+          @if (state() === 'form' && invitedBy(); as name) {
+            <span class="face tone-1" aria-hidden="true">{{ initialOf(name) }}</span>
+            <h1 class="brand">{{ t('join.invitedBy', { name }) }}</h1>
+            <p class="lede">{{ t('join.tagline') }}</p>
+          } @else {
+            <h1 class="brand">{{ t('join.title') }}</h1>
           }
-          @case ('invalid') {
-            <p role="alert">{{ t('join.invalid') }}</p>
+        </header>
+
+        <main class="sheet pad">
+          @if (!secure || cookieRejected()) {
+            <app-https-notice [reason]="cookieRejected() ? 'https.cookie' : 'https.how'" />
+          } @else {
+            @switch (state()) {
+              @case ('form') {
+                <p>{{ t('join.intro') }}</p>
+                <app-account-form submitLabel="join.submit" [busy]="busy()" [error]="error()" (submitted)="join($event)" />
+              }
+              @case ('invalid') {
+                <p role="alert">{{ t('join.invalid') }}</p>
+              }
+              @case ('phone') {
+                <h2>{{ t('setup.phoneTitle') }}</h2>
+                <app-phone-card />
+                <button matButton="filled" type="button" (click)="done()">{{ t('setup.done') }}</button>
+              }
+            }
+            <!-- offline while checking the link -->
+            @if (state() === 'checking' && error(); as e) {
+              <p role="alert">{{ t(e.key, e.params) }}</p>
+            }
           }
-          @case ('phone') {
-            <h2>{{ t('setup.phoneTitle') }}</h2>
-            <app-phone-card />
-            <button matButton="filled" type="button" (click)="done()">{{ t('setup.done') }}</button>
-          }
-        }
-        <!-- offline while checking the link -->
-        @if (state() === 'checking' && error(); as e) {
-          <p role="alert">{{ t(e.key, e.params) }}</p>
-        }
-      }
+        </main>
+      </div>
     </ng-container>
   `,
   styles: `
-    :host {
-      display: flex;
-      flex-direction: column;
-      gap: 1rem;
-      box-sizing: border-box;
-      min-height: 100dvh;
-      max-width: 24rem;
-      margin-inline: auto;
-      padding: 2rem 1.5rem;
-    }
-    h1 {
-      margin: 0 0 1rem;
-      font: var(--mat-sys-display-medium);
-      letter-spacing: var(--mat-sys-display-medium-tracking);
-      color: var(--mat-sys-primary);
-    }
     h2 {
       margin: 0;
       font: var(--mat-sys-title-large);
     }
-    p {
-      margin: 0;
-      font: var(--mat-sys-body-medium);
+    .face {
+      --face-size: 3rem;
+      margin-block-end: 0.5rem;
     }
   `,
 })
@@ -83,6 +80,8 @@ export class JoinPage {
   protected readonly busy = signal(false);
   protected readonly error = signal<FormError | null>(null);
   protected readonly cookieRejected = signal(false);
+  protected readonly invitedBy = signal('');
+  protected readonly initialOf = initialOf;
   // the account exists once accept succeeds: a retry only signs in, the invite is spent
   private accepted = false;
 
@@ -93,7 +92,10 @@ export class JoinPage {
       return;
     }
     this.api.checkInvite(this.token).then(
-      () => this.state.set('form'),
+      ({ invitedBy }) => {
+        this.invitedBy.set(invitedBy);
+        this.state.set('form');
+      },
       (err: unknown) => {
         if (err instanceof ApiError && err.code === 'invite_invalid') this.state.set('invalid');
         else this.error.set(formErrorOf(err));

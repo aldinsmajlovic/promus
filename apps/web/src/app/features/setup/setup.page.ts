@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { MatButton } from '@angular/material/button';
 import { MatButtonToggle, MatButtonToggleGroup } from '@angular/material/button-toggle';
 import { Router } from '@angular/router';
@@ -19,57 +19,68 @@ import { PhoneCard } from '../../shared/phone-card';
   imports: [MatButton, MatButtonToggleGroup, MatButtonToggle, TranslocoDirective, AccountForm, HttpsNotice, PhoneCard],
   template: `
     <ng-container *transloco="let t">
-      <h1 class="brand">Promus</h1>
-      @if (!secure || cookieRejected()) {
-        <app-https-notice [reason]="cookieRejected() ? 'https.cookie' : 'https.how'" />
-      } @else {
-        @switch (step()) {
-          @case ('lang') {
-            <h2 id="lang">{{ t('setup.language') }}</h2>
-            <mat-button-toggle-group aria-labelledby="lang" [value]="lang()" (change)="setLang($event.value)">
-              <mat-button-toggle value="sv">{{ t('settings.sv') }}</mat-button-toggle>
-              <mat-button-toggle value="en">{{ t('settings.en') }}</mat-button-toggle>
-            </mat-button-toggle-group>
-            <button matButton="filled" type="button" (click)="step.set('account')">{{ t('setup.next') }}</button>
+      <div class="frame">
+        <header class="band hero">
+          <div class="bar" role="img" [attr.aria-label]="t('setup.step', { n: n(), total: 3 })">
+            @for (i of [1, 2, 3]; track i) {
+              <span [class.lit]="i <= n()"></span>
+            }
+          </div>
+          @switch (step()) {
+            @case ('lang') {
+              <h1 class="brand" id="lang">{{ t('setup.language') }}</h1>
+              <p class="lede">{{ t('setup.languageIntro') }}</p>
+            }
+            @case ('account') {
+              <h1 class="brand">{{ t('setup.title') }}</h1>
+              <p class="lede">{{ t('setup.intro') }}</p>
+            }
+            @case ('phone') {
+              <h1 class="brand">{{ t('setup.phoneTitle') }}</h1>
+              <p class="lede">{{ t('setup.phoneIntro') }}</p>
+            }
           }
-          @case ('account') {
-            <h2>{{ t('setup.title') }}</h2>
-            <p>{{ t('setup.intro') }}</p>
-            <app-account-form [setupCode]="true" submitLabel="setup.create" [busy]="busy()" [error]="error()" (submitted)="create($event)" />
+        </header>
+
+        <main class="sheet pad">
+          @if (!secure || cookieRejected()) {
+            <app-https-notice [reason]="cookieRejected() ? 'https.cookie' : 'https.how'" />
+          } @else {
+            @switch (step()) {
+              @case ('lang') {
+                <mat-button-toggle-group aria-labelledby="lang" [value]="lang()" (change)="setLang($event.value)">
+                  <mat-button-toggle value="sv">{{ t('settings.sv') }}</mat-button-toggle>
+                  <mat-button-toggle value="en">{{ t('settings.en') }}</mat-button-toggle>
+                </mat-button-toggle-group>
+                <button matButton="filled" type="button" (click)="step.set('account')">{{ t('setup.next') }}</button>
+              }
+              @case ('account') {
+                <app-account-form [setupCode]="true" submitLabel="setup.create" [busy]="busy()" [error]="error()" (submitted)="create($event)" />
+              }
+              @case ('phone') {
+                <app-phone-card />
+                <button matButton="filled" type="button" (click)="done()">{{ t('setup.done') }}</button>
+              }
+            }
           }
-          @case ('phone') {
-            <h2>{{ t('setup.phoneTitle') }}</h2>
-            <app-phone-card />
-            <button matButton="filled" type="button" (click)="done()">{{ t('setup.done') }}</button>
-          }
-        }
-      }
+        </main>
+      </div>
     </ng-container>
   `,
   styles: `
-    :host {
+    .bar {
       display: flex;
-      flex-direction: column;
-      gap: 1rem;
-      box-sizing: border-box;
-      min-height: 100dvh;
-      max-width: 24rem;
-      margin-inline: auto;
-      padding: 2rem 1.5rem;
+      gap: 0.375rem;
+      margin-block-end: 0.75rem;
     }
-    h1 {
-      margin: 0 0 1rem;
-      font: var(--mat-sys-display-medium);
-      letter-spacing: var(--mat-sys-display-medium-tracking);
-      color: var(--mat-sys-primary);
+    .bar span {
+      flex: 1;
+      height: 0.25rem;
+      border-radius: 0.125rem;
+      background: rgb(255 255 255 / 0.25);
     }
-    h2 {
-      margin: 0;
-      font: var(--mat-sys-title-large);
-    }
-    p {
-      margin: 0;
-      font: var(--mat-sys-body-medium);
+    .bar .lit {
+      background: var(--promus-accent);
     }
     mat-button-toggle-group {
       display: flex;
@@ -88,6 +99,7 @@ export class SetupPage {
   private readonly transloco = inject(TranslocoService);
   protected readonly secure = inject(SECURE_CONTEXT);
   protected readonly step = signal<'lang' | 'account' | 'phone'>('lang');
+  protected readonly n = computed(() => ['lang', 'account', 'phone'].indexOf(this.step()) + 1);
   /** The language in use: it names the first list too. */
   protected readonly lang = signal(this.transloco.getActiveLang() as Lang);
   protected readonly busy = signal(false);

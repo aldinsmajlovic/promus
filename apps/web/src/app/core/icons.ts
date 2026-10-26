@@ -1,6 +1,7 @@
 import { inject } from '@angular/core';
 import { MatIconRegistry } from '@angular/material/icon';
 import { DomSanitizer } from '@angular/platform-browser';
+import promus from '../../../../../brand/promus-p.svg';
 import add from '@material-symbols/svg-400/rounded/add.svg';
 import arrowBack from '@material-symbols/svg-400/rounded/arrow_back.svg';
 import arrowDropDown from '@material-symbols/svg-400/rounded/arrow_drop_down.svg';
@@ -54,6 +55,7 @@ const ICONS: Record<string, string> = {
   shopping_basket: shoppingBasket,
   visibility,
   visibility_off: visibilityOff,
+  promus,
 };
 
 export function registerIcons(): void {

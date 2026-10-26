@@ -1,11 +1,14 @@
 import { Component, inject, signal } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButton } from '@angular/material/button';
 import { MatFormField, MatLabel } from '@angular/material/form-field';
+import { MatIcon } from '@angular/material/icon';
 import { MatInput } from '@angular/material/input';
 import { Router } from '@angular/router';
-import { TranslocoDirective } from '@jsverse/transloco';
+import { TranslocoDirective, TranslocoService } from '@jsverse/transloco';
 import { ApiError, NetworkError } from '@promus/shared';
+import { type Lang, LangService } from '../../core/i18n';
 import { SECURE_CONTEXT } from '../../core/platform';
 import { CookieRejectedError, PendingOtherUserError, SessionService } from '../../core/session';
 import { SyncService } from '../../core/sync.service';
@@ -27,25 +30,22 @@ function messageOf(err: unknown): Message {
 
 @Component({
   selector: 'app-login-page',
-  imports: [ReactiveFormsModule, MatFormField, MatLabel, MatInput, MatButton, TranslocoDirective, HttpsNotice],
+  imports: [ReactiveFormsModule, MatFormField, MatLabel, MatIcon, MatInput, MatButton, TranslocoDirective, HttpsNotice],
   templateUrl: './login.page.html',
   styles: `
-    :host {
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      box-sizing: border-box;
-      // the space above the keyboard: the viewport resizes for it (interactive-widget in index.html)
-      min-height: 100dvh;
-      max-width: 24rem;
-      margin-inline: auto;
-      padding: 2rem 1.5rem;
+    .mark {
+      display: grid;
+      place-items: center;
+      width: 3.5rem;
+      height: 3.5rem;
+      margin-block-end: 0.5rem;
+      border-radius: 50%;
+      background: var(--promus-accent);
+      color: var(--promus-band);
     }
-    h1 {
-      margin: 0 0 2.5rem;
-      font: var(--mat-sys-display-medium);
-      letter-spacing: var(--mat-sys-display-medium-tracking);
-      color: var(--mat-sys-primary);
+    .mark mat-icon {
+      width: 1.75rem;
+      height: 1.75rem;
     }
     form {
       display: flex;
@@ -53,9 +53,18 @@ function messageOf(err: unknown): Message {
       gap: 1rem;
     }
     .error {
-      margin: 0;
       font: var(--mat-sys-body-medium);
       color: var(--mat-sys-error);
+    }
+    .langs {
+      display: flex;
+      justify-content: center;
+      gap: 0.5rem;
+      margin-top: auto;
+    }
+    .langs [aria-pressed='true'] {
+      background: var(--promus-tint);
+      color: var(--promus-tint-ink);
     }
   `,
 })
@@ -63,6 +72,13 @@ export class LoginPage {
   private readonly session = inject(SessionService);
   private readonly sync = inject(SyncService);
   private readonly router = inject(Router);
+  private readonly langService = inject(LangService);
+  private readonly transloco = inject(TranslocoService);
+  protected readonly lang = toSignal(this.transloco.langChanges$, { initialValue: this.transloco.getActiveLang() });
+  protected readonly langs: { value: Lang; label: string }[] = [
+    { value: 'en', label: 'settings.en' },
+    { value: 'sv', label: 'settings.sv' },
+  ];
   protected readonly appName = APP_NAME;
   protected readonly form = inject(NonNullableFormBuilder).group({
     username: ['', Validators.required],
@@ -72,6 +88,10 @@ export class LoginPage {
   protected readonly error = signal<Message | null>(null);
   protected readonly secure = inject(SECURE_CONTEXT);
   protected readonly cookieRejected = signal(false);
+
+  protected setLang(lang: Lang): void {
+    this.langService.set(lang).catch((err: unknown) => console.error('language not saved', err));
+  }
 
   protected async submit(): Promise<void> {
     if (this.busy()) return;

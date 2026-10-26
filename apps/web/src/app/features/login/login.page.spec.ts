@@ -9,6 +9,7 @@ import { RouterTestingHarness } from '@angular/router/testing';
 import { TranslocoTestingModule } from '@jsverse/transloco';
 import { ApiError, formatHlc, makeEvent, newId } from '@promus/shared';
 import { describe, expect, it, vi } from 'vitest';
+import en from '../../../i18n/en.json';
 import sv from '../../../i18n/sv.json';
 import { FETCH } from '../../core/api';
 import { PromusDb, type Session } from '../../core/db';
@@ -51,8 +52,8 @@ async function setup(cached?: Session, home: () => Promise<boolean> | boolean = 
       ]),
       importProvidersFrom(
         TranslocoTestingModule.forRoot({
-          langs: { sv },
-          translocoConfig: { availableLangs: ['sv'], defaultLang: 'sv' },
+          langs: { sv, en },
+          translocoConfig: { availableLangs: ['sv', 'en'], defaultLang: 'sv', reRenderOnLangChange: true },
           preloadLangs: true,
         }),
       ),
@@ -70,7 +71,7 @@ async function setup(cached?: Session, home: () => Promise<boolean> | boolean = 
     await (await loader.getHarness(MatButtonHarness.with({ text: 'Logga in' }))).click();
   };
   const message = () => el.querySelector('[role="alert"]')?.textContent?.trim();
-  return { db, fetch, sync, syncedAt, router, el, signIn, message };
+  return { db, fetch, sync, syncedAt, router, el, signIn, message, loader };
 }
 
 /** A change of anna's, queued as the Store writes it; `pushed` once the server has it. */
@@ -86,6 +87,12 @@ async function annasChange(db: PromusDb, pushed: boolean) {
 }
 
 describe('LoginPage', () => {
+  it('the language switch translates the page', async () => {
+    const t = await setup();
+    await (await t.loader.getHarness(MatButtonHarness.with({ text: 'English' }))).click();
+    await vi.waitFor(() => expect(t.el.querySelector('button[type="submit"]')?.textContent).toContain('Sign in'));
+  });
+
   it('login shows the right message for each error', async () => {
     const t = await setup();
     const outcomes: [() => Promise<Response>, string][] = [

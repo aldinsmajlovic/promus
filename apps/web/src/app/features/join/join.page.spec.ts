@@ -31,7 +31,7 @@ async function setup(answers: Answers = {}, cached?: Session) {
   const db = new PromusDb(`join-${newId()}`);
   if (cached) await db.setMeta('session', cached);
   const fetch = vi.fn<typeof globalThis.fetch>(async (url, init) => {
-    if (url === '/api/invites/check') return (answers.check ?? (() => json(200, { expiresAt: Date.now() + 1000 })))();
+    if (url === '/api/invites/check') return (answers.check ?? (() => json(200, { expiresAt: Date.now() + 1000, invitedBy: 'anna' })))();
     if (url === '/api/invites/accept') return (answers.accept ?? (() => json(201, {})))(JSON.parse(init!.body as string));
     if (url === '/api/auth/login') return (answers.login ?? (() => json(200, { user: bo, householdId: anna.householdId })))();
     if (url === '/api/me') return json(200, { user: bo, households: [] });
@@ -72,6 +72,11 @@ async function setup(answers: Answers = {}, cached?: Session) {
 }
 
 describe('JoinPage', () => {
+  it('names who sent the invite', async () => {
+    const t = await setup();
+    await vi.waitFor(() => expect(t.el.querySelector('h1')?.textContent).toContain('anna bjöd in dig'));
+  });
+
   it('checks the token from the link, joins, signs in and shows the phone step', async () => {
     const t = await setup();
     await vi.waitFor(() => expect(t.el.textContent).toContain(sv.join.intro));

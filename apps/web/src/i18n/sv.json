@@ -54,9 +54,11 @@
     "title": "Bjud in någon"
   },
   "join": {
-    "intro": "Du har bjudits in att dela ett hushålls listor. Välj användarnamn och lösenord.",
+    "intro": "Välj ett användarnamn och lösenord åt dig. Länken fungerar en gång.",
     "invalid": "Länken har gått ut eller redan använts. Be om en ny.",
+    "invitedBy": "{{name}} bjöd in dig",
     "submit": "Gå med",
+    "tagline": "Gå med och dela hushållets listor.",
     "title": "Gå med i ett hushåll"
   },
   "list": {
@@ -85,6 +87,7 @@
     "pendingOtherUser": "Synka eller logga in som {{username}} först",
     "rateLimited": "För många försök. Försök igen senare",
     "submit": "Logga in",
+    "tagline": "Hushållets inköpslista",
     "username": "Användarnamn"
   },
   "phone": {
@@ -124,8 +127,11 @@
     "done": "Klar",
     "intro": "Skapa det första kontot. Resten av hushållet kan du bjuda in från Inställningar efteråt.",
     "language": "Språk",
+    "languageIntro": "Promus finns på svenska och engelska.",
     "next": "Nästa",
+    "phoneIntro": "Öppna Promus i mobilen du handlar med.",
     "phoneTitle": "Få in den i mobilen",
+    "step": "Steg {{n}} av {{total}}",
     "title": "Kom igång med Promus"
   },
   "snack": {

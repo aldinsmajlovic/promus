@@ -40,7 +40,7 @@ test('a new server: setup wizard, then an invite joins a second phone to the sam
     const password = randomBytes(12).toString('base64url');
     await page.goto(`${BASE}/login`);
     await expect(page).toHaveURL(`${BASE}/setup`);
-    await page.getByText('Svenska').click();
+    await page.getByRole('radio', { name: 'Svenska' }).click();
     await page.getByRole('button', { name: 'Nästa' }).click();
     // as read off a terminal: lower case, no dash
     await page.getByLabel('Installationskod').fill(code.toLowerCase().replace('-', ''));
@@ -59,7 +59,7 @@ test('a new server: setup wizard, then an invite joins a second phone to the sam
 
     const partner = await device();
     await partner.goto(link);
-    await expect(partner.getByText('Du har bjudits in')).toBeVisible();
+    await expect(partner.getByText('ägare bjöd in dig')).toBeVisible();
     await partner.getByLabel('Användarnamn').fill('partner');
     await partner.getByLabel('Lösenord', { exact: true }).fill(password);
     await partner.getByRole('button', { name: 'Gå med' }).click();
