@@ -2,6 +2,7 @@ import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed';
 import { importProvidersFrom, provideAppInitializer, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { MatBottomSheetHarness } from '@angular/material/bottom-sheet/testing';
+import { MatDialogHarness } from '@angular/material/dialog/testing';
 import { MATERIAL_ANIMATIONS } from '@angular/material/core';
 import { MatFormFieldHarness } from '@angular/material/form-field/testing';
 import { MatInputHarness } from '@angular/material/input/testing';
@@ -13,6 +14,7 @@ import { type Member, type StoredEvent, entryKey, formatHlc, newId } from '@prom
 import { describe, expect, it, vi } from 'vitest';
 import sv from '../../../i18n/sv.json';
 import { FETCH } from '../../core/api';
+import { WIDE } from '../../core/layout';
 import { PromusDb } from '../../core/db';
 import { Household } from '../../core/household';
 import { registerIcons } from '../../core/icons';
@@ -21,7 +23,7 @@ import { Store } from '../../core/store';
 import { SyncService, type SyncStatus } from '../../core/sync.service';
 import { ListPage } from './list.page';
 
-function configure(db: PromusDb) {
+function configure(db: PromusDb, wide = false) {
   const status = signal<SyncStatus>({ kind: 'idle', pending: 0, rejected: 0 });
   const sync = { status, syncNow: vi.fn(async () => undefined), soon: () => undefined };
   TestBed.configureTestingModule({
@@ -30,6 +32,7 @@ function configure(db: PromusDb) {
       { provide: SyncService, useValue: sync },
       // the page asks who's in the household; no household in the answer keeps the cached members
       { provide: FETCH, useValue: async () => Response.json({ user: { id: 'u1', username: 'anna' }, households: [] }) },
+      { provide: WIDE, useValue: signal(wide) },
       { provide: MATERIAL_ANIMATIONS, useValue: { animationsDisabled: true } },
       provideRouter([]),
       provideAppInitializer(registerIcons),
@@ -46,14 +49,14 @@ function configure(db: PromusDb) {
 }
 
 /** `others` are the household's members besides you, cached in meta `members` as the page finds them. */
-async function setup(items: [name: string, note?: string][] = [], others: string[] = []) {
+async function setup(items: [name: string, note?: string][] = [], others: string[] = [], wide = false) {
   const db = new PromusDb(`list-${newId()}`);
   const you: Member = { id: newId(), username: 'anna', role: 'owner' };
   const members = [you, ...others.map((username) => ({ id: newId(), username, role: 'member' }))];
   const householdId = newId();
   await db.setMeta('session', { userId: you.id, username: you.username, householdId });
   await db.setMeta('members', members);
-  const sync = configure(db);
+  const sync = configure(db, wide);
   const store = TestBed.inject(Store);
   await TestBed.inject(SessionService).load();
   await store.load();
@@ -347,6 +350,27 @@ describe('ListPage', () => {
     await snackBar.dismissWithAction();
     await fixture.whenStable();
     expect(names(el)).toEqual(['Mjölk', 'Ost']);
+  });
+
+  it('on a computer, Add or find sits beside the list and the dock is gone', async () => {
+    const { el } = await setup([['Mjölk']], [], true);
+    expect(el.querySelector('aside.sheet.panel app-add-or-find')).toBeTruthy();
+    expect(el.querySelector('.dock')).toBeNull();
+    expect(text(el)).not.toContain('Lägg till eller hitta');
+  });
+
+  it('on a computer, item options open beside the row', async () => {
+    const { el, fixture, store, listId, loader } = await setup([['Mjölk', '2 st']], [], true);
+    el.querySelector<HTMLElement>('[aria-label="Alternativ för Mjölk"]')!.click();
+    const dialog = await loader.getHarness(MatDialogHarness);
+    expect(await loader.getAllHarnesses(MatBottomSheetHarness)).toHaveLength(0);
+    const field = await dialog.getHarness(MatFormFieldHarness.with({ floatingLabelText: 'Anteckning' }));
+    await (await field.getControl(MatInputHarness))!.setValue('2 st, laktosfri');
+
+    await dialog.close();
+    await fixture.whenStable();
+    expect(await loader.getAllHarnesses(MatDialogHarness)).toHaveLength(0);
+    expect(store.state().entries.get(entryKey(listId, itemId(store, 'Mjölk')))?.note).toBe('2 st, laktosfri');
   });
 
   it('edit sheet saves a changed note on close', async () => {

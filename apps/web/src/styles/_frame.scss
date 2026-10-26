@@ -74,6 +74,13 @@
   .frame.split > .band {
     grid-column: 1 / -1;
   }
+
+  // as tall as the list's side, and no taller than the window: Add or find stays in view as a long list scrolls
+  .frame.split > .panel {
+    position: sticky;
+    top: 0;
+    max-height: 100dvh;
+  }
 }
 
 // shared elements of the route view transitions. A name must be unique in the document at any moment
@@ -83,6 +90,11 @@
 
 .sheet {
   view-transition-name: sheet;
+}
+
+// the side panel is a second sheet on the page, and Add or find has no sheet of its own to travel to
+.sheet.panel {
+  view-transition-name: none;
 }
 
 .band .title {

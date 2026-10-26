@@ -1,6 +1,7 @@
 import { Component, inject } from '@angular/core';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
-import { MAT_BOTTOM_SHEET_DATA, MatBottomSheetRef } from '@angular/material/bottom-sheet';
+import { MAT_BOTTOM_SHEET_DATA, MatBottomSheet, MatBottomSheetRef } from '@angular/material/bottom-sheet';
+import { MAT_DIALOG_DATA, MatDialog, MatDialogRef } from '@angular/material/dialog';
 import { MatError, MatFormField, MatLabel } from '@angular/material/form-field';
 import { MatIcon } from '@angular/material/icon';
 import { MatInput } from '@angular/material/input';
@@ -8,13 +9,37 @@ import { MatActionList, MatListItem, MatListItemIcon } from '@angular/material/l
 import { TranslocoDirective } from '@jsverse/transloco';
 import { filter, merge } from 'rxjs';
 import { Actions, refuse } from '../../core/actions';
+import { WIDE } from '../../core/layout';
 import { Store, type UndoToken, ValidationError } from '../../core/store';
 
 export type EditSheetData = { listId: string; itemId: string; name: string; note: string | null };
 
+/** The row's options: a dialog beside it on a computer, a bottom sheet otherwise. Call in an injection context. */
+export function openItemOptions(data: EditSheetData, row: HTMLElement): void {
+  // it closes itself after saving, so a refused value keeps it open; no keyboard until a field is tapped
+  if (!inject(WIDE)()) {
+    inject(MatBottomSheet).open(EditSheet, { data, ariaLabel: data.name, disableClose: true, autoFocus: 'dialog' });
+    return;
+  }
+  const rect = row.getBoundingClientRect();
+  const left = `${Math.min(rect.right + 8, innerWidth - 336)}px`;
+  // the dialog grows away from the row's edge that is nearer the middle of the window, so it stays on screen
+  const position =
+    rect.top < innerHeight / 2 ? { left, top: `${rect.top}px` } : { left, bottom: `${innerHeight - rect.bottom}px` };
+  inject(MatDialog).open(EditSheet, {
+    data,
+    width: '20rem',
+    ariaLabel: data.name,
+    autoFocus: 'dialog',
+    disableClose: true,
+    position,
+  });
+}
+
 /** Name and note save when the sheet closes; a refused value keeps it open with the reason. */
 @Component({
   selector: 'app-edit-sheet',
+  host: { '[class.in-dialog]': '!!dialog' },
   imports: [
     ReactiveFormsModule,
     MatFormField,
@@ -29,7 +54,9 @@ export type EditSheetData = { listId: string; itemId: string; name: string; note
   ],
   template: `
     <ng-container *transloco="let t">
-      <div class="handle"></div>
+      @if (!dialog) {
+        <div class="handle"></div>
+      }
       <h2 class="brand">{{ data.name }}</h2>
       @for (field of fields; track field.label) {
         <mat-form-field subscriptSizing="dynamic">
@@ -52,6 +79,9 @@ export type EditSheetData = { listId: string; itemId: string; name: string; note
   styles: `
     :host {
       display: block;
+    }
+    :host(.in-dialog) {
+      padding: 1.5rem 1.5rem 0.5rem;
     }
     .handle {
       width: 2rem;
@@ -78,8 +108,23 @@ export type EditSheetData = { listId: string; itemId: string; name: string; note
   `,
 })
 export class EditSheet {
-  protected readonly data = inject<EditSheetData>(MAT_BOTTOM_SHEET_DATA);
-  private readonly ref = inject<MatBottomSheetRef<EditSheet>>(MatBottomSheetRef);
+  private readonly sheet = inject<MatBottomSheetRef<EditSheet>>(MatBottomSheetRef, { optional: true });
+  protected readonly dialog = inject<MatDialogRef<EditSheet>>(MatDialogRef, { optional: true });
+  protected readonly data = inject<EditSheetData>(this.dialog ? MAT_DIALOG_DATA : MAT_BOTTOM_SHEET_DATA);
+  // whichever container opened it
+  private readonly ref = this.dialog
+    ? {
+        dismiss: () => this.dialog!.close(),
+        backdropClick: () => this.dialog!.backdropClick(),
+        keydownEvents: () => this.dialog!.keydownEvents(),
+        afterDismissed: () => this.dialog!.afterClosed(),
+      }
+    : {
+        dismiss: () => this.sheet!.dismiss(),
+        backdropClick: () => this.sheet!.backdropClick(),
+        keydownEvents: () => this.sheet!.keydownEvents(),
+        afterDismissed: () => this.sheet!.afterDismissed(),
+      };
   private readonly store = inject(Store);
   private readonly actions = inject(Actions);
   private readonly name = new FormControl(this.data.name, { nonNullable: true });

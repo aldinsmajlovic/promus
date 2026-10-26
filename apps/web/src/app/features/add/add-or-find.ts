@@ -38,6 +38,7 @@ export class AddOrFind {
   private readonly adding = new Set<string>();
   private readonly needle = computed(() => this.text() || (this.flash()?.text ?? ''));
   // as the view opened: an added one keeps its place, so the next tap hits what it aims at
+  // ponytail: taken once per page load, so it goes stale on a long-open computer; re-take it when a list switches or after a quiet minute
   private readonly usual = computed(() => {
     const listId = this.listId();
     if (!listId) return [];

@@ -20,3 +20,4 @@ What changed from the original plan, and why. Newest first, one line each.
 - **2026-10-22, public servers.** The server may be reachable from the internet, through Tailscale Funnel or a reverse proxy, and the quick start leads with Funnel. It's the only setup where other phones need nothing but the app.
 - **2026-10-22, iPhone.** iPhones with Safari are supported, with the app on the Home Screen. Anyone should be able to use it, not only Android owners.
 - **2026-10-22, docs links in the app.** The app links to its own docs on GitHub, at the running version's tag, and the `CLAUDE.md` rule against URLs in code now covers configuration only. A link helps someone stuck on HTTPS more than naming the guide does.
+- **2026-10-26, computer layout.** On a computer the list and an always-open Add or find sit side by side under the band, so items can be typed one after another and seen landing. Tablets held upright get the phone layout in a centered column.

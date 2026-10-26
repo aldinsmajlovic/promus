@@ -5,6 +5,7 @@ import {
   ElementRef,
   Injector,
   PendingTasks,
+  runInInjectionContext,
   type Signal,
   afterNextRender,
   afterRenderEffect,
@@ -15,7 +16,6 @@ import {
   viewChildren,
 } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { MatBottomSheet } from '@angular/material/bottom-sheet';
 import { MatIconButton } from '@angular/material/button';
 import { MatRipple } from '@angular/material/core';
 import { MatDivider } from '@angular/material/divider';
@@ -27,9 +27,11 @@ import { Actions } from '../../core/actions';
 import { CurrentList } from '../../core/current-list';
 import { PromusDb } from '../../core/db';
 import { Household } from '../../core/household';
+import { WIDE } from '../../core/layout';
 import { Store, type UndoToken } from '../../core/store';
 import { Face } from '../../shared/face';
-import { EditSheet, type EditSheetData } from './edit-sheet';
+import { AddOrFind } from '../add/add-or-find';
+import { type EditSheetData, openItemOptions } from './edit-sheet';
 import { ListMenu } from './list-menu';
 import { ProfileButton } from './profile-button';
 import { RowGestures } from './row-gestures';
@@ -49,6 +51,7 @@ type Rows = Signal<readonly ElementRef<HTMLElement>[]>;
     ListMenu,
     Face,
     RowGestures,
+    AddOrFind,
   ],
   templateUrl: './list.page.html',
   styleUrl: './list.page.scss',
@@ -57,12 +60,12 @@ export class ListPage {
   private readonly store = inject(Store);
   private readonly current = inject(CurrentList);
   private readonly db = inject(PromusDb);
-  private readonly sheet = inject(MatBottomSheet);
   private readonly actions = inject(Actions);
   private readonly injector = inject(Injector);
   private readonly doc = inject(DOCUMENT);
   private readonly lang = toSignal(inject(TranslocoService).langChanges$, { requireSync: true });
   protected readonly household = inject(Household);
+  protected readonly wide = inject(WIDE);
   protected readonly activeRows = viewChildren('activeRow', { read: ElementRef });
   protected readonly doneRows = viewChildren('doneRow', { read: ElementRef });
   private readonly doneToggle = viewChild('doneToggle', { read: ElementRef });
@@ -118,10 +121,9 @@ export class ListPage {
     if (!removed) row.classList.remove('swept');
   }
 
-  protected edit(listId: string, e: EntryView): void {
+  protected edit(listId: string, e: EntryView, row: HTMLElement): void {
     const data: EditSheetData = { listId, itemId: e.itemId, name: e.name, note: e.note };
-    // it closes itself after saving, so a refused value keeps it open; no keyboard until a field is tapped
-    this.sheet.open(EditSheet, { data, ariaLabel: e.name, disableClose: true, autoFocus: 'dialog' });
+    runInInjectionContext(this.injector, () => openItemOptions(data, row));
   }
 
   protected toggleDone(): void {
