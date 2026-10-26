@@ -5,8 +5,6 @@ import add from '@material-symbols/svg-400/rounded/add.svg';
 import arrowBack from '@material-symbols/svg-400/rounded/arrow_back.svg';
 import arrowDropDown from '@material-symbols/svg-400/rounded/arrow_drop_down.svg';
 import check from '@material-symbols/svg-400/rounded/check.svg';
-import checkBox from '@material-symbols/svg-400/rounded/check_box-fill.svg';
-import checkBoxOutlineBlank from '@material-symbols/svg-400/rounded/check_box_outline_blank.svg';
 import close from '@material-symbols/svg-400/rounded/close.svg';
 import contentCopy from '@material-symbols/svg-400/rounded/content_copy.svg';
 import deleteIcon from '@material-symbols/svg-400/rounded/delete.svg';
@@ -20,15 +18,13 @@ import moreVert from '@material-symbols/svg-400/rounded/more_vert.svg';
 import personAdd from '@material-symbols/svg-400/rounded/person_add.svg';
 import removeShoppingCart from '@material-symbols/svg-400/rounded/remove_shopping_cart.svg';
 import share from '@material-symbols/svg-400/rounded/share.svg';
+import shoppingBasket from '@material-symbols/svg-400/rounded/shopping_basket.svg';
 import visibility from '@material-symbols/svg-400/rounded/visibility.svg';
 import visibilityOff from '@material-symbols/svg-400/rounded/visibility_off.svg';
 
 const ICONS: Record<string, string> = {
   add,
   check,
-  // filled, as in the approved mockups: a checked row reads at a glance
-  check_box: checkBox,
-  check_box_outline_blank: checkBoxOutlineBlank,
   more_vert: moreVert,
   // The package has no expand_more/expand_less; Material Symbols draws them as keyboard_arrow_down/up.
   expand_more: keyboardArrowDown,
@@ -45,6 +41,7 @@ const ICONS: Record<string, string> = {
   content_copy: contentCopy,
   person_add: personAdd,
   share,
+  shopping_basket: shoppingBasket,
   visibility,
   visibility_off: visibilityOff,
 };

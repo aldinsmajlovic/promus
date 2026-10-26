@@ -36,8 +36,9 @@
     }
   }
 
+  // on the band, where the theme's own focus color barely shows
   &:focus-visible {
-    outline: 3px solid var(--mat-sys-secondary);
+    outline: 3px solid var(--promus-accent);
     outline-offset: -3px;
   }
 }

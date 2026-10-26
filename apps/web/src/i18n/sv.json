@@ -16,7 +16,7 @@
     "clear": "Rensa",
     "create": "Lägg till \"{{name}}\"",
     "onList": "På listan",
-    "placeholder": "Lägg till vara"
+    "placeholder": "Lägg till eller hitta"
   },
   "dialog": {
     "close": "Stäng"
@@ -58,17 +58,21 @@
     "title": "Gå med i ett hushåll"
   },
   "list": {
-    "add": "Lägg till",
+    "addedBy": "Tillagd av {{name}}",
     "default": "Inköpslista",
     "delete": "Ta bort listan",
     "done": "Klart ({{n}})",
-    "empty": "Listan är tom",
+    "emptyHint": "Lägg till den första varan med Lägg till eller hitta nedan.",
+    "emptyTitle": "Inget på {{list}} än",
     "moreFor": "Alternativ för {{name}}",
     "new": "Ny lista",
     "newName": "Namnge den nya listan",
     "profile": "Inställningar för {{name}}",
     "rename": "Byt namn på listan",
-    "settings": "Inställningar"
+    "settings": "Inställningar",
+    "toGet": "{{n}} att handla",
+    "with": "med",
+    "withLabel": "Delas med {{names}}"
   },
   "login": {
     "failed": "Inloggningen misslyckades",

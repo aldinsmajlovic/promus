@@ -50,7 +50,7 @@ test('a new server: setup wizard, then an invite joins a second phone to the sam
     await expect(page.getByRole('heading', { name: 'Få in den i mobilen' })).toBeVisible();
     await expect(page.getByRole('img', { name: BASE })).toHaveCount(0);
     await page.getByRole('button', { name: 'Klar' }).click();
-    await expect(page.getByRole('link', { name: 'Lägg till' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Lägg till eller hitta' })).toBeVisible();
 
     await page.goto(`${BASE}/settings`);
     await page.getByRole('button', { name: 'Bjud in någon' }).click();
@@ -64,9 +64,9 @@ test('a new server: setup wizard, then an invite joins a second phone to the sam
     await partner.getByLabel('Lösenord', { exact: true }).fill(password);
     await partner.getByRole('button', { name: 'Gå med' }).click();
     await partner.getByRole('button', { name: 'Klar' }).click();
-    await partner.getByRole('link', { name: 'Lägg till' }).click();
-    await partner.getByPlaceholder('Lägg till vara').fill('mjölk');
-    await partner.getByPlaceholder('Lägg till vara').press('Enter');
+    await partner.getByRole('link', { name: 'Lägg till eller hitta' }).click();
+    await partner.getByPlaceholder('Lägg till eller hitta').fill('mjölk');
+    await partner.getByPlaceholder('Lägg till eller hitta').press('Enter');
     await expect(partner.getByText('mjölk tillagd')).toBeVisible();
 
     // the owner's list, opened again once the partner's change has gone out (2 s after it), has the item

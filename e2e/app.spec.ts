@@ -3,8 +3,8 @@ import { expect, login, test } from './fixtures.ts';
 
 /** Adds through the add view, as typed, and goes back to the list. */
 async function add(page: Page, name: string): Promise<void> {
-  await page.getByRole('link', { name: 'Lägg till' }).click();
-  const field = page.getByPlaceholder('Lägg till vara');
+  await page.getByRole('link', { name: 'Lägg till eller hitta' }).click();
+  const field = page.getByPlaceholder('Lägg till eller hitta');
   await field.fill(name);
   await field.press('Enter');
   await expect(page.getByText(`${name} tillagd`)).toBeVisible();
@@ -42,7 +42,6 @@ test('add, check off and undo', async ({ page }) => {
   await login(page, 'e2e-a');
   await add(page, 'mjölk');
   await page.getByRole('checkbox', { name: 'mjölk' }).click();
-  await page.getByRole('button', { name: 'Klart (1)' }).click();
   await expect(page.getByRole('checkbox', { name: 'mjölk', checked: true })).toBeVisible();
 
   // the add's snackbar gives way to the check's, so its Undo is the only one left
@@ -55,9 +54,9 @@ test('add, check off and undo', async ({ page }) => {
   await expect(page.getByText('mjölk tillbaka på listan')).toBeHidden({ timeout: 8_000 });
 
   // the add view's snackbar, under its toolbar, takes taps too
-  await page.getByRole('link', { name: 'Lägg till' }).click();
-  await page.getByPlaceholder('Lägg till vara').fill('te');
-  await page.getByPlaceholder('Lägg till vara').press('Enter');
+  await page.getByRole('link', { name: 'Lägg till eller hitta' }).click();
+  await page.getByPlaceholder('Lägg till eller hitta').fill('te');
+  await page.getByPlaceholder('Lägg till eller hitta').press('Enter');
   await expect(page.getByText('te tillagd')).toBeVisible();
   await page.getByRole('button', { name: 'Ångra' }).click({ timeout: 2_000 });
   await page.getByRole('button', { name: 'Stäng' }).click();
@@ -74,7 +73,7 @@ test('works offline and syncs later', async ({ page, context, device }) => {
 
   await context.setOffline(true);
   expect((await page.reload())?.fromServiceWorker()).toBe(true);
-  await expect(page.getByRole('link', { name: 'Lägg till' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Lägg till eller hitta' })).toBeVisible();
   await add(page, 'Bröd');
   await expect(page.getByRole('checkbox', { name: 'Bröd' })).toBeVisible();
   // the count is of events: a new item is item.created and entry.added
@@ -126,7 +125,7 @@ test('two tabs stay in step', async ({ page, context }) => {
   await login(page, 'e2e-b');
   const tab = await context.newPage();
   await tab.goto('/');
-  await expect(tab.getByRole('link', { name: 'Lägg till' })).toBeVisible();
+  await expect(tab.getByRole('link', { name: 'Lägg till eller hitta' })).toBeVisible();
 
   // one acts in the tab in front: Chrome gives the one behind a frame about once a second, too slow for Close
   await page.bringToFront();
@@ -137,7 +136,8 @@ test('two tabs stay in step', async ({ page, context }) => {
   await tab.getByRole('checkbox', { name: 'Kaffe' }).click();
   // the household's only checked item
   await expect(page.getByRole('button', { name: 'Klart (1)' })).toBeVisible({ timeout: 3_000 });
-  await expect(page.getByRole('checkbox', { name: 'Kaffe' })).toBeHidden();
+  // it folds away on the frames Chrome gives a tab behind: about 2 s
+  await expect(page.getByRole('checkbox', { name: 'Kaffe', checked: false })).toBeHidden({ timeout: 8_000 });
   // the first tab is behind the second: its snackbar still goes
   await expect(page.getByText('Kaffe tillagd')).toBeHidden({ timeout: 8_000 });
 });

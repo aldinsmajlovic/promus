@@ -1,80 +1,112 @@
 <ng-container *transloco="let t">
-  <mat-toolbar>
-    <h1><app-list-menu /></h1>
-    <app-profile-button />
-  </mat-toolbar>
+  <div class="frame">
+    <header class="band">
+      <div class="head">
+        <h1><app-list-menu /></h1>
+        @if (list()) {
+          @let others = household.others();
+          <p class="meta">
+            {{ t('list.toGet', { n: view().active.length }) }}
+            @if (others.length) {
+              <span class="with" role="img" [attr.aria-label]="t('list.withLabel', { names: sharedWith() })">
+                {{ t('list.with') }}
+                @for (m of others.slice(0, 3); track m.id) {
+                  <app-face [member]="m" />
+                }
+                @if (others.length > 3) {
+                  +{{ others.length - 3 }}
+                }
+              </span>
+            }
+          </p>
+        }
+      </div>
+      <app-profile-button />
+    </header>
 
-  @if (list(); as l) {
-    <main>
-      @if (view().active.length) {
-        <ul>
-          @for (e of view().active; track e.itemId; let i = $index) {
-            <li>
-              <button
-                #activeRow
-                class="row state"
-                matRipple
-                role="checkbox"
-                aria-checked="false"
-                (click)="check(l.id, e, i)"
-              >
-                <mat-icon svgIcon="check_box_outline_blank" />
-                <span class="text">
-                  <span class="name">{{ e.name }}</span>
-                  @if (e.note) {
-                    <span class="note">{{ e.note }}</span>
-                  }
-                </span>
-              </button>
-              <button matIconButton [attr.aria-label]="t('list.moreFor', { name: e.name })" (click)="edit(l.id, e)">
-                <mat-icon svgIcon="more_vert" />
-              </button>
-            </li>
-          }
-        </ul>
-      } @else {
-        <p class="empty">{{ t('list.empty') }}</p>
-      }
-
-      @if (view().done.length) {
-        <mat-divider />
-        <button
-          #doneToggle
-          class="section state"
-          matRipple
-          [attr.aria-expanded]="doneOpen()"
-          (click)="doneOpen.set(!doneOpen())"
-        >
-          <mat-icon [svgIcon]="doneOpen() ? 'expand_less' : 'expand_more'" />
-          {{ t('list.done', { n: view().done.length }) }}
-        </button>
-        @if (doneOpen()) {
-          <ul class="done">
-            @for (e of view().done; track e.itemId; let i = $index) {
-              <li>
+    <main class="sheet">
+      @if (list(); as l) {
+        @if (!view().active.length && !view().done.length) {
+          <div class="empty">
+            <span class="icon"><mat-icon svgIcon="shopping_basket" /></span>
+            <p class="brand">{{ t('list.emptyTitle', { list: l.name }) }}</p>
+            <p>{{ t('list.emptyHint') }}</p>
+          </div>
+        } @else {
+          <ul>
+            @for (e of view().active; track e.itemId; let i = $index) {
+              @let by = addedBy(e);
+              <li [animate.enter]="arriving()" [animate.leave]="leaving(e)">
                 <button
-                  #doneRow
+                  #activeRow
                   class="row state"
                   matRipple
                   role="checkbox"
-                  aria-checked="true"
-                  (click)="uncheck(l.id, e, i)"
+                  aria-checked="false"
+                  [attr.aria-description]="by ? t('list.addedBy', { name: by.username }) : null"
+                  (click)="check(l.id, e, i)"
                 >
-                  <mat-icon svgIcon="check_box" />
+                  <span class="circle"><mat-icon svgIcon="check" /></span>
                   <span class="text">
-                    <span class="name">{{ e.name }}</span>
+                    <span class="name"><span class="strike">{{ e.name }}</span></span>
                     @if (e.note) {
                       <span class="note">{{ e.note }}</span>
                     }
                   </span>
+                  @if (by) {
+                    <app-face [member]="by" />
+                  }
+                </button>
+                <button matIconButton [attr.aria-label]="t('list.moreFor', { name: e.name })" (click)="edit(l.id, e)">
+                  <mat-icon svgIcon="more_vert" />
                 </button>
               </li>
             }
           </ul>
+
+          @if (view().done.length && doneOpen() !== undefined) {
+            <mat-divider />
+            <button
+              #doneToggle
+              class="section state"
+              matRipple
+              [attr.aria-expanded]="doneOpen()"
+              (click)="toggleDone()"
+            >
+              {{ t('list.done', { n: view().done.length }) }}
+              <mat-icon [svgIcon]="doneOpen() ? 'expand_less' : 'expand_more'" />
+            </button>
+            @if (doneOpen()) {
+              <ul class="done">
+                @for (e of view().done; track e.itemId; let i = $index) {
+                  <li [animate.enter]="arriving()">
+                    <button
+                      #doneRow
+                      class="row state"
+                      matRipple
+                      role="checkbox"
+                      aria-checked="true"
+                      (click)="uncheck(l.id, e, i)"
+                    >
+                      <span class="circle checked"><mat-icon svgIcon="check" /></span>
+                      <span class="text">
+                        <span class="name"><span class="strike">{{ e.name }}</span></span>
+                        @if (e.note) {
+                          <span class="note">{{ e.note }}</span>
+                        }
+                      </span>
+                    </button>
+                  </li>
+                }
+              </ul>
+            }
+          }
         }
+
+        <div class="bar">
+          <a #dock class="dock" routerLink="/add"><mat-icon svgIcon="add" />{{ t('add.placeholder') }}</a>
+        </div>
       }
     </main>
-
-    <a #fab matFab extended class="fab" routerLink="/add"><mat-icon svgIcon="add" />{{ t('list.add') }}</a>
-  }
+  </div>
 </ng-container>

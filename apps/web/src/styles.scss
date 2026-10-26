@@ -72,3 +72,8 @@ body {
 .cdk-overlay-pane:has(> .in-toolbar) {
   pointer-events: none;
 }
+
+// a bottom snackbar on the list sits above Add or find, as in the mockups
+body:has(.dock) .mat-mdc-snack-bar-container:not(.in-toolbar) {
+  margin-bottom: calc(5.5rem + env(safe-area-inset-bottom));
+}

@@ -48,5 +48,5 @@ export async function login(page: Page, user: User): Promise<void> {
   await page.getByLabel('Användarnamn').fill(user);
   await page.getByLabel('Lösenord').fill(passwords[user]);
   await page.getByRole('button', { name: 'Logga in' }).click();
-  await expect(page.getByRole('link', { name: 'Lägg till' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Lägg till eller hitta' })).toBeVisible();
 }

@@ -27,6 +27,7 @@ import { Face } from '../../shared/face';
     a {
       display: inline-flex;
       border-radius: 50%;
+      text-decoration: none;
     }
   `,
 })

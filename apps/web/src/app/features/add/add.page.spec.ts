@@ -112,7 +112,7 @@ describe('AddPage', () => {
     const t = await setup([['Kaffe', 3], ['Mjölk', 8, '2 st'], ['Gurka', 1], ['Ost', 5]], ['Ost']);
     expect(t.el.querySelector('h1')?.textContent?.trim()).toBe('Inköpslista');
     expect(await t.loader.getAllHarnesses(MatButtonHarness.with({ selector: '[aria-label="Stäng"]' }))).toHaveLength(1);
-    expect(await t.input.getPlaceholder()).toBe('Lägg till vara');
+    expect(await t.input.getPlaceholder()).toBe('Lägg till eller hitta');
     expect(focused(t)).toBe(true);
 
     // Ost is already on the list

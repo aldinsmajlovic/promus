@@ -2,6 +2,9 @@
 
 What changed from the original plan, and why. Newest first, one line each.
 
+- **2026-10-26, Add or find.** A field docked at the bottom of the list replaces the Add button.
+- **2026-10-26, Done starts open.** A checked row is seen landing there. Folding it away is remembered on each device.
+- **2026-10-26, faces.** The band shows who shares the list, and a row shows who added it when that wasn't you. Before, nothing showed the household.
 - **2026-10-26, the list menu.** Lists are switched and made from the list name, and renamed or deleted with a long-press there, instead of a ⋮ in the toolbar that looked like every row's.
 - **2026-10-26, sync status on your initial.** A badge with the unsynced count, or "!", instead of a sync icon in the toolbar. Subtle, because an unsynced list is expected sometimes.
 - **2026-10-26, own look.** Promus has its own colors, from the green `#3F6B21`, and its screens are a deep green band with a sheet over its lower edge. Titles are in Fraunces and everything else in Bricolage Grotesque, instead of Material's baseline green and Roboto. The app read as a template, not as an app of its own.

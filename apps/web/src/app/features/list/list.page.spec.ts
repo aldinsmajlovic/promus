@@ -2,20 +2,19 @@ import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed';
 import { importProvidersFrom, provideAppInitializer, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { MatBottomSheetHarness } from '@angular/material/bottom-sheet/testing';
-import { MatButtonHarness } from '@angular/material/button/testing';
 import { MATERIAL_ANIMATIONS } from '@angular/material/core';
-import { MatDialogHarness } from '@angular/material/dialog/testing';
 import { MatFormFieldHarness } from '@angular/material/form-field/testing';
 import { MatInputHarness } from '@angular/material/input/testing';
 import { MatActionListItemHarness } from '@angular/material/list/testing';
-import { MatMenuHarness } from '@angular/material/menu/testing';
 import { MatSnackBarHarness } from '@angular/material/snack-bar/testing';
 import { provideRouter } from '@angular/router';
 import { TranslocoTestingModule } from '@jsverse/transloco';
-import { entryKey, newId } from '@promus/shared';
+import { type Member, type StoredEvent, entryKey, formatHlc, newId } from '@promus/shared';
 import { describe, expect, it, vi } from 'vitest';
 import sv from '../../../i18n/sv.json';
+import { FETCH } from '../../core/api';
 import { PromusDb } from '../../core/db';
+import { Household } from '../../core/household';
 import { registerIcons } from '../../core/icons';
 import { SessionService } from '../../core/session';
 import { Store } from '../../core/store';
@@ -29,6 +28,8 @@ function configure(db: PromusDb) {
     providers: [
       { provide: PromusDb, useValue: db },
       { provide: SyncService, useValue: sync },
+      // the page asks who's in the household; no household in the answer keeps the cached members
+      { provide: FETCH, useValue: async () => Response.json({ user: { id: 'u1', username: 'anna' }, households: [] }) },
       { provide: MATERIAL_ANIMATIONS, useValue: { animationsDisabled: true } },
       provideRouter([]),
       provideAppInitializer(registerIcons),
@@ -44,9 +45,14 @@ function configure(db: PromusDb) {
   return sync;
 }
 
-async function setup(items: [name: string, note?: string][] = []) {
+/** `others` are the household's members besides you, cached in meta `members` as the page finds them. */
+async function setup(items: [name: string, note?: string][] = [], others: string[] = []) {
   const db = new PromusDb(`list-${newId()}`);
-  await db.setMeta('session', { userId: newId(), username: 'anna', householdId: newId() });
+  const you: Member = { id: newId(), username: 'anna', role: 'owner' };
+  const members = [you, ...others.map((username) => ({ id: newId(), username, role: 'member' }))];
+  const householdId = newId();
+  await db.setMeta('session', { userId: you.id, username: you.username, householdId });
+  await db.setMeta('members', members);
   const sync = configure(db);
   const store = TestBed.inject(Store);
   await TestBed.inject(SessionService).load();
@@ -60,7 +66,7 @@ async function setup(items: [name: string, note?: string][] = []) {
   await fixture.whenStable();
   const el: HTMLElement = fixture.nativeElement;
   const loader = TestbedHarnessEnvironment.documentRootLoader(fixture);
-  return { db, store, listId, fixture, el, loader, sync };
+  return { db, store, listId, fixture, el, loader, sync, members, householdId };
 }
 
 function itemId(store: Store, name: string): string {
@@ -112,25 +118,99 @@ describe('ListPage', () => {
     expect(doneToggle(el)).toBeNull();
   });
 
-  it('done is collapsed and shows its count', async () => {
-    const { el, fixture, store, listId } = await setup([['Mjölk'], ['Ost'], ['Smör']]);
+  it('Done starts open; folding it is remembered on this device', async () => {
+    const { db, el, fixture, store, listId } = await setup([['Mjölk'], ['Ost'], ['Smör']]);
     await store.check(listId, itemId(store, 'Mjölk'));
     await store.check(listId, itemId(store, 'Ost'));
     await fixture.whenStable();
     const toggle = doneToggle(el)!;
     expect(text(toggle)).toBe('Klart (2)');
-    expect(toggle.getAttribute('aria-expanded')).toBe('false');
-    expect(rows(el, true)).toHaveLength(0);
-
-    toggle.click();
-    await fixture.whenStable();
     expect(toggle.getAttribute('aria-expanded')).toBe('true');
     expect(names(el, true).sort()).toEqual(['Mjölk', 'Ost']);
 
     rows(el, true).find((r) => text(r).includes('Ost'))!.click();
     await fixture.whenStable();
     expect(names(el)).toEqual(['Ost', 'Smör']);
+    expect(text(toggle)).toBe('Klart (1)');
+
+    toggle.click();
+    await fixture.whenStable();
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    expect(rows(el, true)).toHaveLength(0);
+    await vi.waitFor(async () => expect(await db.getMeta('doneFolded')).toBe(true));
+
+    const again = TestBed.createComponent(ListPage);
+    await again.whenStable();
+    expect(doneToggle(again.nativeElement)!.getAttribute('aria-expanded')).toBe('false');
+    expect(rows(again.nativeElement, true)).toHaveLength(0);
+  });
+
+  it('while Done is folded, a checked row still leaves and is counted', async () => {
+    const { el, fixture, store, listId } = await setup([['Mjölk'], ['Ost']]);
+    await store.check(listId, itemId(store, 'Mjölk'));
+    await fixture.whenStable();
+    doneToggle(el)!.click();
+    await fixture.whenStable();
     expect(text(doneToggle(el))).toBe('Klart (1)');
+
+    rows(el, false)[0]!.click();
+    await fixture.whenStable();
+    expect(names(el)).toEqual([]);
+    expect(text(doneToggle(el))).toBe('Klart (2)');
+    expect(rows(el, true)).toHaveLength(0);
+  });
+
+  it('the band says how many are left and who you share with', async () => {
+    const { el, fixture } = await setup([['Mjölk'], ['Ost'], ['Smör']], ['bo', 'cia', 'dan', 'eva']);
+    await vi.waitFor(() => expect(el.querySelector('.with')).not.toBeNull());
+    await fixture.whenStable();
+    const band = el.querySelector('header')!;
+    expect(text(band.querySelector('.meta'))).toContain('3 att handla');
+    const shared = band.querySelector('.with')!;
+    expect(shared.querySelectorAll('app-face')).toHaveLength(3);
+    expect(text(shared)).toContain('+1');
+    expect(shared.getAttribute('aria-label')).toBe('Delas med bo, cia, dan och eva');
+  });
+
+  it('with no one else, only your initial shows', async () => {
+    const { el, fixture } = await setup([['Mjölk']]);
+    await vi.waitFor(() => expect(TestBed.inject(Household).members()).toHaveLength(1));
+    await fixture.whenStable();
+    expect(el.querySelector('.with')).toBeNull();
+    expect(el.querySelectorAll('header app-face')).toHaveLength(1);
+  });
+
+  it('a row someone else added shows their face; yours and unknown ones show none', async () => {
+    const failed = vi.spyOn(console, 'error');
+    const t = await setup([['Mjölk'], ['Ost'], ['Smör']], ['bo']);
+    const [you, bo] = t.members;
+    // pulled from the server, later than the local adds: the last entry.added names who added it
+    const later = Date.now() + 60_000;
+    const pulled = (name: string, userId: string, seq: number): StoredEvent => ({
+      id: newId(),
+      householdId: t.householdId,
+      type: 'entry.added',
+      v: 1,
+      hlc: formatHlc(later + seq, 0, 'other'),
+      occurredAt: later + seq,
+      payload: { listId: t.listId, itemId: itemId(t.store, name) },
+      seq,
+      userId,
+      receivedAt: later + seq,
+    });
+    await t.db.events.bulkAdd([pulled('Mjölk', you!.id, 1), pulled('Ost', bo!.id, 2), pulled('Smör', newId(), 3)]);
+    await t.store.load();
+    await vi.waitFor(() => expect(t.el.querySelectorAll('main app-face')).toHaveLength(1));
+    const ost = rows(t.el, false).find((r) => text(r.querySelector('.name')) === 'Ost')!;
+    expect(text(ost.querySelector('app-face'))).toBe('B');
+    // the face is hidden from screen readers, so the row says who added it
+    expect(ost.getAttribute('aria-description')).toBe('Tillagd av bo');
+
+    await t.db.setMeta('members', []);
+    await TestBed.inject(Household).refresh();
+    await t.fixture.whenStable();
+    expect(t.el.querySelectorAll('main app-face')).toHaveLength(0);
+    expect(failed).not.toHaveBeenCalled();
   });
 
   it('focus stays in the list when a row moves to the other section', async () => {
@@ -149,14 +229,12 @@ describe('ListPage', () => {
     await tap(rows(el, false)[0]!);
     expect(focused()).toBe(doneToggle(el));
 
-    doneToggle(el)!.click();
-    await fixture.whenStable();
     await tap(rows(el, true)[2]!);
     expect(text(focused())).toBe(text(rows(el, true)[1]!));
     await tap(rows(el, true)[0]!);
     await tap(rows(el, true)[0]!);
     // Done is gone with its toggle
-    expect(focused()).toBe(el.querySelector('.fab'));
+    expect(focused()).toBe(el.querySelector('.dock'));
   });
 
   it('shows no title until the current list is known', async () => {
@@ -193,10 +271,17 @@ describe('ListPage', () => {
     }
   });
 
-  it('shows the empty line for an empty list', async () => {
+  it('an empty list invites the first item', async () => {
     const { el } = await setup();
-    expect(text(el.querySelector('.empty'))).toBe('Listan är tom');
+    expect(text(el.querySelector('.empty .brand'))).toBe('Inget på Inköpslista än');
+    expect(text(el.querySelector('.empty'))).toContain('Lägg till den första varan med Lägg till eller hitta nedan.');
     expect(rows(el, false)).toHaveLength(0);
+  });
+
+  it('Add or find at the bottom opens the add view', async () => {
+    const { el } = await setup([['Mjölk']]);
+    const dock = [...el.querySelectorAll('a')].find((a) => text(a) === 'Lägg till eller hitta');
+    expect(dock?.getAttribute('href')).toBe('/add');
   });
 
   it('edit sheet saves a changed note on close', async () => {

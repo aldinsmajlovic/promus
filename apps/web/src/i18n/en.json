@@ -16,7 +16,7 @@
     "clear": "Clear",
     "create": "Add \"{{name}}\"",
     "onList": "On the list",
-    "placeholder": "Add item"
+    "placeholder": "Add or find"
   },
   "dialog": {
     "close": "Close"
@@ -58,17 +58,21 @@
     "title": "Join a household"
   },
   "list": {
-    "add": "Add",
+    "addedBy": "Added by {{name}}",
     "default": "Shopping list",
     "delete": "Delete list",
     "done": "Done ({{n}})",
-    "empty": "The list is empty",
+    "emptyHint": "Add the first item with Add or find below.",
+    "emptyTitle": "Nothing on {{list}} yet",
     "moreFor": "Options for {{name}}",
     "new": "New list",
     "newName": "Name the new list",
     "profile": "Settings for {{name}}",
     "rename": "Rename list",
-    "settings": "Settings"
+    "settings": "Settings",
+    "toGet": "{{n}} to get",
+    "with": "with",
+    "withLabel": "Shared with {{names}}"
   },
   "login": {
     "failed": "Sign-in failed",

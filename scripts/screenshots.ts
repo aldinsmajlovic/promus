@@ -35,8 +35,8 @@ async function fill(page: Page, password: string): Promise<void> {
   await page.getByLabel('Password').fill(password);
   await page.getByRole('button', { name: 'Sign in' }).click();
 
-  await page.getByRole('link', { name: 'Add' }).click();
-  const field = page.getByPlaceholder('Add item');
+  await page.getByRole('link', { name: 'Add or find' }).click();
+  const field = page.getByPlaceholder('Add or find');
   for (const [name] of ITEMS) {
     await field.fill(name);
     await field.press('Enter');
@@ -51,7 +51,6 @@ async function fill(page: Page, password: string): Promise<void> {
     await page.getByLabel('Note').press('Enter');
   }
   for (const name of CHECKED) await page.getByRole('checkbox', { name }).tap();
-  await page.getByRole('button', { name: `Done (${CHECKED.length})` }).tap();
 
   // nothing transient in the picture: no snackbar, no sync badge
   await page.waitForFunction(() => !document.querySelector('mat-snack-bar-container'), undefined, {
@@ -88,7 +87,7 @@ try {
   const page = await browser.newPage({
     ...devices['Pixel 7'],
     deviceScaleFactor: 2,
-    // cropped to the list: tall enough for it, short enough to keep the Add button close
+    // cropped to the list: tall enough for it, short enough to keep Add or find close
     viewport: { width: 412, height: 640 },
     locale: 'en-US',
     // `localhost` is a secure context, so Chrome keeps the Secure `__Host-` session cookie over http

@@ -46,6 +46,13 @@
     margin-inline: auto;
   }
 
+  // the phone's shadow is a grey smudge on the pale page beside the column: lighter there, as in the mockups
+  .sheet {
+    box-shadow:
+      inset 0 1px 0 var(--promus-sheet-edge),
+      0 -10px 28px light-dark(rgb(0 0 0 / 0.14), rgb(0 0 0 / 0.25));
+  }
+
   // the band's green runs the full width, and on down beside the top of the sheet
   .frame > .band {
     border-image-source: conic-gradient(var(--promus-band) 0 0);

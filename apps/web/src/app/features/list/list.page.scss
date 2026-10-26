@@ -1,23 +1,50 @@
 :host {
   display: block;
-  max-width: 40rem;
-  margin-inline: auto;
 }
 
-mat-toolbar {
-  position: sticky;
-  top: 0;
-  z-index: 1;
+.band {
+  display: flex;
+  align-items: center;
   gap: 0.25rem;
-  padding-inline: 1rem 0.25rem;
+}
+
+.head {
+  flex: 1;
+  min-width: 0;
 }
 
 h1 {
   display: flex;
-  flex: 1;
-  min-width: 0;
   margin: 0;
   font: inherit;
+}
+
+.meta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.125rem 0 0;
+  color: var(--promus-accent);
+  font-size: 0.9375rem;
+}
+
+.with {
+  --face-size: 1.375rem;
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  color: rgb(255 255 255 / 0.7);
+}
+
+app-profile-button {
+  --face-size: 2.5rem;
+}
+
+// a column, so Add or find sits at the bottom of a short list
+.sheet {
+  display: flex;
+  flex-direction: column;
+  padding-top: 0.75rem;
 }
 
 // a plain button with an M3 state layer; matRipple adds the press ripple
@@ -57,38 +84,67 @@ h1 {
   }
 }
 
-.row mat-icon,
-.section mat-icon {
-  flex: none;
-  color: var(--mat-sys-on-surface-variant);
-}
-
-main {
-  // room to scroll the last row out from under the FAB
-  padding-bottom: 6rem;
-}
-
 ul {
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
+// rows sit in from the sheet's edges, so their highlight is rounded
 li {
   display: flex;
   align-items: center;
-  padding-inline-end: 0.25rem;
+  padding-inline: 0.5rem 0.25rem;
 }
 
 .row {
   display: flex;
   flex: 1;
   align-items: center;
-  gap: 1rem;
+  gap: 0.875rem;
   min-width: 0;
   min-height: 3.5rem;
-  padding-block: 0.5rem;
-  padding-inline: 1rem 0.25rem;
+  padding: 0.5rem 0.625rem;
+  border-radius: 0.75rem;
+}
+
+.circle {
+  display: grid;
+  flex: none;
+  place-items: center;
+  box-sizing: border-box;
+  width: 1.5rem;
+  height: 1.5rem;
+  border: 2px solid var(--promus-circle);
+  border-radius: 50%;
+  transition: 160ms;
+
+  mat-icon {
+    width: 1.125rem;
+    height: 1.125rem;
+    color: var(--promus-check-mark);
+    opacity: 0;
+    scale: 0.3;
+    // the pop: a slight overshoot
+    transition:
+      opacity 120ms,
+      scale 300ms cubic-bezier(0.3, 1.7, 0.5, 1);
+  }
+}
+
+.row:active .circle {
+  scale: 0.88;
+}
+
+.circle.checked,
+.checked-off .circle {
+  border-color: var(--promus-check);
+  background-color: var(--promus-check);
+
+  mat-icon {
+    opacity: 1;
+    scale: 1;
+  }
 }
 
 .text {
@@ -109,45 +165,96 @@ li {
 }
 
 .name {
-  font: var(--mat-sys-body-large);
-  letter-spacing: var(--mat-sys-body-large-tracking);
+  font-size: 1.125rem;
+  font-weight: 450;
+  line-height: 1.5rem;
+  transition: color 200ms;
+}
+
+// the line through a checked name, drawn from the left; on each line of a long name
+.strike {
+  background: linear-gradient(currentColor, currentColor) no-repeat 0 58% / 0 1.5px;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  transition: background-size 260ms ease 40ms;
 }
 
 .note {
-  font: var(--mat-sys-body-medium);
-  letter-spacing: var(--mat-sys-body-medium-tracking);
-  color: var(--mat-sys-on-surface-variant);
+  font-size: 0.90625rem;
+  line-height: 1.25rem;
+  color: var(--promus-muted);
 }
 
-.done {
-  .name {
-    color: var(--mat-sys-on-surface-variant);
+.done .name,
+.checked-off .name {
+  color: var(--promus-muted);
+}
+
+.done .strike,
+.checked-off .strike {
+  background-size: 100% 1.5px;
+}
+
+// the circle pops and the line draws, then the row folds. This animation is the row's longest,
+// so it sets how long Angular keeps the row.
+li.checked-off {
+  overflow: hidden;
+  animation: fold 600ms;
+}
+
+@keyframes fold {
+  0%,
+  60% {
+    max-height: 6rem;
+    opacity: 1;
+    animation-timing-function: ease-out;
   }
 
-  .name,
-  .note {
-    text-decoration: line-through;
-  }
-
-  mat-icon {
-    color: var(--mat-sys-primary);
+  to {
+    max-height: 0;
+    opacity: 0;
   }
 }
 
-main > mat-divider {
-  margin: 0.25rem 1rem;
+li.arrive {
+  overflow: hidden;
+  animation: arrive 250ms ease-out;
+}
+
+// a checked row lands in Done as the row it left folds away; when Done unfolds, all its rows arrive at once
+.done:has(> li:not(.arrive)) > li.arrive {
+  animation-delay: 350ms;
+  animation-fill-mode: backwards;
+}
+
+@keyframes arrive {
+  from {
+    max-height: 0;
+    opacity: 0;
+    translate: 0 -0.375rem;
+  }
+
+  to {
+    max-height: 6rem;
+  }
+}
+
+.sheet > mat-divider {
+  margin-top: 0.5rem;
 }
 
 .section {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  width: 100%;
+  width: calc(100% - 1rem);
   min-height: 3rem;
-  padding-inline: 1rem;
-  font: var(--mat-sys-label-large);
-  letter-spacing: var(--mat-sys-label-large-tracking);
-  color: var(--mat-sys-on-surface-variant);
+  margin-inline: 0.5rem;
+  padding-inline: 0.625rem;
+  border-radius: 0.75rem;
+  color: var(--promus-muted);
+  font-size: 0.90625rem;
+  font-weight: 600;
 
   mat-icon {
     width: 1.25rem;
@@ -156,21 +263,66 @@ main > mat-divider {
 }
 
 .empty {
-  margin: 0;
-  padding: 1rem;
-  font: var(--mat-sys-body-large);
-  color: var(--mat-sys-on-surface-variant);
+  padding: 4.375rem 1.875rem 0;
+  color: var(--promus-muted);
+  text-align: center;
+
+  p {
+    margin: 0;
+  }
 }
 
-.fab {
-  position: fixed;
-  bottom: 1rem;
-  // the right edge of the centered column on wide screens
-  inset-inline-end: max(1rem, calc(50% - 20rem + 1rem));
-  transition: translate 150ms;
+.empty .icon {
+  display: grid;
+  place-items: center;
+  width: 4rem;
+  height: 4rem;
+  margin: 0 auto 1rem;
+  border-radius: 50%;
+  background: var(--promus-tint);
+  color: var(--promus-tint-ink);
+
+  mat-icon {
+    width: 2rem;
+    height: 2rem;
+  }
 }
 
-// a bottom snackbar would cover the FAB: move it up, as in the mockups
-:host-context(body:has(.mat-mdc-snack-bar-container:not(.in-toolbar))) .fab {
-  translate: 0 -4rem;
+// no font shorthand or family: the global .brand sets the face
+.empty .brand {
+  margin-bottom: 0.375rem;
+  color: var(--promus-text);
+  font-size: 1.375rem;
+  font-weight: 600;
+}
+
+// at the bottom of the sheet, or of the screen once the list is longer
+.bar {
+  position: sticky;
+  bottom: 0;
+  margin-top: auto;
+  padding: 0.625rem 0.875rem calc(1rem + env(safe-area-inset-bottom));
+  background: var(--promus-sheet);
+}
+
+.dock {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  height: 3.375rem;
+  padding-inline: 1.125rem 0.5rem;
+  border-radius: 1.6875rem;
+  background: var(--promus-field);
+  color: var(--promus-muted);
+  font-size: 1.0625rem;
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+
+  mat-icon {
+    color: var(--promus-check);
+  }
+
+  &:focus-visible {
+    outline: 3px solid var(--mat-sys-secondary);
+  }
 }

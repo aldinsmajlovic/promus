@@ -3,26 +3,31 @@ import {
   DOCUMENT,
   ElementRef,
   Injector,
+  PendingTasks,
   type Signal,
   afterNextRender,
+  afterRenderEffect,
   computed,
   inject,
   signal,
   viewChild,
   viewChildren,
 } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { MatBottomSheet } from '@angular/material/bottom-sheet';
-import { MatFabAnchor, MatIconButton } from '@angular/material/button';
+import { MatIconButton } from '@angular/material/button';
 import { MatRipple } from '@angular/material/core';
 import { MatDivider } from '@angular/material/divider';
 import { MatIcon } from '@angular/material/icon';
-import { MatToolbar } from '@angular/material/toolbar';
 import { RouterLink } from '@angular/router';
-import { TranslocoDirective } from '@jsverse/transloco';
-import { type EntryView, listView } from '@promus/shared';
+import { TranslocoDirective, TranslocoService } from '@jsverse/transloco';
+import { type EntryView, type Member, listView } from '@promus/shared';
 import { Actions } from '../../core/actions';
 import { CurrentList } from '../../core/current-list';
+import { PromusDb } from '../../core/db';
+import { Household } from '../../core/household';
 import { Store, type UndoToken } from '../../core/store';
+import { Face } from '../../shared/face';
 import { EditSheet, type EditSheetData } from './edit-sheet';
 import { ListMenu } from './list-menu';
 import { ProfileButton } from './profile-button';
@@ -32,9 +37,7 @@ type Rows = Signal<readonly ElementRef<HTMLElement>[]>;
 @Component({
   selector: 'app-list-page',
   imports: [
-    MatToolbar,
     MatIconButton,
-    MatFabAnchor,
     MatIcon,
     MatDivider,
     MatRipple,
@@ -42,6 +45,7 @@ type Rows = Signal<readonly ElementRef<HTMLElement>[]>;
     TranslocoDirective,
     ProfileButton,
     ListMenu,
+    Face,
   ],
   templateUrl: './list.page.html',
   styleUrl: './list.page.scss',
@@ -49,14 +53,17 @@ type Rows = Signal<readonly ElementRef<HTMLElement>[]>;
 export class ListPage {
   private readonly store = inject(Store);
   private readonly current = inject(CurrentList);
+  private readonly db = inject(PromusDb);
   private readonly sheet = inject(MatBottomSheet);
   private readonly actions = inject(Actions);
   private readonly injector = inject(Injector);
   private readonly doc = inject(DOCUMENT);
+  private readonly lang = toSignal(inject(TranslocoService).langChanges$, { requireSync: true });
+  protected readonly household = inject(Household);
   private readonly activeRows = viewChildren('activeRow', { read: ElementRef });
   private readonly doneRows = viewChildren('doneRow', { read: ElementRef });
   private readonly doneToggle = viewChild('doneToggle', { read: ElementRef });
-  private readonly fab = viewChild('fab', { read: ElementRef });
+  private readonly dock = viewChild('dock', { read: ElementRef });
 
   protected readonly list = this.current.list;
   protected readonly view = computed(() => {
@@ -64,7 +71,30 @@ export class ListPage {
     if (!list) return { active: [], done: [] };
     return listView(this.store.state(), list.id, this.store.now(), this.current.collator());
   });
-  protected readonly doneOpen = signal(false);
+  /** Undefined until meta `doneFolded` is read; then Done shows, open unless folded on this device. */
+  protected readonly doneOpen = signal<boolean | undefined>(undefined);
+  protected readonly sharedWith = computed(() =>
+    new Intl.ListFormat(this.lang(), { type: 'conjunction' }).format(this.household.others().map((m) => m.username)),
+  );
+  // the list the last render showed: rows arriving in it or leaving it move, a list that loads or switches just shows.
+  // Angular asks for the animation classes after rendering, before this is updated in the read phase.
+  private shown: string | undefined;
+
+  constructor() {
+    void this.household.refresh();
+    inject(PendingTasks).run(async () => {
+      const folded = await this.db.getMeta('doneFolded').catch((err: unknown) => {
+        console.error('reading doneFolded failed', err);
+        return false;
+      });
+      this.doneOpen.set(!folded);
+    });
+    afterRenderEffect({
+      read: () => {
+        this.shown = this.list()?.id;
+      },
+    });
+  }
 
   protected check(listId: string, e: EntryView, index: number): void {
     void this.move(this.store.check(listId, e.itemId), this.activeRows, index);
@@ -80,18 +110,42 @@ export class ListPage {
     this.sheet.open(EditSheet, { data, ariaLabel: e.name, disableClose: true, autoFocus: 'dialog' });
   }
 
+  protected toggleDone(): void {
+    const open = !this.doneOpen();
+    this.doneOpen.set(open);
+    this.db.setMeta('doneFolded', !open).catch((err: unknown) => this.actions.failed(err));
+  }
+
+  /** Who added an active row, when that was someone else in the household. */
+  protected addedBy(e: EntryView): Member | undefined {
+    return e.addedBy && e.addedBy !== this.household.you() ? this.household.byId().get(e.addedBy) : undefined;
+  }
+
+  protected arriving(): string {
+    return this.list()?.id === this.shown ? 'arrive' : '';
+  }
+
+  /** A row checked off pops its circle, strikes its name and folds; a removed one just goes. */
+  protected leaving(e: EntryView): string {
+    const checked = this.view().done.some((d) => d.itemId === e.itemId);
+    return checked && this.list()?.id === this.shown ? 'checked-off' : '';
+  }
+
   /**
    * The row leaves its section and takes focus with it: hand focus to the row now in its place, the
-   * new last one, or the Done toggle or FAB when the section is empty.
+   * new last one, or the Done toggle or Add or find when the section is empty.
    */
   private async move(action: Promise<UndoToken | null>, rows: Rows, index: number): Promise<void> {
+    // a checked-off row stays a moment to animate out, with focus still on it
+    const row = rows()[index]?.nativeElement;
     if (!(await this.actions.run(action))) return;
     afterNextRender(
       () => {
         // focus went somewhere else meanwhile, on purpose
-        if (this.doc.activeElement !== this.doc.body) return;
+        const focused = this.doc.activeElement;
+        if (focused !== this.doc.body && focused !== row) return;
         const left = rows();
-        const next = left[Math.min(index, left.length - 1)] ?? this.doneToggle() ?? this.fab();
+        const next = left[Math.min(index, left.length - 1)] ?? this.doneToggle() ?? this.dock();
         next?.nativeElement.focus();
       },
       { injector: this.injector },
