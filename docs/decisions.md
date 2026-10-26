@@ -2,6 +2,7 @@
 
 What changed from the original plan, and why. Newest first, one line each.
 
+- **2026-10-26, computer layout.** On a computer the list and an always-open Add or find sit side by side under the band, so items can be typed one after another and seen landing. Tablets held upright get the phone layout in a centered column.
 - **2026-10-26, Add or find is the search.** Typing finds items already on the list, and they check off right there. The owner asked for search, and this covers it without a second field.
 - **2026-10-26, gestures.** Long-press (or right-click) opens an item's options and swiping left removes it, instead of a ⋮ on every row. Left, because that's where both platforms put delete.
 - **2026-10-26, Add or find.** A field docked at the bottom of the list replaces the Add button.
@@ -20,4 +21,3 @@ What changed from the original plan, and why. Newest first, one line each.
 - **2026-10-22, public servers.** The server may be reachable from the internet, through Tailscale Funnel or a reverse proxy, and the quick start leads with Funnel. It's the only setup where other phones need nothing but the app.
 - **2026-10-22, iPhone.** iPhones with Safari are supported, with the app on the Home Screen. Anyone should be able to use it, not only Android owners.
 - **2026-10-22, docs links in the app.** The app links to its own docs on GitHub, at the running version's tag, and the `CLAUDE.md` rule against URLs in code now covers configuration only. A link helps someone stuck on HTTPS more than naming the guide does.
-- **2026-10-26, computer layout.** On a computer the list and an always-open Add or find sit side by side under the band, so items can be typed one after another and seen landing. Tablets held upright get the phone layout in a centered column.

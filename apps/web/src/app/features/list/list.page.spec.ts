@@ -2,8 +2,9 @@ import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed';
 import { importProvidersFrom, provideAppInitializer, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { MatBottomSheetHarness } from '@angular/material/bottom-sheet/testing';
-import { MatDialogHarness } from '@angular/material/dialog/testing';
 import { MATERIAL_ANIMATIONS } from '@angular/material/core';
+import { MatDialog } from '@angular/material/dialog';
+import { MatDialogHarness } from '@angular/material/dialog/testing';
 import { MatFormFieldHarness } from '@angular/material/form-field/testing';
 import { MatInputHarness } from '@angular/material/input/testing';
 import { MatActionListItemHarness } from '@angular/material/list/testing';
@@ -14,9 +15,9 @@ import { type Member, type StoredEvent, entryKey, formatHlc, newId } from '@prom
 import { describe, expect, it, vi } from 'vitest';
 import sv from '../../../i18n/sv.json';
 import { FETCH } from '../../core/api';
-import { WIDE } from '../../core/layout';
 import { PromusDb } from '../../core/db';
 import { Household } from '../../core/household';
+import { WIDE } from '../../core/layout';
 import { registerIcons } from '../../core/icons';
 import { SessionService } from '../../core/session';
 import { Store } from '../../core/store';
@@ -371,6 +372,20 @@ describe('ListPage', () => {
     await fixture.whenStable();
     expect(await loader.getAllHarnesses(MatDialogHarness)).toHaveLength(0);
     expect(store.state().entries.get(entryKey(listId, itemId(store, 'Mjölk')))?.note).toBe('2 st, laktosfri');
+  });
+
+  it.each([
+    ['upper', { top: 100, bottom: 156, right: 600 }, { top: '100px' }],
+    ['lower', { top: 600, bottom: 656, right: 5000 }, { bottom: `${innerHeight - 656}px` }],
+  ])('on a computer, the options dialog opens at a row in the %s half', async (_half, rect, edge) => {
+    const { el, loader, fixture } = await setup([['Mjölk']], [], true);
+    const open = vi.spyOn(TestBed.inject(MatDialog), 'open');
+    vi.spyOn(el.querySelector('.row')!, 'getBoundingClientRect').mockReturnValue(rect as DOMRect);
+    el.querySelector<HTMLElement>('[aria-label="Alternativ för Mjölk"]')!.click();
+    await loader.getHarness(MatDialogHarness);
+    expect(open.mock.calls[0]![1]!.position).toEqual({ left: `${Math.min(rect.right + 8, innerWidth - 336)}px`, ...edge });
+    await (await loader.getHarness(MatDialogHarness)).close();
+    await fixture.whenStable();
   });
 
   it('edit sheet saves a changed note on close', async () => {

@@ -70,6 +70,7 @@ export class ListPage {
   protected readonly doneRows = viewChildren('doneRow', { read: ElementRef });
   private readonly doneToggle = viewChild('doneToggle', { read: ElementRef });
   private readonly dock = viewChild('dock', { read: ElementRef });
+  private readonly panel = viewChild<ElementRef<HTMLElement>>('panel');
 
   protected readonly list = this.current.list;
   protected readonly view = computed(() => {
@@ -180,7 +181,7 @@ export class ListPage {
         if (focused !== this.doc.body && focused !== row) return;
         const left = rows();
         const next = left[Math.min(index, left.length - 1)] ?? this.doneToggle() ?? this.dock();
-        next?.nativeElement.focus();
+        (next?.nativeElement ?? this.panel()?.nativeElement.querySelector('input'))?.focus();
       },
       { injector: this.injector },
     );

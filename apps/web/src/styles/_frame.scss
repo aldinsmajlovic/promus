@@ -78,8 +78,10 @@
   // as tall as the list's side, and no taller than the window: Add or find stays in view as a long list scrolls
   .frame.split > .panel {
     position: sticky;
-    top: 0;
-    max-height: 100dvh;
+    // the sheet's negative margin would carry its rounded top off-screen once stuck
+    top: 1.5rem;
+    // the band is 6rem tall at the top of the page, so the field is in view there too
+    max-height: calc(100dvh - 6rem);
   }
 }
 
