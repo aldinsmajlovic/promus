@@ -62,7 +62,7 @@ export class ApiClient implements SyncApi {
   }
 
   // tokens only ever in a body: the server logs every path
-  checkInvite(token: string): Promise<{ expiresAt: number }> {
+  checkInvite(token: string): Promise<{ expiresAt: number; invitedBy: string }> {
     return this.request('POST', '/api/invites/check', inviteTokenSchema.parse({ token }));
   }
 

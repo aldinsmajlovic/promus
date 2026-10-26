@@ -16,13 +16,14 @@ export class InviteInvalidError extends Error {
   }
 }
 
-type InviteRow = { id: string; household_id: string; expires_at: number };
+type InviteRow = { id: string; household_id: string; expires_at: number; invited_by: string };
 
 export function findValidInvite(db: DatabaseSync, tokenHash: string, now: number): InviteRow | undefined {
   return db
     .prepare(
-      `SELECT id, household_id, expires_at FROM invites
-       WHERE token_hash = ? AND used_at IS NULL AND revoked_at IS NULL AND expires_at >= ?`,
+      `SELECT i.id, i.household_id, i.expires_at, u.username AS invited_by
+       FROM invites i JOIN users u ON u.id = i.created_by
+       WHERE i.token_hash = ? AND i.used_at IS NULL AND i.revoked_at IS NULL AND i.expires_at >= ?`,
     )
     .get(tokenHash, now) as InviteRow | undefined;
 }

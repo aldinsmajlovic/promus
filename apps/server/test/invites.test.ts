@@ -38,7 +38,7 @@ async function setup() {
     send('POST', '/api/invites/accept', { token, username, password });
   const me = async (cookie: string) =>
     (await (await t.app.request('/api/me', { headers: { Cookie: cookie } })).json()) as {
-      households: { id: string; role: string; members: { username: string; role: string }[] }[];
+      households: { id: string; role: string; members: { id: string; username: string; role: string }[] }[];
     };
   return { ...t, lines, anna, cookieA, send, invite, check, accept, me };
 }
@@ -82,7 +82,7 @@ describe('invites', { timeout: 30_000 }, () => {
     expect(t.db.prepare('SELECT used_by FROM invites').get()).toEqual({ used_by: bo.id });
 
     const cookieB = cookieOf(await login(t.app, 'bo', PW));
-    const members = [{ username: 'Anna', role: 'owner' }, { username: 'Bo', role: 'member' }];
+    const members = [{ id: t.anna.userId, username: 'Anna', role: 'owner' }, { id: bo.id, username: 'Bo', role: 'member' }];
     expect(await t.me(t.cookieA)).toEqual(expect.objectContaining({ households: [{ id: t.anna.householdId, role: 'owner', members }] }));
     expect((await t.me(cookieB)).households).toEqual([{ id: t.anna.householdId, role: 'member', members }]);
 
@@ -97,6 +97,14 @@ describe('invites', { timeout: 30_000 }, () => {
     const again = await t.accept(token, 'Cia');
     expect(again.status).toBe(404);
     expect(await again.json()).toEqual({ error: 'invite_invalid' });
+  });
+
+  it('check names who sent the invite', async () => {
+    const t = await setup();
+    const { token } = await t.invite();
+    const res = await t.check(token);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ expiresAt: T0 + 7 * DAY, invitedBy: 'Anna' });
   });
 
   it('a token expires after 7 days', async () => {

@@ -22,4 +22,4 @@ export const inviteAcceptSchema = accountSchema.extend(inviteTokenSchema.shape);
 export type InviteAccept = z.infer<typeof inviteAcceptSchema>;
 
 /** A household member, as Settings lists them. */
-export type Member = { username: string; role: string };
+export type Member = { id: string; username: string; role: string };

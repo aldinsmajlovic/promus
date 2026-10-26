@@ -105,7 +105,7 @@ describe('auth', { timeout: 30_000 }, () => {
     expect(ok.status).toBe(200);
     expect(await ok.json()).toEqual({
       user: { id: user.userId, username: 'Anna' },
-      households: [{ id: user.householdId, role: 'owner', members: [{ username: 'Anna', role: 'owner' }] }],
+      households: [{ id: user.householdId, role: 'owner', members: [{ id: user.userId, username: 'Anna', role: 'owner' }] }],
     });
     db.prepare('UPDATE sessions SET revoked_at = ?').run(T0);
     expect((await me(app, { Cookie: revoked })).status).toBe(401);

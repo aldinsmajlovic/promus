@@ -31,7 +31,7 @@ export function inviteRoutes({ db, logger, now }: Pick<AppDeps, 'db' | 'logger' 
       const body = inviteTokenSchema.safeParse(await c.req.json().catch(() => null));
       if (!body.success) return c.json({ error: 'invalid_request' }, 400);
       const invite = findValidInvite(db, hashToken(body.data.token), now());
-      return invite ? c.json({ expiresAt: invite.expires_at }) : c.json({ error: 'invite_invalid' }, 404);
+      return invite ? c.json({ expiresAt: invite.expires_at, invitedBy: invite.invited_by }) : c.json({ error: 'invite_invalid' }, 404);
     })
     .post('/invites/accept', small, async (c) => {
       const body = inviteAcceptSchema.safeParse(await c.req.json().catch(() => null));

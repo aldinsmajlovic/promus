@@ -54,7 +54,7 @@ export function authRoutes({ db, logger, now }: Pick<AppDeps, 'db' | 'logger' | 
         .prepare('SELECT household_id AS id, role FROM household_members WHERE user_id = ? ORDER BY household_id')
         .all(userId) as { id: string; role: string }[];
       const members = db.prepare(
-        `SELECT u.username, m.role FROM household_members m JOIN users u ON u.id = m.user_id
+        `SELECT u.id, u.username, m.role FROM household_members m JOIN users u ON u.id = m.user_id
          WHERE m.household_id = ? AND u.disabled_at IS NULL ORDER BY u.username_norm`,
       );
       return c.json({

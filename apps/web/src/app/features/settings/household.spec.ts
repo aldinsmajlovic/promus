@@ -18,7 +18,7 @@ const json = (status: number, body: unknown) =>
 async function setup(origin = 'https://promus.example') {
   const fetch = vi.fn<typeof globalThis.fetch>(async (url, init) => {
     if (url === '/api/me') {
-      const members = [{ username: 'anna', role: 'owner' }, { username: 'bo', role: 'member' }];
+      const members = [{ id: 'u1', username: 'anna', role: 'owner' }, { id: 'u2', username: 'bo', role: 'member' }];
       return json(200, { user: { id: 'u1', username: 'anna' }, households: [{ id: 'h1', role: 'owner', members }] });
     }
     if (url === '/api/invites' && init?.method === 'POST') return json(201, { id: 'i1', token: 'tok', expiresAt: 1 });
