@@ -1,0 +1,84 @@
+:host {
+  display: flex;
+  min-width: 0;
+}
+
+// a plain button with an M3 state layer; matRipple adds the press ripple
+.trigger {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  min-height: 3rem;
+  margin-inline-start: -0.5rem;
+  padding-inline: 0.5rem 0.25rem;
+  overflow: hidden;
+  border: 0;
+  border-radius: var(--mat-sys-corner-full);
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+
+  &::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: currentColor;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  @media (hover: hover) {
+    &:hover::before {
+      opacity: var(--mat-sys-hover-state-layer-opacity);
+    }
+  }
+
+  &:focus-visible {
+    outline: 3px solid var(--mat-sys-secondary);
+    outline-offset: -3px;
+  }
+}
+
+// no `font` here: the global .brand sets the title's face
+.title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.trigger mat-icon {
+  flex: none;
+  color: var(--promus-accent);
+}
+
+.menu-row {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.menu-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.selected {
+  background: var(--mat-sys-secondary-container);
+  color: var(--mat-sys-on-secondary-container);
+}
+
+.heading {
+  padding: 0.75rem 1rem 0.5rem;
+  overflow: hidden;
+  color: var(--mat-sys-on-surface-variant);
+  font: var(--mat-sys-title-small);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.field {
+  padding: 0.5rem 1rem;
+}

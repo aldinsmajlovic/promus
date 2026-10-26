@@ -65,9 +65,9 @@
     "delete": "Delete list",
     "done": "Done ({{n}})",
     "empty": "The list is empty",
-    "more": "More options",
     "moreFor": "Options for {{name}}",
     "new": "New list",
+    "newName": "Name the new list",
     "profile": "Settings for {{name}}",
     "rename": "Rename list",
     "settings": "Settings"

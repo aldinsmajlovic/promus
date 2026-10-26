@@ -20,11 +20,6 @@ h1 {
   font: inherit;
 }
 
-.brand {
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
 // a plain button with an M3 state layer; matRipple adds the press ripple
 .state {
   position: relative;
@@ -62,37 +57,10 @@ h1 {
   }
 }
 
-.switch {
-  display: flex;
-  align-items: center;
-  min-width: 0;
-  min-height: 3rem;
-  margin-inline-start: -0.5rem;
-  padding-inline: 0.5rem 0.25rem;
-  border-radius: var(--mat-sys-corner-full);
-}
-
-.switch mat-icon,
 .row mat-icon,
 .section mat-icon {
   flex: none;
   color: var(--mat-sys-on-surface-variant);
-}
-
-.menu-row {
-  display: flex;
-  gap: 0.75rem;
-}
-
-.menu-name {
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.selected {
-  background: var(--mat-sys-secondary-container);
-  color: var(--mat-sys-on-secondary-container);
 }
 
 main {

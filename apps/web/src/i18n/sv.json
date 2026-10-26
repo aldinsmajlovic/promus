@@ -65,9 +65,9 @@
     "delete": "Ta bort listan",
     "done": "Klart ({{n}})",
     "empty": "Listan är tom",
-    "more": "Fler alternativ",
     "moreFor": "Alternativ för {{name}}",
     "new": "Ny lista",
+    "newName": "Namnge den nya listan",
     "profile": "Inställningar för {{name}}",
     "rename": "Byt namn på listan",
     "settings": "Inställningar"

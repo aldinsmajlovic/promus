@@ -1,0 +1,78 @@
+<ng-container *transloco="let t">
+  <!-- no name until the current list is known, rather than a wrong one first -->
+  @let list = current.list(); @if (list !== undefined) {
+  <button
+    class="trigger"
+    matRipple
+    [matMenuTriggerFor]="menu"
+    (menuClosed)="mode.set({ kind: 'lists' })"
+  >
+    <span class="title brand">{{ list?.name ?? t('list.default') }}</span>
+    <mat-icon svgIcon="arrow_drop_down" />
+  </button>
+  }
+
+  <mat-menu #menu="matMenu" [overlapTrigger]="false">
+    @let m = mode(); @if (m.kind === 'lists') { @for (l of current.lists();
+    track l.id) {
+    <button
+      mat-menu-item
+      appRowGestures
+      [swipe]="false"
+      role="menuitemradio"
+      [attr.aria-checked]="l.id === list?.id"
+      [class.selected]="l.id === list?.id"
+      (click)="current.select(l.id)"
+      (held)="open({ kind: 'actions', list: l })"
+    >
+      <span class="menu-row">
+        <span class="menu-name">{{ l.name }}</span>
+        <span>{{ l.activeCount }}</span>
+      </span>
+    </button>
+    }
+    <mat-divider />
+    <button
+      mat-menu-item
+      (click)="$event.stopPropagation(); open({ kind: 'new' })"
+    >
+      <mat-icon svgIcon="add" />{{ t('list.new') }}
+    </button>
+    } @else if (m.kind === 'actions') {
+    <div class="heading">{{ m.list.name }}</div>
+    <button
+      mat-menu-item
+      (click)="$event.stopPropagation(); open({ kind: 'rename', list: m.list })"
+    >
+      <mat-icon svgIcon="edit" />{{ t('list.rename') }}
+    </button>
+    <!-- the last list stays: without one there is nothing to add to -->
+    <button
+      mat-menu-item
+      [disabled]="current.lists().length < 2"
+      (click)="delete(m.list)"
+    >
+      <mat-icon svgIcon="delete" />{{ t('list.delete') }}
+    </button>
+    } @else {
+    <div
+      class="field"
+      (click)="$event.stopPropagation()"
+      (keydown)="key($event)"
+    >
+      <mat-form-field subscriptSizing="dynamic">
+        <input
+          #field
+          matInput
+          enterkeyhint="done"
+          [formControl]="name"
+          [placeholder]="t('list.newName')"
+          [attr.aria-label]="t('list.newName')"
+        />
+        @let refused = name.getError('refused');
+        <mat-error>{{ refused && t(refused.key, refused.params) }}</mat-error>
+      </mat-form-field>
+    </div>
+    }
+  </mat-menu>
+</ng-container>

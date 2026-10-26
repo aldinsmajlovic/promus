@@ -193,28 +193,6 @@ describe('ListPage', () => {
     }
   });
 
-  it('the list switcher appears only with more than one list', async () => {
-    const { el, fixture, store, db, loader } = await setup([['Mjölk']]);
-    expect(el.querySelector('.switch')).toBeNull();
-    expect(text(el.querySelector('h1'))).toBe('Inköpslista');
-
-    const { listId: lidl } = await store.createList('Lidl');
-    await fixture.whenStable();
-    const switcher = await loader.getHarness(MatMenuHarness.with({ selector: '.switch' }));
-    await switcher.open();
-    const items = await Promise.all((await switcher.getItems()).map((i) => i.getText()));
-    expect(items).toEqual([
-      expect.stringMatching(/^Inköpslista\s*1$/),
-      expect.stringMatching(/^Lidl\s*0$/),
-      'Ny lista',
-    ]);
-
-    await switcher.clickItem({ text: /^Lidl/ });
-    await fixture.whenStable();
-    expect(text(el.querySelector('h1'))).toBe('Lidl');
-    expect(await db.getMeta('currentListId')).toBe(lidl);
-  });
-
   it('shows the empty line for an empty list', async () => {
     const { el } = await setup();
     expect(text(el.querySelector('.empty'))).toBe('Listan är tom');
@@ -332,46 +310,6 @@ describe('ListPage', () => {
     expect(row!.hasAttribute('aria-label')).toBe(false);
     expect(text(row!)).toContain('Mjölk');
     expect(text(row!)).toContain('laktosfri');
-  });
-
-  it('deleting the current list shows another and undo brings it back', async () => {
-    const { el, fixture, store, loader } = await setup([['Mjölk']]);
-    await store.createList('Lidl');
-    await fixture.whenStable();
-    const more = await loader.getHarness(MatMenuHarness.with({ selector: '[aria-label="Fler alternativ"]' }));
-    await more.clickItem({ text: 'Ta bort listan' });
-    await fixture.whenStable();
-    expect(text(el.querySelector('h1'))).toBe('Lidl');
-    expect(el.querySelector('.switch')).toBeNull();
-
-    const snackBar = await loader.getHarness(MatSnackBarHarness);
-    expect(await snackBar.getMessage()).toBe('Listan borttagen');
-    await snackBar.dismissWithAction();
-    await fixture.whenStable();
-    expect(text(el.querySelector('h1'))).toBe('Inköpslista');
-    expect(names(el)).toEqual(['Mjölk']);
-  });
-
-  it('a refused list name shows under the field and keeps the dialog open', async () => {
-    const { el, fixture, loader } = await setup();
-    const more = await loader.getHarness(MatMenuHarness.with({ selector: '[aria-label="Fler alternativ"]' }));
-    await more.clickItem({ text: 'Ny lista' });
-    const dialog = await loader.getHarness(MatDialogHarness);
-    const field = await dialog.getHarness(MatFormFieldHarness);
-    const name = (await field.getControl(MatInputHarness))!;
-
-    const save = await dialog.getHarness(MatButtonHarness.with({ text: 'Spara' }));
-    await name.setValue('   ');
-    await save.click();
-    await fixture.whenStable();
-    expect(await field.getTextErrors()).toEqual(['Ange ett namn']);
-
-    await name.setValue('Lidl');
-    expect(await field.getTextErrors()).toEqual([]);
-    await save.click();
-    await fixture.whenStable();
-    expect(await loader.getAllHarnesses(MatDialogHarness)).toHaveLength(0);
-    expect(text(el.querySelector('h1'))).toBe('Lidl');
   });
 
   it('your initial carries the sync status', async () => {

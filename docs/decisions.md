@@ -2,6 +2,7 @@
 
 What changed from the original plan, and why. Newest first, one line each.
 
+- **2026-10-26, the list menu.** Lists are switched and made from the list name, and renamed or deleted with a long-press there, instead of a ⋮ in the toolbar that looked like every row's.
 - **2026-10-26, sync status on your initial.** A badge with the unsynced count, or "!", instead of a sync icon in the toolbar. Subtle, because an unsynced list is expected sometimes.
 - **2026-10-26, own look.** Promus has its own colors, from the green `#3F6B21`, and its screens are a deep green band with a sheet over its lower edge. Titles are in Fraunces and everything else in Bricolage Grotesque, instead of Material's baseline green and Roboto. The app read as a template, not as an app of its own.
 - **2026-10-26, member ids and the inviter's name.** `/api/me` lists each member's id, and checking an invite answers with who sent it. The redesigned list shows a face per member, matched by id to who made each change, and the join page says whose household you're joining.
