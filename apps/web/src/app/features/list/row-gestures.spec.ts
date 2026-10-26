@@ -124,6 +124,35 @@ describe('RowGestures', () => {
     expect(host.held).toBe(2);
   });
 
+  it('contextmenu without a press is held every time', () => {
+    const { host, el } = setup();
+    el.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+    el.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+    expect(host.held).toBe(2);
+  });
+
+  it('after a hold, moving left is not a swipe', () => {
+    const { host, el, fire } = setup();
+    fire('pointerdown', 200, 10);
+    vi.advanceTimersByTime(480);
+    fire('pointermove', 60, 10);
+    fire('pointerup', 60, 10);
+    expect(host.held).toBe(1);
+    expect(host.swiped).toBe(0);
+    expect(el.style.translate).toBe('');
+  });
+
+  it('pointercancel resets a swipe', () => {
+    const { host, el, fire } = setup();
+    fire('pointerdown', 200, 10);
+    fire('pointermove', 60, 10);
+    fire('pointercancel', 60, 10);
+    fire('pointerup', 60, 10);
+    expect(host.swiped).toBe(0);
+    expect(el.style.translate).toBe('');
+    expect(el.classList).not.toContain('swiping');
+  });
+
   it('with swipe off, a left drag does nothing', () => {
     const { host, el, fire } = setup(false);
     fire('pointerdown', 200, 10);

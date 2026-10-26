@@ -12,7 +12,7 @@ export const SWIPE_MAX_PX = 110;
     '(pointerdown)': 'down($event)',
     '(pointermove)': 'move($event)',
     '(pointerup)': 'up()',
-    '(pointercancel)': 'reset()',
+    '(pointercancel)': 'cancel()',
     '(contextmenu)': 'menu($event)',
   },
 })
@@ -84,7 +84,6 @@ export class RowGestures {
     this.swallow = swiping || this.heldFired;
     this.reset();
     if (swiping) this.host.classList.add('snap');
-    this.heldFired = false;
     if (past) this.swiped.emit();
   }
 
@@ -94,17 +93,28 @@ export class RowGestures {
     this.fireHeld();
   }
 
-  protected reset(): void {
+  protected cancel(): void {
+    this.reset();
+    this.swallow = false;
+  }
+
+  private reset(): void {
     clearTimeout(this.timer);
     this.pressed = false;
+    this.mode = 'none';
+    this.heldFired = false;
     this.dx = 0;
     this.host.style.translate = '';
     this.host.classList.remove('swiping');
   }
 
   private fireHeld(): void {
-    if (this.heldFired) return;
-    this.heldFired = true;
+    // a long touch on Android sends contextmenu too: one `held` per press
+    if (this.pressed) {
+      if (this.heldFired) return;
+      this.heldFired = true;
+      this.mode = 'none';
+    }
     this.held.emit();
   }
 }
