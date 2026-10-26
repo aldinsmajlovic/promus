@@ -74,8 +74,11 @@ export function sharedEvents(events: StoredEvent[], scope: ShareScope, after: nu
     if (is(e, 'list')) return e.payload.listId === scope.listId;
     if (is(e, 'item')) return items.has(itemOf(e));
     if (!is(e, 'entry') || e.payload.listId !== scope.listId) return false;
-    // ponytail: an entry that had left Done before the link, then checked or unchecked without an entry.added
-    // since, misses its earlier events and can look different on the guest's phone. The app re-adds instead.
+    // ponytail: an entry that wasn't on the list at the moment gets only its events after the link, so it can look
+    // different on the guest's phone: when checked or unchecked with no entry.added since (the app re-adds instead),
+    // or when a late entry.added or entry.unchecked, pushed after the link, is stamped before a check stored before
+    // the link (the guest shows it active, the household doesn't). Upgrade path: for an item entering after the
+    // moment, also keep its pre-link entry events at or after its earliest post-link entry event, in fold order.
     if (e.seq > scope.fromSeq) return true;
     // an entry at the moment with no entry.added before it (its add was pushed late) keeps all of its events
     const item = itemOf(e);

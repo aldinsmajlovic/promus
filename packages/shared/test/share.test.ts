@@ -37,7 +37,16 @@ const on = (listId: string, itemId: string) => ({ listId, itemId });
 describe('sharedEvents', () => {
   it('a guest gets the list, its entries and their items, and nothing else', () => {
     const milkAdded = stored('entry.added', on(L, 'milk'), { seq: 8, wall: 9 * DAY });
-    const all = [...household, milkAdded, stored('entry.added', on(L2, 'soap'), { seq: 9, wall: 9 * DAY + 1 })];
+    const all = [
+      ...household,
+      milkAdded,
+      stored('entry.added', on(L2, 'soap'), { seq: 9, wall: 9 * DAY + 1 }),
+      // after the link, none of these concern the list
+      stored('entry.checked', on(L2, 'soap'), { seq: 10, wall: madeAt + HOUR }),
+      stored('entry.added', on(L2, 'soap'), { seq: 11, wall: madeAt + 2 * HOUR }),
+      stored('item.renamed', { itemId: 'bread', name: 'Surdegsbröd' }, { seq: 12, wall: madeAt + 3 * HOUR }),
+      stored('list.renamed', { listId: L2, name: 'Fjällstugan' }, { seq: 13, wall: madeAt + 4 * HOUR }),
+    ];
     const scope = { listId: L, fromSeq: 9, madeAt };
     expect(sharedEvents(all, scope, 0)).toEqual([listL, created.milk, milkAdded]);
     expect(scopeItems(all, scope)).toEqual(new Set(['milk']));
