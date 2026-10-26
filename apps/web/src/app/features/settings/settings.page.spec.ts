@@ -159,8 +159,8 @@ describe('SettingsPage', () => {
     // the browser bar colours, as in index.html
     document.head.insertAdjacentHTML(
       'beforeend',
-      '<meta name="theme-color" content="#F9FAEF" media="(prefers-color-scheme: light)" data-scheme="light">' +
-        '<meta name="theme-color" content="#12140E" media="(prefers-color-scheme: dark)" data-scheme="dark">',
+      '<meta name="theme-color" content="#22401A" media="(prefers-color-scheme: light)" data-scheme="light">' +
+        '<meta name="theme-color" content="#0E1A09" media="(prefers-color-scheme: dark)" data-scheme="dark">',
     );
     const metas = [...document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]')];
     const t = await setup();
