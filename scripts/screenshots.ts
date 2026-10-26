@@ -60,6 +60,8 @@ async function fill(page: Page, password: string): Promise<void> {
   await page.evaluate(() => document.fonts.ready.then(() => undefined));
   // the last click leaves a hover state on whatever moved under the pointer
   await page.mouse.move(0, 0);
+  // checking items scrolls the page; the picture starts at the band
+  await page.evaluate(() => window.scrollTo(0, 0));
 }
 
 execFileSync('npm', ['run', 'build', '-w', 'apps/web'], { stdio: 'inherit' });
@@ -88,7 +90,7 @@ try {
     ...devices['Pixel 7'],
     deviceScaleFactor: 2,
     // cropped to the list: tall enough for it, short enough to keep Add or find close
-    viewport: { width: 412, height: 640 },
+    viewport: { width: 412, height: 720 },
     locale: 'en-US',
     // `localhost` is a secure context, so Chrome keeps the Secure `__Host-` session cookie over http
     baseURL: `http://localhost:${port}`,
