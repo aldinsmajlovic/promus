@@ -6,7 +6,7 @@ const ev = <T extends EventType>(
   type: T,
   payload: PayloadOf<T>,
   wall: number,
-  extra: { id?: string; undoOf?: string; occurredAt?: number } = {},
+  extra: { id?: string; undoOf?: string; occurredAt?: number; userId?: string } = {},
 ): FoldEvent => ({ id: newId(), type, v: 1, hlc: formatHlc(wall, 0, 't'), occurredAt: wall, payload, ...extra }) as FoldEvent;
 
 const L = 'list-home';
@@ -31,6 +31,20 @@ const setup = [ev('list.created', { listId: L, name: 'Hem' }, 1), ev('item.creat
 const entry = { listId: L, itemId: 'milk' };
 
 describe('fold', () => {
+  it('an entry remembers who added it last', () => {
+    const by = (userId: string) => ({ userId });
+    const added = (userId: string, wall: number) => ev('entry.added', entry, wall, by(userId));
+    const addedBy = (...es: FoldEvent[]) => fold([...setup, ...es]).entries.get(entryKey(L, 'milk'))?.addedBy;
+    expect(addedBy(added('u1', 3))).toBe('u1');
+    expect(addedBy(added('u1', 3), ev('entry.checked', entry, 4, by('u2')), ev('entry.unchecked', entry, 5, by('u2')))).toBe('u1');
+    expect(addedBy(added('u1', 3), added('u2', 4))).toBe('u2');
+  });
+
+  it("an add without a userId counts as nobody else's", () => {
+    const s = fold([...setup, ev('entry.added', entry, 3)]);
+    expect(s.entries.get(entryKey(L, 'milk'))?.addedBy).toBeNull();
+  });
+
   it('builds lists, items and entries', () => {
     const s = fold([
       ev('list.created', { listId: L, name: 'Hem' }, 1000),
@@ -47,10 +61,10 @@ describe('fold', () => {
     });
     expect(s.items.get('bread')).toMatchObject({ purchaseCount: 1, lastPurchasedAt: 1005 });
     expect(s.entries.get(entryKey(L, 'milk'))).toEqual({
-      listId: L, itemId: 'milk', state: 'active', note: 'laktosfri', addedAt: 1003, checkedAt: null,
+      listId: L, itemId: 'milk', state: 'active', note: 'laktosfri', addedAt: 1003, checkedAt: null, addedBy: null,
     });
     expect(s.entries.get(entryKey(L, 'bread'))).toEqual({
-      listId: L, itemId: 'bread', state: 'checked', note: null, addedAt: 1004, checkedAt: 1005,
+      listId: L, itemId: 'bread', state: 'checked', note: null, addedAt: 1004, checkedAt: 1005, addedBy: null,
     });
     expect(s.skipped).toBe(0);
   });

@@ -19,6 +19,7 @@ export type EntryState = {
   note: string | null;
   addedAt: number;
   checkedAt: number | null;
+  addedBy: string | null;
 };
 export type HouseholdState = {
   lists: Map<string, ListState>;
@@ -152,11 +153,11 @@ function applyEntry(s: HouseholdState, e: EntryEvent): boolean {
   const key = entryKey(listId, itemId);
   const prev = s.entries.get(key);
   const at = hlcWall(e.hlc);
-  const keep = { listId, itemId, note: prev?.note ?? null, addedAt: prev?.addedAt ?? at };
+  const keep = { listId, itemId, note: prev?.note ?? null, addedAt: prev?.addedAt ?? at, addedBy: prev?.addedBy ?? null };
   switch (e.type) {
     case 'entry.added': {
       const note = e.payload.note || null;
-      s.entries.set(key, { listId, itemId, state: 'active', note, addedAt: at, checkedAt: null });
+      s.entries.set(key, { listId, itemId, state: 'active', note, addedAt: at, checkedAt: null, addedBy: e.userId ?? null });
       if (note) item.lastNote = note;
       break;
     }

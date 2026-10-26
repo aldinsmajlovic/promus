@@ -17,6 +17,11 @@ const buy = (itemId: string, wall: number) => [
 ];
 
 describe('views', () => {
+  it('active rows carry who added them', () => {
+    const s = fold([...base, item('milk', 'Mjölk', 2), { ...ev('entry.added', { listId: L, itemId: 'milk' }, 3), userId: 'u1' }]);
+    expect(listView(s, L, NOW, sv).active[0]!.addedBy).toBe('u1');
+  });
+
   it('sorts active entries the Swedish way', () => {
     const names = ['Ägg', 'Bananer', 'Vispgrädde', 'Kaffe'];
     const s = fold([
