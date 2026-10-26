@@ -19,9 +19,7 @@
     "placeholder": "Lägg till vara"
   },
   "dialog": {
-    "cancel": "Avbryt",
-    "close": "Stäng",
-    "save": "Spara"
+    "close": "Stäng"
   },
   "edit": {
     "archive": "Ta bort från förslag",

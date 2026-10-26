@@ -1,4 +1,4 @@
-import { Component, effect, inject, signal, viewChild } from '@angular/core';
+import { Component, Injector, afterNextRender, effect, inject, signal, viewChild } from '@angular/core';
 import type { ElementRef } from '@angular/core';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { MatRipple } from '@angular/material/core';
@@ -15,10 +15,7 @@ import { RowGestures } from './row-gestures';
 
 type ListSummary = ReturnType<CurrentList['lists']>[number];
 type Mode =
-  | { kind: 'lists' }
-  | { kind: 'new' }
-  | { kind: 'actions'; list: ListSummary }
-  | { kind: 'rename'; list: ListSummary };
+  { kind: 'lists' } | { kind: 'new' } | { kind: 'actions'; list: ListSummary } | { kind: 'rename'; list: ListSummary };
 
 /** The list name in the toolbar, a menu for switching lists; New list, Rename and Delete are in it too. */
 @Component({
@@ -44,6 +41,8 @@ export class ListMenu {
   private readonly store = inject(Store);
   private readonly actions = inject(Actions);
   protected readonly current = inject(CurrentList);
+  private readonly injector = inject(Injector);
+  private readonly menu = viewChild.required(MatMenu);
   private readonly trigger = viewChild.required(MatMenuTrigger);
   private readonly field = viewChild<ElementRef<HTMLInputElement>>('field');
 
@@ -63,6 +62,9 @@ export class ListMenu {
   protected open(mode: Mode): void {
     this.name.reset(mode.kind === 'rename' ? mode.list.name : '');
     this.mode.set(mode);
+    // the pressed item is gone, and focus with it
+    if (mode.kind === 'actions')
+      afterNextRender(() => this.menu().focusFirstItem('keyboard'), { injector: this.injector });
   }
 
   /** Material's menu closes on any key it handles and any click: a field must keep both. */

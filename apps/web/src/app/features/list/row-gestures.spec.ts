@@ -171,4 +171,53 @@ describe('RowGestures', () => {
     expect(host.clicks).toBe(1);
     expect(host.held).toBe(0);
   });
+
+  describe('after the host is gone', () => {
+    const other = () => {
+      const el = document.createElement('button');
+      document.body.append(el);
+      const fire = (type: string) =>
+        el.dispatchEvent(new PointerEvent(type, { pointerId: 1, button: 0, bubbles: true }));
+      let clicks = 0;
+      el.addEventListener('click', () => clicks++);
+      const click = () => el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+      return { el, fire, click, clicks: () => clicks };
+    };
+
+    it('the click that ends a hold is swallowed wherever it lands, once, until the next press', () => {
+      const { host, el, fire } = setup();
+      const o = other();
+      fire('pointerdown', 10, 10);
+      vi.advanceTimersByTime(480);
+      expect(host.held).toBe(1);
+      el.remove();
+      o.click();
+      expect(o.clicks()).toBe(0);
+      o.click();
+      expect(o.clicks()).toBe(1);
+      o.el.remove();
+    });
+
+    it('a new press disarms it, so a later tap goes through', () => {
+      const { el, fire } = setup();
+      const o = other();
+      fire('pointerdown', 10, 10);
+      vi.advanceTimersByTime(480);
+      el.remove();
+      o.fire('pointerdown');
+      o.click();
+      expect(o.clicks()).toBe(1);
+      o.el.remove();
+    });
+
+    it('a right-click held arms nothing', () => {
+      const { host, el } = setup();
+      const o = other();
+      el.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+      expect(host.held).toBe(1);
+      o.click();
+      expect(o.clicks()).toBe(1);
+      o.el.remove();
+    });
+  });
 });

@@ -26,23 +26,10 @@ export class RowGestures {
   private pressed = false;
   private mode: 'tap' | 'swipe' | 'none' = 'tap';
   private heldFired = false;
-  private swallow = false;
+  private disarm: (() => void) | undefined;
   private x = 0;
   private y = 0;
   private dx = 0;
-
-  constructor() {
-    this.host.addEventListener(
-      'click',
-      (e) => {
-        if (!this.swallow) return;
-        this.swallow = false;
-        e.stopImmediatePropagation();
-        e.preventDefault();
-      },
-      true,
-    );
-  }
 
   protected down(e: PointerEvent): void {
     if (e.button !== 0) return;
@@ -51,7 +38,6 @@ export class RowGestures {
     this.pressed = true;
     this.mode = 'tap';
     this.heldFired = false;
-    this.swallow = false;
     this.x = e.clientX;
     this.y = e.clientY;
     this.timer = setTimeout(() => this.fireHeld(), HOLD_MS);
@@ -65,6 +51,7 @@ export class RowGestures {
       clearTimeout(this.timer);
       if (Math.abs(dx) > Math.abs(dy) && dx < 0 && this.swipe()) {
         this.mode = 'swipe';
+        this.swallowNextClick();
         this.host.setPointerCapture(e.pointerId);
         this.host.classList.add('swiping');
       } else {
@@ -81,7 +68,6 @@ export class RowGestures {
     if (!this.pressed) return;
     const swiping = this.mode === 'swipe';
     const past = swiping && -this.dx > Math.min(this.host.offsetWidth / 3, SWIPE_MAX_PX);
-    this.swallow = swiping || this.heldFired;
     this.reset();
     if (swiping) this.host.classList.add('snap');
     if (past) this.swiped.emit();
@@ -95,7 +81,7 @@ export class RowGestures {
 
   protected cancel(): void {
     this.reset();
-    this.swallow = false;
+    this.disarm?.();
   }
 
   private reset(): void {
@@ -113,8 +99,31 @@ export class RowGestures {
     if (this.pressed) {
       if (this.heldFired) return;
       this.heldFired = true;
+      this.swallowNextClick();
       this.mode = 'none';
     }
     this.held.emit();
+  }
+
+  /**
+   * The click that ends a gesture may land on whatever replaced the row (a menu, an overlay, the next row),
+   * or on nothing: swallow the next click on the document, until the next press.
+   */
+  private swallowNextClick(): void {
+    this.disarm?.();
+    const doc = this.host.ownerDocument;
+    const off = () => {
+      doc.removeEventListener('click', swallow, true);
+      doc.removeEventListener('pointerdown', off, true);
+      this.disarm = undefined;
+    };
+    const swallow = (e: Event) => {
+      off();
+      e.stopImmediatePropagation();
+      e.preventDefault();
+    };
+    doc.addEventListener('click', swallow, true);
+    doc.addEventListener('pointerdown', off, true);
+    this.disarm = off;
   }
 }

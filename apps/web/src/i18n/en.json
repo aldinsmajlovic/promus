@@ -19,9 +19,7 @@
     "placeholder": "Add item"
   },
   "dialog": {
-    "cancel": "Cancel",
-    "close": "Close",
-    "save": "Save"
+    "close": "Close"
   },
   "edit": {
     "archive": "Remove from suggestions",
