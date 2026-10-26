@@ -90,6 +90,18 @@ describe('shares', { timeout: 30_000 }, () => {
     expect(await res.json()).toEqual({ error: 'share_invalid' });
   });
 
+  it('a link can\'t come back beside a newer one', async () => {
+    const t = await setup();
+    const a = (await (await t.share()).json()) as Share;
+    await t.send('DELETE', `/api/shares/${a.id}`);
+    const b = (await (await t.share()).json()) as Share;
+    expect(b.id).not.toBe(a.id);
+    const res = await t.send('POST', `/api/shares/${a.id}/restore`);
+    expect(res.status).toBe(404);
+    expect(await res.json()).toEqual({ error: 'share_invalid' });
+    expect((await t.shares()).shares).toEqual([b]);
+  });
+
   it('another household can neither see nor end a link', async () => {
     const t = await setup();
     const made = (await (await t.share()).json()) as Share;
@@ -112,6 +124,8 @@ describe('shares', { timeout: 30_000 }, () => {
     await t.send('POST', `/api/shares/${made.id}/restore`);
     expect(t.lines.length).toBeGreaterThan(0);
     expect(t.lines.join('')).not.toContain(made.token);
-    expect(t.lines.join('')).toContain('share created');
+    const logged = t.lines.map((l) => JSON.parse(l) as Record<string, unknown>);
+    for (const msg of ['share created', 'share ended', 'share restored'])
+      expect(logged.find((l) => l.msg === msg)).toMatchObject({ shareId: made.id, listId: t.anna.listId, userId: t.anna.userId });
   });
 });

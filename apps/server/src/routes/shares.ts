@@ -32,17 +32,18 @@ export function shareRoutes({ db, logger, now }: Pick<AppDeps, 'db' | 'logger' |
     .delete('/shares/:id', requireAuth('browser'), (c) => {
       const { userId, householdIds } = c.get('auth');
       const id = c.req.param('id');
-      if (!endShare(db, id, householdIds, now())) return c.json({ error: 'not_found' }, 404);
-      logger.info({ shareId: id, userId }, 'share ended');
+      const listId = endShare(db, id, householdIds, now());
+      if (listId === null) return c.json({ error: 'not_found' }, 404);
+      logger.info({ shareId: id, listId, userId }, 'share ended');
       return c.body(null, 204);
     })
     .post('/shares/:id/restore', requireAuth('browser'), (c) => {
       const { userId, householdIds } = c.get('auth');
       const id = c.req.param('id');
-      const result = restoreShare(db, id, householdIds, now());
+      const { result, listId } = restoreShare(db, id, householdIds, now());
       if (result === 'not_found') return c.json({ error: 'not_found' }, 404);
-      if (result === 'expired') return c.json({ error: 'share_invalid' }, 404);
-      logger.info({ shareId: id, userId }, 'share restored');
+      if (result === 'invalid') return c.json({ error: 'share_invalid' }, 404);
+      logger.info({ shareId: id, listId, userId }, 'share restored');
       return c.body(null, 204);
     });
 }

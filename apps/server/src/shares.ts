@@ -64,27 +64,36 @@ export function listShares(db: DatabaseSync, householdId: string, now: number): 
   return { shares: shares.map((r) => toShare(toRow(r))), guests };
 }
 
-/** False when no link with that id belongs to one of `householdIds`. Ending twice is fine. */
-export function endShare(db: DatabaseSync, id: string, householdIds: string[], now: number): boolean {
-  const row = db.prepare('SELECT household_id FROM shares WHERE id = ?').get(id) as { household_id: string } | undefined;
-  if (!row || !householdIds.includes(row.household_id)) return false;
+/** The link's list id, or null when no link with that id belongs to one of `householdIds`. Ending twice is fine. */
+export function endShare(db: DatabaseSync, id: string, householdIds: string[], now: number): string | null {
+  const row = db.prepare('SELECT household_id, list_id FROM shares WHERE id = ?').get(id) as
+    | { household_id: string; list_id: string }
+    | undefined;
+  if (!row || !householdIds.includes(row.household_id)) return null;
   db.prepare('UPDATE shares SET revoked_at = ? WHERE id = ? AND revoked_at IS NULL').run(now, id);
-  return true;
+  return row.list_id;
 }
 
+/** 'invalid': expired, or another live link of the list has taken its place. `listId` is null for 'not_found'. */
 export function restoreShare(
   db: DatabaseSync,
   id: string,
   householdIds: string[],
   now: number,
-): 'ok' | 'not_found' | 'expired' {
-  const row = db.prepare('SELECT household_id, expires_at FROM shares WHERE id = ?').get(id) as
-    | { household_id: string; expires_at: number }
-    | undefined;
-  if (!row || !householdIds.includes(row.household_id)) return 'not_found';
-  if (row.expires_at <= now) return 'expired';
-  db.prepare('UPDATE shares SET revoked_at = NULL WHERE id = ?').run(id);
-  return 'ok';
+): { result: 'ok' | 'not_found' | 'invalid'; listId: string | null } {
+  return transaction(db, () => {
+    const row = db.prepare('SELECT household_id, list_id, expires_at FROM shares WHERE id = ?').get(id) as
+      | { household_id: string; list_id: string; expires_at: number }
+      | undefined;
+    if (!row || !householdIds.includes(row.household_id)) return { result: 'not_found', listId: null };
+    const listId = row.list_id;
+    const other = db
+      .prepare(`SELECT 1 FROM shares s WHERE s.household_id = ? AND s.list_id = ? AND s.id <> ? AND ${LIVE}`)
+      .get(row.household_id, listId, id, now);
+    if (row.expires_at <= now || other) return { result: 'invalid', listId };
+    db.prepare('UPDATE shares SET revoked_at = NULL WHERE id = ?').run(id);
+    return { result: 'ok', listId };
+  });
 }
 
 export function findShareByToken(db: DatabaseSync, token: string, now: number): ShareRow | undefined {
