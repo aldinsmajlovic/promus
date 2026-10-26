@@ -136,8 +136,8 @@ test('two tabs stay in step', async ({ page, context }) => {
   await tab.getByRole('checkbox', { name: 'Kaffe' }).click();
   // the household's only checked item
   await expect(page.getByRole('button', { name: 'Klart (1)' })).toBeVisible({ timeout: 3_000 });
-  // it folds away on the frames Chrome gives a tab behind: about 2 s
-  await expect(page.getByRole('checkbox', { name: 'Kaffe', checked: false })).toBeHidden({ timeout: 8_000 });
+  // the row still folds away, but hidden from screen readers as soon as it starts
+  await expect(page.getByRole('checkbox', { name: 'Kaffe', checked: false })).toBeHidden({ timeout: 3_000 });
   // the first tab is behind the second: its snackbar still goes
   await expect(page.getByText('Kaffe tillagd')).toBeHidden({ timeout: 8_000 });
 });

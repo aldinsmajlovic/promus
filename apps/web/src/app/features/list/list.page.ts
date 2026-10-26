@@ -1,4 +1,5 @@
 import {
+  type AnimationCallbackEvent,
   Component,
   DOCUMENT,
   ElementRef,
@@ -76,8 +77,9 @@ export class ListPage {
   protected readonly sharedWith = computed(() =>
     new Intl.ListFormat(this.lang(), { type: 'conjunction' }).format(this.household.others().map((m) => m.username)),
   );
-  // the list the last render showed: rows arriving in it or leaving it move, a list that loads or switches just shows.
-  // Angular asks for the animation classes after rendering, before this is updated in the read phase.
+  // the list the last render showed in full, Done included: rows arriving in it or leaving it move, a list that
+  // loads or switches just shows. Angular runs the enter and leave animations after rendering, before this is
+  // updated in the read phase. Done waits on its own meta read, so its first rows would arrive if this were set before.
   private shown: string | undefined;
 
   constructor() {
@@ -91,7 +93,7 @@ export class ListPage {
     });
     afterRenderEffect({
       read: () => {
-        this.shown = this.list()?.id;
+        this.shown = this.doneOpen() === undefined ? undefined : this.list()?.id;
       },
     });
   }
@@ -125,10 +127,17 @@ export class ListPage {
     return this.list()?.id === this.shown ? 'arrive' : '';
   }
 
-  /** A row checked off pops its circle, strikes its name and folds; a removed one just goes. */
-  protected leaving(e: EntryView): string {
+  /**
+   * A row checked off pops its circle, strikes its name and folds, hidden from screen readers meanwhile since
+   * its Done copy is already there; a removed one just goes.
+   */
+  protected leave({ target, animationComplete }: AnimationCallbackEvent, e: EntryView): void {
     const checked = this.view().done.some((d) => d.itemId === e.itemId);
-    return checked && this.list()?.id === this.shown ? 'checked-off' : '';
+    if (!checked || this.list()?.id !== this.shown) return animationComplete();
+    target.setAttribute('aria-hidden', 'true');
+    target.classList.add('checked-off');
+    // none under reduced motion
+    void Promise.allSettled(target.getAnimations().map((a) => a.finished)).then(animationComplete);
   }
 
   /**

@@ -36,7 +36,7 @@
           <ul>
             @for (e of view().active; track e.itemId; let i = $index) {
               @let by = addedBy(e);
-              <li [animate.enter]="arriving()" [animate.leave]="leaving(e)">
+              <li [animate.enter]="arriving()" (animate.leave)="leave($event, e)">
                 <button
                   #activeRow
                   class="row state"

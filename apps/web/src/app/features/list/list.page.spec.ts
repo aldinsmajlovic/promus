@@ -145,6 +145,30 @@ describe('ListPage', () => {
     expect(rows(again.nativeElement, true)).toHaveLength(0);
   });
 
+  it('rows only arrive once the whole list has shown, Done included', async () => {
+    const t = await setup([['Mjölk'], ['Ost']]);
+    await t.store.check(t.listId, itemId(t.store, 'Ost'));
+    // the list is loaded already; whether Done is folded is read only after it shows
+    let release!: () => void;
+    const held = new Promise<void>((r) => (release = r));
+    const getMeta = t.db.getMeta.bind(t.db) as (key: string) => Promise<unknown>;
+    const holdFolded = (key: string) => (key === 'doneFolded' ? held.then(() => getMeta(key)) : getMeta(key));
+    const spy = vi.spyOn(t.db, 'getMeta').mockImplementation(holdFolded as never);
+    const page = TestBed.createComponent(ListPage);
+    // jsdom runs no animations, so ask the page which class an arriving row would get
+    const arriving = () => page.componentInstance['arriving']();
+    // the read is a pending task, so wait for the rows themselves
+    await vi.waitFor(() => expect(names(page.nativeElement)).toEqual(['Mjölk']));
+    expect(doneToggle(page.nativeElement)).toBeNull();
+    expect(arriving()).toBe('');
+
+    release();
+    await page.whenStable();
+    expect(names(page.nativeElement, true)).toEqual(['Ost']);
+    expect(arriving()).toBe('arrive');
+    spy.mockRestore();
+  });
+
   it('while Done is folded, a checked row still leaves and is counted', async () => {
     const { el, fixture, store, listId } = await setup([['Mjölk'], ['Ost']]);
     await store.check(listId, itemId(store, 'Mjölk'));
@@ -211,6 +235,7 @@ describe('ListPage', () => {
     await t.fixture.whenStable();
     expect(t.el.querySelectorAll('main app-face')).toHaveLength(0);
     expect(failed).not.toHaveBeenCalled();
+    failed.mockRestore();
   });
 
   it('focus stays in the list when a row moves to the other section', async () => {
