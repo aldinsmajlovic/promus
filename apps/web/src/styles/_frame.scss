@@ -1,0 +1,186 @@
+@use '@angular/material' as mat;
+
+// A page: the band, then the sheet over its lower edge, filling the screen
+.frame {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+}
+
+.band {
+  padding: calc(0.625rem + env(safe-area-inset-top)) 1.125rem 2.5rem 1.375rem;
+  background: var(--promus-band);
+  color: #fff;
+  @include mat.icon-button-overrides(
+    (
+      icon-color: currentColor,
+    )
+  );
+}
+
+// one row as tall as the old toolbar, so the `.in-toolbar` snackbar still sits in it, past Close.
+// The bottom padding is the part the sheet covers.
+.band.slim {
+  display: flex;
+  align-items: center;
+  min-height: 4rem;
+  padding-block: env(safe-area-inset-top) 1.5rem;
+  padding-inline: 0.25rem 1rem;
+}
+
+.sheet {
+  // above the band's text, which would otherwise paint over it
+  position: relative;
+  flex: 1;
+  margin-top: -1.5rem;
+  border-radius: var(--mat-sys-corner-extra-large-top);
+  background: var(--promus-sheet);
+  box-shadow:
+    inset 0 1px 0 var(--promus-sheet-edge),
+    0 -10px 28px rgb(0 0 0 / 0.25);
+}
+
+@media (min-width: 600px) {
+  .frame {
+    max-width: 660px;
+    margin-inline: auto;
+  }
+
+  // the band's green runs the full width, and on down beside the top of the sheet
+  .frame > .band {
+    border-image-source: conic-gradient(var(--promus-band) 0 0);
+    border-image-slice: 0 fill;
+    border-image-outset: 0 100vmax 6rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .frame.split {
+    display: grid;
+    grid-template: auto 1fr / 1fr 380px;
+    column-gap: 1.5rem;
+    box-sizing: border-box;
+    max-width: 1060px;
+    padding-inline: 1.5rem;
+  }
+
+  .frame.split > .band {
+    grid-column: 1 / -1;
+  }
+}
+
+.brand,
+.title {
+  font-family: 'Fraunces Variable', serif;
+  font-variation-settings:
+    'SOFT' 100,
+    'WONK' 1;
+}
+
+// one line, ellipsized; the padding keeps descenders inside the clipping box
+.title {
+  overflow: hidden;
+  margin: 0;
+  padding-block-end: 0.15em;
+  font-size: 1.875rem;
+  font-weight: 650;
+  line-height: 1.1;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+// a member's initial; the same colors in both themes
+.face {
+  position: relative;
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  width: var(--face-size, 1.5rem);
+  height: var(--face-size, 1.5rem);
+  border-radius: 50%;
+  font-size: calc(var(--face-size, 1.5rem) * 0.45);
+  font-weight: 600;
+  line-height: 1;
+}
+
+.tone-0 {
+  background: #C6EB8E;
+  color: #22401A;
+}
+
+.tone-1 {
+  background: #F2C46D;
+  color: #4A3300;
+}
+
+.tone-2 {
+  background: #A8D4F0;
+  color: #0B3550;
+}
+
+.tone-3 {
+  background: #F4B6C2;
+  color: #5A1726;
+}
+
+.tone-4 {
+  background: #CDBEF2;
+  color: #2F1F5C;
+}
+
+.tone-5 {
+  background: #E8CFA8;
+  color: #4A3418;
+}
+
+.face .badge {
+  position: absolute;
+  top: -0.25rem;
+  right: -0.25rem;
+  box-sizing: border-box;
+  min-width: 1rem;
+  height: 1rem;
+  padding-inline: 0.25rem;
+  border-radius: 0.5rem;
+  background: var(--mat-sys-error);
+  color: var(--mat-sys-on-error);
+  font-size: 0.625rem;
+  font-weight: 700;
+  line-height: 1rem;
+  text-align: center;
+}
+
+// a rounded block of rows on the sheet
+.group {
+  margin: 0 0.75rem 0.75rem;
+  overflow: hidden;
+  border-radius: 1.375rem;
+  background: var(--promus-field);
+}
+
+// menu rows sit in from the edges, so hover, focus and `.selected` are rounded highlights.
+// The panel is needed to outrank Material's own padding.
+.mat-mdc-menu-panel .mat-mdc-menu-content {
+  padding: 0.5rem;
+}
+
+.mat-mdc-menu-item {
+  border-radius: 0.75rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  // a rule of its own: a browser without view transitions would drop the selectors above with it
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+    transition: none !important;
+  }
+}

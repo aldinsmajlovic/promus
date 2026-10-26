@@ -49,11 +49,6 @@ h1 {
   }
 }
 
-b {
-  // the bundled Roboto weights are 400 and 500
-  font-weight: 500;
-}
-
 // disabled, but not dimmed: the check says it all
 .on-list {
   @include mat.list-overrides(

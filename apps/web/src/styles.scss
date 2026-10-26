@@ -1,8 +1,9 @@
 @use '@angular/material' as mat;
 @use 'theme-colors' as *;
 @use '@fontsource-variable/fraunces/full.css';
-@use '@fontsource/roboto/400.css' as roboto-400;
-@use '@fontsource/roboto/500.css' as roboto-500;
+@use '@fontsource-variable/bricolage-grotesque/opsz.css';
+@use 'styles/tokens';
+@use 'styles/frame';
 
 html {
   color-scheme: light dark;
@@ -13,26 +14,46 @@ html {
         tertiary: $tertiary-palette,
         theme-type: color-scheme,
       ),
+      // Fraunces only where `.brand` or `.title` asks for it
       typography: (
-        brand-family: 'Fraunces Variable',
-        plain-family: Roboto,
+        brand-family: 'Bricolage Grotesque Variable',
+        plain-family: 'Bricolage Grotesque Variable',
       ),
       density: 0,
+    )
+  );
+  @include mat.theme-overrides(
+    (
+      surface: var(--promus-sheet),
+      on-surface: var(--promus-text),
+      on-surface-variant: var(--promus-muted),
+      outline-variant: var(--promus-line),
+      primary: var(--promus-check),
+      on-primary: var(--promus-check-mark),
+      secondary-container: var(--promus-tint),
+      on-secondary-container: var(--promus-tint-ink),
+      surface-container-lowest: var(--promus-menu),
+      surface-container-low: var(--promus-menu),
+      surface-container: var(--promus-menu),
+      surface-container-high: var(--promus-menu),
+      surface-container-highest: var(--promus-field),
+      inverse-surface: var(--promus-snack),
+      inverse-on-surface: var(--promus-snack-text),
+      inverse-primary: var(--promus-snack-action),
     )
   );
 }
 
 body {
   margin: 0;
-  background-color: var(--mat-sys-surface);
+  background-color: var(--promus-sheet);
   color: var(--mat-sys-on-surface);
   font: var(--mat-sys-body-medium);
-}
 
-.brand {
-  font-variation-settings:
-    'SOFT' 100,
-    'WONK' 1;
+  // around the centered column
+  @media (min-width: 600px) {
+    background-color: var(--promus-page);
+  }
 }
 
 // M3 bottom sheets keep their rounded top at every width; Material squares it off on phones

@@ -1,0 +1,30 @@
+// Promus's own colors, light then dark. styles.scss sets Material's roles from them.
+:root {
+  --promus-band: light-dark(#22401A, #0E1A09);
+  // around the column on wide screens
+  --promus-page: light-dark(#EEF1E6, #171C13);
+  --promus-sheet: light-dark(#FFFFFF, #262B21);
+  // dark mode's lit top edge, so the sheet lifts off the band
+  --promus-sheet-edge: light-dark(transparent, rgba(255, 255, 255, 0.08));
+
+  --promus-text: light-dark(#1A2014, #E3E7DA);
+  --promus-muted: light-dark(#646D5A, #A3AC97);
+  // the unchecked circle: #858E79 is 3.42:1 on white, the 3:1 an outline needs
+  --promus-circle: light-dark(#858E79, #737D68);
+  --promus-check: light-dark(#3F6B21, #A5D46E);
+  --promus-check-mark: light-dark(#FFFFFF, #10200A);
+  // the count and the ▾ on the band
+  --promus-accent: light-dark(#C6EB8E, #C6EB8E);
+
+  --promus-field: light-dark(#EDF1E5, #333A2D);
+  --promus-line: light-dark(#E6EADF, #363D30);
+  --promus-tint: light-dark(#E6EEDA, #3A4630);
+  --promus-tint-ink: light-dark(#2E5418, #C6EB8E);
+  --promus-menu: light-dark(#FFFFFF, #30362A);
+
+  --promus-swipe: light-dark(#B3261E, #93000A);
+  --promus-swipe-text: light-dark(#FFFFFF, #FFDAD6);
+  --promus-snack: light-dark(#2B3125, #E3E7DA);
+  --promus-snack-text: light-dark(#EEF2E6, #1A2014);
+  --promus-snack-action: light-dark(#C3E68C, #3F6B21);
+}

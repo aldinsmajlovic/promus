@@ -15,8 +15,8 @@ import { createLogger } from '../apps/server/src/log.ts';
 import { createUser } from '../apps/server/src/users.ts';
 
 // The README screenshots, light and dark: a fresh build against a throwaway database, filled
-// through the UI with made-up items.
-const OUT = 'docs/images';
+// through the UI with made-up items. A directory as the first argument takes them instead.
+const OUT = process.argv[2] ?? 'docs/images';
 const ITEMS: [name: string, note?: string][] = [
   ['Bananas'],
   ['Bread'],
