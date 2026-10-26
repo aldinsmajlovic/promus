@@ -318,6 +318,10 @@
   padding: 0.5rem;
 }
 
+.list-menu {
+  --mat-menu-container-shape: 1.125rem;
+}
+
 .mat-mdc-menu-item {
   border-radius: 0.75rem;
 }

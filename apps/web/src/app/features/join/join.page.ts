@@ -8,8 +8,8 @@ import { SECURE_CONTEXT } from '../../core/platform';
 import { CookieRejectedError, SessionService } from '../../core/session';
 import { SyncService } from '../../core/sync.service';
 import { AccountForm, type AccountValue, type FormError, formErrorOf } from '../../shared/account-form';
-import { HttpsNotice } from '../../shared/https-notice';
 import { initialOf } from '../../shared/face';
+import { HttpsNotice } from '../../shared/https-notice';
 import { PhoneCard } from '../../shared/phone-card';
 
 type State = 'checking' | 'form' | 'invalid' | 'phone';

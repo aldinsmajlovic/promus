@@ -12,7 +12,7 @@ const NOT_FOUND_CODES = new Set([
   'ERR_INVALID_ARG_VALUE',
 ]);
 // Angular stamps an 8-character content hash into bundled file names
-// (main-4FBLEPWP.js, media/roboto-latin-400-normal-LOX3CHMS.woff2). Only those never change.
+// (main-4FBLEPWP.js, media/fraunces-latin-full-normal-2NUMMRN6.woff2). Only those never change.
 const HASHED = /-[A-Z0-9]{8}\.[a-z0-9]+$/;
 
 async function tryRead(path: string): Promise<Buffer | null> {

@@ -41,6 +41,12 @@
   display: none;
 }
 
+// the whole row is the action; beside a count it takes only what it needs
 .signout {
+  flex: 1;
+}
+
+.pending:not(:empty) + .signout {
+  flex: none;
   margin-inline-start: auto;
 }

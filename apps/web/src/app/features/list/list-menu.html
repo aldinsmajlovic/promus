@@ -8,7 +8,7 @@
     </button>
   }
 
-  <mat-menu #menu="matMenu" [overlapTrigger]="false">
+  <mat-menu #menu="matMenu" class="list-menu" [overlapTrigger]="false">
     @let m = mode();
     @if (m.kind === 'lists') {
       @for (l of current.lists(); track l.id) {

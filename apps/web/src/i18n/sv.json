@@ -92,8 +92,7 @@
   },
   "phone": {
     "local": "Det här är serverns egen adress, som mobilen inte kan öppna. Använd serverns https://-adress i mobilen.",
-    "scan": "Skanna med mobilens kamera för att öppna Promus där.",
-    "title": "Öppna i mobilen"
+    "scan": "Skanna med mobilens kamera för att öppna Promus där."
   },
   "settings": {
     "account": "Konto",

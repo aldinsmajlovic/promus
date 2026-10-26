@@ -83,7 +83,7 @@ describe('app', () => {
     mkdirSync(join(webRoot, 'icons'));
     const files = {
       'main-4FBLEPWP.js': 'console.log(1)',
-      'media/roboto-latin-400-normal-LOX3CHMS.woff2': '',
+      'media/fraunces-latin-full-normal-2NUMMRN6.woff2': '',
       'manifest.webmanifest': '{}',
       'ngsw-worker.js': '',
       'ngsw.json': '{}',
@@ -96,7 +96,7 @@ describe('app', () => {
     const js = await app.request('/main-4FBLEPWP.js');
     expect(js.headers.get('content-type')).toContain('javascript');
     expect(js.headers.get('cache-control')).toBe(immutable);
-    expect(await cacheOf('/media/roboto-latin-400-normal-LOX3CHMS.woff2')).toBe(immutable);
+    expect(await cacheOf('/media/fraunces-latin-full-normal-2NUMMRN6.woff2')).toBe(immutable);
     const unhashed = ['/manifest.webmanifest', '/ngsw-worker.js', '/ngsw.json', '/icons/icon-192.png', '/'];
     for (const path of unhashed) expect(await cacheOf(path), path).toBe('no-cache');
   });
