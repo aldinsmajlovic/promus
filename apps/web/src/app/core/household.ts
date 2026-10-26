@@ -21,8 +21,9 @@ export class Household {
   async refresh(): Promise<void> {
     try {
       const cached = await this.db.getMeta('members');
-      if (cached) this.list.set(cached);
-      const members = (await this.api.me()).households[0]?.members ?? [];
+      this.list.set(cached ?? []);
+      const members = (await this.api.me()).households[0]?.members;
+      if (!members) return;
       this.list.set(members);
       await this.db.setMeta('members', members);
     } catch (err) {

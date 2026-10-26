@@ -30,6 +30,25 @@ describe('Household', () => {
     expect(household.members()).toEqual([anna, bo]);
   });
 
+  it('forgets members once the cache is wiped', async () => {
+    const { db, api, household } = setup();
+    await db.setMeta('members', [anna, bo]);
+    api.me.mockRejectedValue(new NetworkError());
+    await household.refresh();
+    await db.meta.delete('members');
+    await household.refresh();
+    expect(household.members()).toEqual([]);
+  });
+
+  it('keeps the cache when the server names no household', async () => {
+    const { db, api, household } = setup();
+    await db.setMeta('members', [anna, bo]);
+    api.me.mockResolvedValue({ user: { id: 'u1', username: 'anna' }, households: [] });
+    await household.refresh();
+    expect(household.members()).toEqual([anna, bo]);
+    expect(await db.getMeta('members')).toEqual([anna, bo]);
+  });
+
   it('saves what the server says', async () => {
     const { db, api, household } = setup();
     await db.setMeta('session', { userId: 'u1', username: 'anna', householdId: 'h1' });
