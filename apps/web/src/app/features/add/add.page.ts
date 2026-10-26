@@ -23,8 +23,8 @@ import { CurrentList } from '../../core/current-list';
 import { Store, ValidationError } from '../../core/store';
 import { type SearchResult, resultOf, searchItems, segments } from './search';
 
-// at the bottom it would sit on the field; `below-toolbar` keeps Close uncovered
-const SNACK: MatSnackBarConfig = { verticalPosition: 'top', panelClass: 'below-toolbar' };
+// at the bottom it would sit on the field; `in-toolbar` keeps it off the rows and Close uncovered
+const SNACK: MatSnackBarConfig = { verticalPosition: 'top', panelClass: 'in-toolbar' };
 const FLASH_MS = 600;
 
 @Component({
