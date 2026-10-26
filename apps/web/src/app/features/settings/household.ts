@@ -1,19 +1,19 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { MatButton } from '@angular/material/button';
 import { MatBottomSheet } from '@angular/material/bottom-sheet';
 import { MatIcon } from '@angular/material/icon';
 import { MatSnackBar, type MatSnackBarConfig } from '@angular/material/snack-bar';
 import { TranslocoDirective, TranslocoService } from '@jsverse/transloco';
-import { AuthError, type Member, NetworkError } from '@promus/shared';
 import { Actions } from '../../core/actions';
 import { ApiClient } from '../../core/api';
+import { Household } from '../../core/household';
 import { ORIGIN } from '../../core/platform';
 import { InviteSheet, type InviteSheetData } from './invite-sheet';
 
 // at the top: the invite sheet takes the bottom of the screen
 const SNACK: MatSnackBarConfig = { duration: 5000, verticalPosition: 'top' };
 
-/** Who shares this household's lists, and inviting someone new. Members are only known online. */
+/** Who shares this household's lists, and inviting someone new. Members are cached for offline. */
 @Component({
   selector: 'app-household',
   imports: [MatButton, MatIcon, TranslocoDirective],
@@ -51,16 +51,11 @@ export class HouseholdSection {
   private readonly transloco = inject(TranslocoService);
   private readonly actions = inject(Actions);
   private readonly origin = inject(ORIGIN);
-  protected readonly members = signal<Member[]>([]);
+  private readonly household = inject(Household);
+  protected readonly members = this.household.members;
 
   constructor() {
-    this.api.me().then(
-      (me) => this.members.set(me.households[0]?.members ?? []),
-      (err: unknown) => {
-        // offline or signed out (the sync indicator asks to sign in): the list stays empty
-        if (!(err instanceof NetworkError || err instanceof AuthError)) console.error('household members failed', err);
-      },
-    );
+    void this.household.refresh();
   }
 
   protected async invite(): Promise<void> {
