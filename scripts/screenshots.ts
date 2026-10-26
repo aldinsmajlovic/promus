@@ -46,7 +46,7 @@ async function fill(page: Page, password: string): Promise<void> {
 
   for (const [name, note] of ITEMS) {
     if (!note) continue;
-    await page.getByRole('button', { name: `Options for ${name}` }).click();
+    await page.getByRole('checkbox', { name }).click({ button: 'right' });
     await page.getByLabel('Note').fill(note);
     await page.getByLabel('Note').press('Enter');
   }

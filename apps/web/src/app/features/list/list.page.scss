@@ -92,9 +92,57 @@ ul {
 
 // rows sit in from the sheet's edges, so their highlight is rounded
 li {
+  position: relative;
   display: flex;
   align-items: center;
+  overflow: hidden;
   padding-inline: 0.5rem 0.25rem;
+}
+
+// behind the row, shown only while it is dragged or swept away: at rest it would fringe the row's rounded corners
+.swipe-bg {
+  visibility: hidden;
+  position: absolute;
+  inset: 0 0.25rem 0 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding-inline-end: 1.25rem;
+  border-radius: 0.75rem;
+  background: var(--promus-swipe);
+  color: var(--promus-swipe-text);
+  font-weight: 600;
+}
+
+li:has(.swiping, .swept) .swipe-bg {
+  visibility: visible;
+}
+
+// the swipe follows the finger; released, the row snaps back, or, once swiped, slides on out
+.swiping {
+  transition: none;
+}
+
+.snap {
+  transition: translate 200ms ease-out;
+}
+
+.swept {
+  translate: -100%;
+}
+
+// the keyboard and screen reader path to a row's options, seen only when focused
+.opts {
+  position: absolute;
+  inset-inline-end: 0.25rem;
+  opacity: 0;
+  pointer-events: none;
+
+  &:focus-visible {
+    background: var(--promus-sheet);
+    opacity: 1;
+  }
 }
 
 .row {
@@ -106,83 +154,7 @@ li {
   min-height: 3.5rem;
   padding: 0.5rem 0.625rem;
   border-radius: 0.75rem;
-}
-
-.circle {
-  display: grid;
-  flex: none;
-  place-items: center;
-  box-sizing: border-box;
-  width: 1.5rem;
-  height: 1.5rem;
-  border: 2px solid var(--promus-circle);
-  border-radius: 50%;
-  transition: 160ms;
-
-  mat-icon {
-    width: 1.125rem;
-    height: 1.125rem;
-    color: var(--promus-check-mark);
-    opacity: 0;
-    scale: 0.3;
-    // the pop: a slight overshoot
-    transition:
-      opacity 120ms,
-      scale 300ms cubic-bezier(0.3, 1.7, 0.5, 1);
-  }
-}
-
-.row:active .circle {
-  scale: 0.88;
-}
-
-.circle.checked,
-.checked-off .circle {
-  border-color: var(--promus-check);
-  background-color: var(--promus-check);
-
-  mat-icon {
-    opacity: 1;
-    scale: 1;
-  }
-}
-
-.text {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  min-width: 0;
-}
-
-.name,
-.note {
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-  overflow: hidden;
-  overflow-wrap: anywhere;
-}
-
-.name {
-  font-size: 1.125rem;
-  font-weight: 450;
-  line-height: 1.5rem;
-  transition: color 200ms;
-}
-
-// the line through a checked name, drawn from the left; on each line of a long name
-.strike {
-  background: linear-gradient(currentColor, currentColor) no-repeat 0 58% / 0 1.5px;
-  -webkit-box-decoration-break: clone;
-  box-decoration-break: clone;
-  transition: background-size 260ms ease 40ms;
-}
-
-.note {
-  font-size: 0.90625rem;
-  line-height: 1.25rem;
-  color: var(--promus-muted);
+  background: var(--promus-sheet);
 }
 
 .done .name,

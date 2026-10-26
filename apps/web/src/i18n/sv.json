@@ -70,6 +70,7 @@
     "profile": "Inställningar för {{name}}",
     "rename": "Byt namn på listan",
     "settings": "Inställningar",
+    "swipeRemove": "Ta bort",
     "toGet": "{{n}} att handla",
     "with": "med",
     "withLabel": "Delas med {{names}}"

@@ -30,6 +30,7 @@ export type EditSheetData = { listId: string; itemId: string; name: string; note
   template: `
     <ng-container *transloco="let t">
       <div class="handle"></div>
+      <h2 class="brand">{{ data.name }}</h2>
       @for (field of fields; track field.label) {
         <mat-form-field subscriptSizing="dynamic">
           <mat-label>{{ t(field.label) }}</mat-label>
@@ -60,6 +61,13 @@ export type EditSheetData = { listId: string; itemId: string; name: string; note
       background: var(--mat-sys-on-surface-variant);
       opacity: 0.4;
     }
+    // no font shorthand or family: the global .brand sets the face
+    h2 {
+      margin: 0 0 1rem;
+      color: var(--promus-text);
+      font-size: 1.375rem;
+      font-weight: 600;
+    }
     mat-form-field {
       display: block;
       margin-block-end: 1rem;
@@ -70,7 +78,7 @@ export type EditSheetData = { listId: string; itemId: string; name: string; note
   `,
 })
 export class EditSheet {
-  private readonly data = inject<EditSheetData>(MAT_BOTTOM_SHEET_DATA);
+  protected readonly data = inject<EditSheetData>(MAT_BOTTOM_SHEET_DATA);
   private readonly ref = inject<MatBottomSheetRef<EditSheet>>(MatBottomSheetRef);
   private readonly store = inject(Store);
   private readonly actions = inject(Actions);

@@ -157,6 +157,85 @@
   text-align: center;
 }
 
+// the check circle of a list row, and of a row in the add view
+.circle {
+  display: grid;
+  flex: none;
+  place-items: center;
+  box-sizing: border-box;
+  width: 1.5rem;
+  height: 1.5rem;
+  border: 2px solid var(--promus-circle);
+  border-radius: 50%;
+  transition: 160ms;
+
+  mat-icon {
+    width: 1.125rem;
+    height: 1.125rem;
+    color: var(--promus-check-mark);
+    opacity: 0;
+    scale: 0.3;
+    // the pop: a slight overshoot
+    transition:
+      opacity 120ms,
+      scale 300ms cubic-bezier(0.3, 1.7, 0.5, 1);
+  }
+}
+
+.row:active .circle {
+  scale: 0.88;
+}
+
+.circle.checked,
+.checked-off .circle {
+  border-color: var(--promus-check);
+  background-color: var(--promus-check);
+
+  mat-icon {
+    opacity: 1;
+    scale: 1;
+  }
+}
+
+// the text of a row: name, with its strike, and note
+.text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.name,
+.note {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+
+.name {
+  font-size: 1.125rem;
+  font-weight: 450;
+  line-height: 1.5rem;
+  transition: color 200ms;
+}
+
+// the line through a checked name, drawn from the left; on each line of a long name
+.strike {
+  background: linear-gradient(currentColor, currentColor) no-repeat 0 58% / 0 1.5px;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  transition: background-size 260ms ease 40ms;
+}
+
+.note {
+  font-size: 0.90625rem;
+  line-height: 1.25rem;
+  color: var(--promus-muted);
+}
+
 // a rounded block of rows on the sheet
 .group {
   margin: 0 0.75rem 0.75rem;

@@ -70,6 +70,7 @@
     "profile": "Settings for {{name}}",
     "rename": "Rename list",
     "settings": "Settings",
+    "swipeRemove": "Remove",
     "toGet": "{{n}} to get",
     "with": "with",
     "withLabel": "Shared with {{names}}"

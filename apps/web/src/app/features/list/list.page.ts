@@ -32,6 +32,7 @@ import { Face } from '../../shared/face';
 import { EditSheet, type EditSheetData } from './edit-sheet';
 import { ListMenu } from './list-menu';
 import { ProfileButton } from './profile-button';
+import { RowGestures } from './row-gestures';
 
 type Rows = Signal<readonly ElementRef<HTMLElement>[]>;
 
@@ -47,6 +48,7 @@ type Rows = Signal<readonly ElementRef<HTMLElement>[]>;
     ProfileButton,
     ListMenu,
     Face,
+    RowGestures,
   ],
   templateUrl: './list.page.html',
   styleUrl: './list.page.scss',
@@ -61,8 +63,8 @@ export class ListPage {
   private readonly doc = inject(DOCUMENT);
   private readonly lang = toSignal(inject(TranslocoService).langChanges$, { requireSync: true });
   protected readonly household = inject(Household);
-  private readonly activeRows = viewChildren('activeRow', { read: ElementRef });
-  private readonly doneRows = viewChildren('doneRow', { read: ElementRef });
+  protected readonly activeRows = viewChildren('activeRow', { read: ElementRef });
+  protected readonly doneRows = viewChildren('doneRow', { read: ElementRef });
   private readonly doneToggle = viewChild('doneToggle', { read: ElementRef });
   private readonly dock = viewChild('dock', { read: ElementRef });
 
@@ -106,6 +108,16 @@ export class ListPage {
     void this.move(this.store.uncheck(listId, e.itemId), this.doneRows, index);
   }
 
+  /**
+   * A swiped row slides on out from where the finger left it, since the gesture has already snapped it back;
+   * it comes back if the removal fails.
+   */
+  protected async remove(listId: string, e: EntryView, index: number, rows: Rows, row: HTMLElement): Promise<void> {
+    row.classList.add('swept');
+    const removed = await this.move(this.store.remove(listId, e.itemId), rows, index);
+    if (!removed) row.classList.remove('swept');
+  }
+
   protected edit(listId: string, e: EntryView): void {
     const data: EditSheetData = { listId, itemId: e.itemId, name: e.name, note: e.note };
     // it closes itself after saving, so a refused value keeps it open; no keyboard until a field is tapped
@@ -144,10 +156,10 @@ export class ListPage {
    * The row leaves its section and takes focus with it: hand focus to the row now in its place, the
    * new last one, or the Done toggle or Add or find when the section is empty.
    */
-  private async move(action: Promise<UndoToken | null>, rows: Rows, index: number): Promise<void> {
+  private async move(action: Promise<UndoToken | null>, rows: Rows, index: number): Promise<boolean> {
     // a checked-off row stays a moment to animate out, with focus still on it
     const row = rows()[index]?.nativeElement;
-    if (!(await this.actions.run(action))) return;
+    if (!(await this.actions.run(action))) return false;
     afterNextRender(
       () => {
         // focus went somewhere else meanwhile, on purpose
@@ -159,5 +171,6 @@ export class ListPage {
       },
       { injector: this.injector },
     );
+    return true;
   }
 }

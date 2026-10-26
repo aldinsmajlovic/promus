@@ -309,6 +309,35 @@ describe('ListPage', () => {
     expect(dock?.getAttribute('href')).toBe('/add');
   });
 
+  it('right-clicking a row opens its options, as holding it does', async () => {
+    const { el, loader } = await setup([['Mjölk']]);
+    const row = rows(el, false)[0]!;
+    row.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+    await loader.getHarness(MatBottomSheetHarness);
+    expect(text(document.querySelector('app-edit-sheet h2'))).toBe('Mjölk');
+    expect(names(el)).toEqual(['Mjölk']);
+  });
+
+  it('swiping a row left removes it, with undo', async () => {
+    const { el, fixture, loader } = await setup([['Mjölk'], ['Ost']]);
+    HTMLElement.prototype.setPointerCapture = vi.fn();
+    const row = rows(el, false)[0]!;
+    Object.defineProperty(row, 'offsetWidth', { value: 360 });
+    const fire = (type: string, x: number) =>
+      row.dispatchEvent(new PointerEvent(type, { pointerId: 1, clientX: x, clientY: 0, button: 0, bubbles: true }));
+    fire('pointerdown', 300);
+    fire('pointermove', 150);
+    fire('pointerup', 150);
+    await fixture.whenStable();
+    expect(names(el)).toEqual(['Ost']);
+
+    const snackBar = await loader.getHarness(MatSnackBarHarness);
+    expect(await snackBar.getMessage()).toBe('Mjölk borttagen');
+    await snackBar.dismissWithAction();
+    await fixture.whenStable();
+    expect(names(el)).toEqual(['Mjölk', 'Ost']);
+  });
+
   it('edit sheet saves a changed note on close', async () => {
     const { el, fixture, store, listId, loader } = await setup([['Mjölk', '2 st']]);
     el.querySelector<HTMLElement>('[aria-label="Alternativ för Mjölk"]')!.click();

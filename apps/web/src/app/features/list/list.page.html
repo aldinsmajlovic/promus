@@ -37,14 +37,21 @@
             @for (e of view().active; track e.itemId; let i = $index) {
               @let by = addedBy(e);
               <li [animate.enter]="arriving()" (animate.leave)="leave($event, e)">
+                <div class="swipe-bg" aria-hidden="true">
+                  {{ t('list.swipeRemove') }}<mat-icon svgIcon="delete" />
+                </div>
                 <button
                   #activeRow
+                  #r
                   class="row state"
                   matRipple
+                  appRowGestures
                   role="checkbox"
                   aria-checked="false"
                   [attr.aria-description]="by ? t('list.addedBy', { name: by.username }) : null"
                   (click)="check(l.id, e, i)"
+                  (held)="edit(l.id, e)"
+                  (swiped)="remove(l.id, e, i, activeRows, r)"
                 >
                   <span class="circle"><mat-icon svgIcon="check" /></span>
                   <span class="text">
@@ -57,7 +64,12 @@
                     <app-face [member]="by" />
                   }
                 </button>
-                <button matIconButton [attr.aria-label]="t('list.moreFor', { name: e.name })" (click)="edit(l.id, e)">
+                <button
+                  matIconButton
+                  class="opts"
+                  [attr.aria-label]="t('list.moreFor', { name: e.name })"
+                  (click)="edit(l.id, e)"
+                >
                   <mat-icon svgIcon="more_vert" />
                 </button>
               </li>
@@ -80,13 +92,20 @@
               <ul class="done">
                 @for (e of view().done; track e.itemId; let i = $index) {
                   <li [animate.enter]="arriving()">
+                    <div class="swipe-bg" aria-hidden="true">
+                      {{ t('list.swipeRemove') }}<mat-icon svgIcon="delete" />
+                    </div>
                     <button
                       #doneRow
+                      #r
                       class="row state"
                       matRipple
+                      appRowGestures
                       role="checkbox"
                       aria-checked="true"
                       (click)="uncheck(l.id, e, i)"
+                      (held)="edit(l.id, e)"
+                      (swiped)="remove(l.id, e, i, doneRows, r)"
                     >
                       <span class="circle checked"><mat-icon svgIcon="check" /></span>
                       <span class="text">
@@ -95,6 +114,14 @@
                           <span class="note">{{ e.note }}</span>
                         }
                       </span>
+                    </button>
+                    <button
+                      matIconButton
+                      class="opts"
+                      [attr.aria-label]="t('list.moreFor', { name: e.name })"
+                      (click)="edit(l.id, e)"
+                    >
+                      <mat-icon svgIcon="more_vert" />
                     </button>
                   </li>
                 }
