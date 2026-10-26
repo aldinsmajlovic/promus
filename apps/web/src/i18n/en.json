@@ -68,6 +68,7 @@
     "more": "More options",
     "moreFor": "Options for {{name}}",
     "new": "New list",
+    "profile": "Settings for {{name}}",
     "rename": "Rename list",
     "settings": "Settings"
   },
@@ -135,9 +136,7 @@
   },
   "sync": {
     "auth": "Sign in",
-    "error": "Sync error",
     "failed": "Sync failed",
-    "offline": "Offline",
     "pending": {
       "one": "1 unsynced change",
       "other": "{{n}} unsynced changes"
@@ -145,9 +144,8 @@
     "rejected": "Some changes were refused",
     "retry": "Retry",
     "serverError": "The server returned an error",
-    "syncing": "Syncing",
-    "tooLarge": "Too many changes to send at once",
-    "waiting": "Waiting to sync"
+    "signedOut": "Signed out",
+    "tooLarge": "Too many changes to send at once"
   },
   "update": {
     "ready": "New version available",

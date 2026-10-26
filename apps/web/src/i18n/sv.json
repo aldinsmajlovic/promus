@@ -68,6 +68,7 @@
     "more": "Fler alternativ",
     "moreFor": "Alternativ för {{name}}",
     "new": "Ny lista",
+    "profile": "Inställningar för {{name}}",
     "rename": "Byt namn på listan",
     "settings": "Inställningar"
   },
@@ -135,9 +136,7 @@
   },
   "sync": {
     "auth": "Logga in",
-    "error": "Synkfel",
     "failed": "Synkningen misslyckades",
-    "offline": "Offline",
     "pending": {
       "one": "1 osynkad ändring",
       "other": "{{n}} osynkade ändringar"
@@ -145,9 +144,8 @@
     "rejected": "Några ändringar nekades",
     "retry": "Försök igen",
     "serverError": "Servern svarade inte som väntat",
-    "syncing": "Synkar",
-    "tooLarge": "För många ändringar att skicka på en gång",
-    "waiting": "Väntar på synkning"
+    "signedOut": "Utloggad",
+    "tooLarge": "För många ändringar att skicka på en gång"
   },
   "update": {
     "ready": "Ny version finns",

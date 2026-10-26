@@ -27,7 +27,7 @@ export class Household {
       this.list.set(members);
       await this.db.setMeta('members', members);
     } catch (err) {
-      // offline or signed out (the sync indicator asks to sign in): keep what we have
+      // offline or signed out (the badge on your initial says so): keep what we have
       if (!(err instanceof NetworkError || err instanceof AuthError)) console.error('household members failed', err);
     }
   }

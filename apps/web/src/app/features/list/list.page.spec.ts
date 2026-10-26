@@ -17,6 +17,7 @@ import { describe, expect, it, vi } from 'vitest';
 import sv from '../../../i18n/sv.json';
 import { PromusDb } from '../../core/db';
 import { registerIcons } from '../../core/icons';
+import { SessionService } from '../../core/session';
 import { Store } from '../../core/store';
 import { SyncService, type SyncStatus } from '../../core/sync.service';
 import { ListPage } from './list.page';
@@ -48,6 +49,7 @@ async function setup(items: [name: string, note?: string][] = []) {
   await db.setMeta('session', { userId: newId(), username: 'anna', householdId: newId() });
   const sync = configure(db);
   const store = TestBed.inject(Store);
+  await TestBed.inject(SessionService).load();
   await store.load();
   const { listId } = await store.createList('Inköpslista');
   for (const [name, note] of items) {
@@ -372,33 +374,20 @@ describe('ListPage', () => {
     expect(text(el.querySelector('h1'))).toBe('Lidl');
   });
 
-  it('the sync indicator shows only what needs attention', async () => {
-    const { el, fixture, loader, sync } = await setup();
-    const indicator = () => el.querySelector('app-sync-indicator button');
-    expect(indicator()).toBeNull();
+  it('your initial carries the sync status', async () => {
+    const { el, fixture, sync } = await setup();
+    const link = () => el.querySelector<HTMLAnchorElement>('app-profile-button a')!;
+    expect(link().getAttribute('aria-label')).toBe('Inställningar för anna');
+    expect(link().getAttribute('href')).toBe('/settings');
+    expect(link().querySelector('.badge')).toBeNull();
 
     sync.status.set({ kind: 'offline', pending: 2, rejected: 0 });
     await fixture.whenStable();
-    expect(indicator()?.querySelector('mat-icon')?.getAttribute('data-mat-icon-name')).toBe('cloud_off');
-    expect(text(indicator()!.querySelector('.mat-badge-content'))).toBe('2');
-    expect(indicator()!.getAttribute('aria-label')).toBe('Offline, 2 osynkade ändringar');
-    sync.status.set({ kind: 'offline', pending: 1, rejected: 0 });
-    await fixture.whenStable();
-    expect(indicator()!.getAttribute('aria-label')).toBe('Offline, 1 osynkad ändring');
+    expect(link().getAttribute('aria-label')).toBe('Inställningar för anna, 2 osynkade ändringar');
+    expect(text(link().querySelector('.badge'))).toBe('2');
 
-    sync.status.set({ kind: 'offline', pending: 0, rejected: 0 });
+    sync.status.set({ kind: 'auth', pending: 2, rejected: 0 });
     await fixture.whenStable();
-    expect(indicator()).toBeNull();
-
-    sync.status.set({ kind: 'error', pending: 0, rejected: 1, messageKey: 'sync.rejected' });
-    await fixture.whenStable();
-    (indicator() as HTMLElement).click();
-    await fixture.whenStable();
-    const harness = await loader.getHarness(MatDialogHarness);
-    // the reason is the dialog's accessible name, so it is read out when the dialog opens
-    const labelledBy = await harness.getAriaLabelledby();
-    expect(text(document.getElementById(labelledBy ?? ''))).toBe('Några ändringar nekades');
-    await (await harness.getHarness(MatButtonHarness.with({ text: 'Försök igen' }))).click();
-    expect(sync.syncNow).toHaveBeenCalledOnce();
+    expect(text(link().querySelector('.badge'))).toBe('!');
   });
 });

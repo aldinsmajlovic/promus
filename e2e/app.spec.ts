@@ -12,12 +12,12 @@ async function add(page: Page, name: string): Promise<void> {
   await page.getByRole('button', { name: 'Stäng' }).click({ timeout: 2_000 });
 }
 
-// the sync indicator while changes wait, named for the count its badge shows
-const unsynced = (page: Page) => page.getByRole('button', { name: /osynkade? ändring/ });
+// your initial while changes wait, named for the count its badge shows
+const unsynced = (page: Page) => page.getByRole('link', { name: /osynkade? ändring/ });
 
-/** No sync running ("Synkar") and none failed ("Synkfel"), refusals included. */
-async function settled(page: Page): Promise<void> {
-  await expect(page.getByRole('button', { name: /^Synk/ })).toHaveCount(0);
+/** Nothing waiting and nothing failed, refusals included: the link carries no status. */
+async function settled(page: Page, user: string): Promise<void> {
+  await expect(page.getByRole('link', { name: `Inställningar för ${user}`, exact: true })).toBeVisible();
 }
 
 // proves the fixture's watch: the violation alone fails it
@@ -78,8 +78,8 @@ test('works offline and syncs later', async ({ page, context, device }) => {
   await add(page, 'Bröd');
   await expect(page.getByRole('checkbox', { name: 'Bröd' })).toBeVisible();
   // the count is of events: a new item is item.created and entry.added
-  const waiting = page.getByRole('button', { name: 'Offline, 2 osynkade ändringar' });
-  await expect(waiting).toHaveText('2');
+  const waiting = page.getByRole('link', { name: 'Inställningar för e2e-a, 2 osynkade ändringar' });
+  await expect(waiting.locator('.badge')).toHaveText('2');
   // 5 s, plus the animations, also after leaving the add view
   await expect(page.getByText('Bröd tillagd')).toBeHidden({ timeout: 8_000 });
 
@@ -87,7 +87,7 @@ test('works offline and syncs later', async ({ page, context, device }) => {
   // `online` is a sync trigger, but Playwright fires none in a page loaded offline; the 60 s timer would catch it too
   await page.evaluate(() => window.dispatchEvent(new Event('online')));
   await expect(unsynced(page)).toBeHidden({ timeout: 70_000 });
-  await settled(page);
+  await settled(page, 'e2e-a');
 
   const other = await device();
   await login(other, 'e2e-a');
@@ -117,7 +117,7 @@ test('two devices adding the same item offline end up with one', async ({ page, 
   await expect(page.getByRole('checkbox', { name: 'Smör' })).toBeVisible();
 
   for (const p of [page, other]) {
-    await settled(p);
+    await settled(p, 'e2e-b');
     await expect(p.getByRole('checkbox', { name: 'Ägg' })).toHaveCount(1);
   }
 });

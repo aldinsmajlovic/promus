@@ -9,16 +9,13 @@ import check from '@material-symbols/svg-400/rounded/check.svg';
 import checkBox from '@material-symbols/svg-400/rounded/check_box-fill.svg';
 import checkBoxOutlineBlank from '@material-symbols/svg-400/rounded/check_box_outline_blank.svg';
 import close from '@material-symbols/svg-400/rounded/close.svg';
-import cloudOff from '@material-symbols/svg-400/rounded/cloud_off.svg';
 import contentCopy from '@material-symbols/svg-400/rounded/content_copy.svg';
 import deleteIcon from '@material-symbols/svg-400/rounded/delete.svg';
 import edit from '@material-symbols/svg-400/rounded/edit.svg';
-import error from '@material-symbols/svg-400/rounded/error.svg';
 import history from '@material-symbols/svg-400/rounded/history.svg';
 import historyToggleOff from '@material-symbols/svg-400/rounded/history_toggle_off.svg';
 import keyboardArrowDown from '@material-symbols/svg-400/rounded/keyboard_arrow_down.svg';
 import keyboardArrowUp from '@material-symbols/svg-400/rounded/keyboard_arrow_up.svg';
-import login from '@material-symbols/svg-400/rounded/login.svg';
 import logout from '@material-symbols/svg-400/rounded/logout.svg';
 import moreVert from '@material-symbols/svg-400/rounded/more_vert.svg';
 import personAdd from '@material-symbols/svg-400/rounded/person_add.svg';
@@ -26,7 +23,6 @@ import playlistAdd from '@material-symbols/svg-400/rounded/playlist_add.svg';
 import removeShoppingCart from '@material-symbols/svg-400/rounded/remove_shopping_cart.svg';
 import settings from '@material-symbols/svg-400/rounded/settings.svg';
 import share from '@material-symbols/svg-400/rounded/share.svg';
-import sync from '@material-symbols/svg-400/rounded/sync.svg';
 import visibility from '@material-symbols/svg-400/rounded/visibility.svg';
 import visibilityOff from '@material-symbols/svg-400/rounded/visibility_off.svg';
 
@@ -45,10 +41,6 @@ const ICONS: Record<string, string> = {
   arrow_drop_up: arrowDropUp,
   close,
   history,
-  cloud_off: cloudOff,
-  sync,
-  error,
-  login,
   remove_shopping_cart: removeShoppingCart,
   history_toggle_off: historyToggleOff,
   settings,

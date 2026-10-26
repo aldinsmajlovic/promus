@@ -53,11 +53,11 @@ async function fill(page: Page, password: string): Promise<void> {
   for (const name of CHECKED) await page.getByRole('checkbox', { name }).tap();
   await page.getByRole('button', { name: `Done (${CHECKED.length})` }).tap();
 
-  // nothing transient in the picture: no snackbar, no sync indicator
+  // nothing transient in the picture: no snackbar, no sync badge
   await page.waitForFunction(() => !document.querySelector('mat-snack-bar-container'), undefined, {
     timeout: 15_000,
   });
-  await page.getByRole('button', { name: /sync/i }).waitFor({ state: 'detached' });
+  await page.getByRole('link', { name: 'Settings for demo', exact: true }).waitFor();
   await page.evaluate(() => document.fonts.ready.then(() => undefined));
   // the last click leaves a hover state on whatever moved under the pointer
   await page.mouse.move(0, 0);

@@ -27,7 +27,7 @@ import { CurrentList } from '../../core/current-list';
 import { Store, type UndoToken } from '../../core/store';
 import { EditSheet, type EditSheetData } from './edit-sheet';
 import { NameDialog, type NameDialogData } from './name-dialog';
-import { SyncIndicator } from './sync-indicator';
+import { ProfileButton } from './profile-button';
 
 type List = { id: string; name: string };
 type Rows = Signal<readonly ElementRef<HTMLElement>[]>;
@@ -46,7 +46,7 @@ type Rows = Signal<readonly ElementRef<HTMLElement>[]>;
     MatRipple,
     RouterLink,
     TranslocoDirective,
-    SyncIndicator,
+    ProfileButton,
   ],
   templateUrl: './list.page.html',
   styleUrl: './list.page.scss',
