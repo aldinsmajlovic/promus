@@ -12,7 +12,9 @@
     "username": "Username"
   },
   "add": {
+    "added": "Added",
     "alreadyOnList": "Already on the list",
+    "checkedOff": "Checked off",
     "clear": "Clear",
     "create": "Add \"{{name}}\"",
     "onList": "On the list",

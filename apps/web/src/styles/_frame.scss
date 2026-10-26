@@ -76,6 +76,24 @@
   }
 }
 
+// shared elements of the route view transitions. A name must be unique in the document at any moment
+.band {
+  view-transition-name: band;
+}
+
+.sheet {
+  view-transition-name: sheet;
+}
+
+.band .title {
+  view-transition-name: list-title;
+}
+
+.dock,
+.add-field {
+  view-transition-name: add-field;
+}
+
 .brand,
 .title {
   font-family: 'Fraunces Variable', serif;

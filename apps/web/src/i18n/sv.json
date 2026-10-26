@@ -12,7 +12,9 @@
     "username": "Användarnamn"
   },
   "add": {
+    "added": "Tillagd",
     "alreadyOnList": "Finns redan på listan",
+    "checkedOff": "Avbockad",
     "clear": "Rensa",
     "create": "Lägg till \"{{name}}\"",
     "onList": "På listan",

@@ -1,65 +1,10 @@
 <ng-container *transloco="let t">
-  <mat-toolbar>
-    <button matIconButton [attr.aria-label]="t('dialog.close')" (click)="close()"><mat-icon svgIcon="close" /></button>
-    <h1 class="brand">{{ list()?.name }}</h1>
-  </mat-toolbar>
+  <div class="frame">
+    <header class="band slim">
+      <button matIconButton [attr.aria-label]="t('dialog.close')" (click)="close()"><mat-icon svgIcon="close" /></button>
+      <h1 class="title">{{ list()?.name }}</h1>
+    </header>
 
-  <!-- taps keep the focus, and the keyboard, in the field -->
-  <mat-action-list class="results" (mousedown)="$event.preventDefault()">
-    @for (r of view().rows; track r.itemId) {
-      <button
-        mat-list-item
-        [class.on-list]="r.onList"
-        [class.flash]="flash()?.itemId === r.itemId"
-        [disabled]="r.onList"
-        (click)="add(r)"
-      >
-        <mat-icon matListItemIcon svgIcon="history" />
-        <span matListItemTitle
-          >@for (s of r.segments; track $index) {@if (s.hit) {<b>{{ s.text }}</b>} @else {{{ s.text }}}}</span
-        >
-        @if (r.note) {
-          <span matListItemLine>{{ r.note }}</span>
-        }
-        @if (r.onList) {
-          <mat-icon matListItemMeta svgIcon="check" aria-hidden="false" [attr.aria-label]="t('add.onList')" />
-        } @else {
-          <mat-icon matListItemMeta svgIcon="add" />
-        }
-      </button>
-    }
-    @if (view().create; as name) {
-      <button mat-list-item class="create" (click)="create()">
-        <mat-icon matListItemIcon svgIcon="add" />
-        <span matListItemTitle>{{ t('add.create', { name }) }}</span>
-      </button>
-    }
-  </mat-action-list>
-
-  <div class="bar">
-    <mat-form-field appearance="outline" subscriptSizing="dynamic">
-      <input
-        #input
-        matInput
-        autofocus
-        enterkeyhint="enter"
-        [formControl]="query"
-        [placeholder]="t('add.placeholder')"
-        (keydown.enter)="enter()"
-      />
-      @if (text()) {
-        <button
-          matIconButton
-          matIconSuffix
-          [attr.aria-label]="t('add.clear')"
-          (mousedown)="$event.preventDefault()"
-          (click)="cleared()"
-        >
-          <mat-icon svgIcon="close" />
-        </button>
-      }
-      @let refused = query.getError('refused');
-      <mat-error>{{ refused && t(refused.key, refused.params) }}</mat-error>
-    </mat-form-field>
+    <main class="sheet"><app-add-or-find /></main>
   </div>
 </ng-container>

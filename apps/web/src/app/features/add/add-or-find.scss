@@ -1,0 +1,134 @@
+:host {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+// the first row, the best match, is drawn nearest the field; weaker ones stack upward
+.results {
+  display: flex;
+  flex: 1;
+  flex-direction: column-reverse;
+  overflow-y: auto;
+  padding: 0.5rem 0.5rem 0.25rem;
+  scrollbar-width: none;
+}
+
+// rows sit in from the sheet's edges, so hover and the flash are rounded highlights
+.row {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 0.875rem;
+  min-height: 3.5rem;
+  padding: 0.5rem 0.625rem;
+  border: 0;
+  border-radius: 0.75rem;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 300ms;
+
+  @media (hover: hover) {
+    &:hover {
+      background: var(--promus-field);
+    }
+  }
+
+  &:focus-visible {
+    outline: 3px solid var(--mat-sys-secondary);
+    outline-offset: -3px;
+  }
+
+  // inert, but not dimmed: the Added tag says it all
+  &:disabled {
+    background: none;
+    color: inherit;
+    cursor: default;
+  }
+
+  &.flash {
+    background: var(--promus-tint);
+  }
+}
+
+.plus {
+  flex: none;
+  color: var(--promus-check);
+}
+
+.name b {
+  font-weight: 650;
+}
+
+.checked-off .name {
+  color: var(--promus-muted);
+}
+
+.checked-off .strike {
+  background-size: 100% 1.5px;
+}
+
+.tag {
+  flex: none;
+  font-size: 0.84375rem;
+  color: var(--promus-muted);
+}
+
+.create .name {
+  color: var(--promus-tint-ink);
+  font-weight: 600;
+}
+
+.bar {
+  flex: none;
+  padding: 0.5rem 0.75rem calc(0.5rem + env(safe-area-inset-bottom));
+}
+
+.field {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  height: 3.375rem;
+  padding-inline: 1.125rem 0.5rem;
+  border-radius: 1.6875rem;
+  background: var(--promus-field);
+  box-shadow: inset 0 0 0 0 var(--promus-check);
+  transition: box-shadow 200ms;
+
+  &:focus-within {
+    box-shadow: inset 0 0 0 2px var(--promus-check);
+  }
+
+  input {
+    flex: 1;
+    min-width: 0;
+    height: 100%;
+    padding: 0;
+    border: 0;
+    outline: none;
+    background: none;
+    color: var(--promus-text);
+    font: inherit;
+    font-size: 1.0625rem;
+
+    &::placeholder {
+      color: var(--promus-muted);
+    }
+  }
+
+  button {
+    flex: none;
+    color: var(--promus-muted);
+  }
+}
+
+.error {
+  margin: 0.25rem 1.125rem 0;
+  color: var(--mat-sys-error);
+  font-size: 0.8125rem;
+}

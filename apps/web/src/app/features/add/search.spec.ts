@@ -1,4 +1,4 @@
-import { LIMITS, applyEvent, fold, formatHlc, makeEvent, newId } from '@promus/shared';
+import { LIMITS, applyEvent, entryKey, fold, formatHlc, makeEvent, newId } from '@promus/shared';
 import type { EventInput, EventType, HouseholdState, PayloadOf } from '@promus/shared';
 import { describe, expect, it } from 'vitest';
 import { searchItems, segments } from './search';
@@ -53,8 +53,19 @@ describe('searchItems', () => {
     expect(results.map((r) => r.name).slice(0, 2)).toEqual(['Vispgrädde', 'Matlagningsgrädde']);
     expect(results.map((r) => r.name).slice(2).sort()).toEqual(['Grädde', 'Gräddfil']);
     expect(exact).toBeNull();
-    expect(results[0]).toMatchObject({ itemId: idOf(s, 'Vispgrädde'), note: '3 dl', onList: true });
-    expect(results[1]!.onList).toBe(false);
+    expect(results[0]).toMatchObject({ itemId: idOf(s, 'Vispgrädde'), note: '3 dl', state: 'active' });
+    expect(results[1]!.state).toBe('none');
+  });
+
+  it('a checked item is "checked" only inside the Done window', () => {
+    const s = groceries();
+    const itemId = idOf(s, 'Gurka');
+    applyEvent(s, ev('entry.added', { listId, itemId }));
+    applyEvent(s, ev('entry.checked', { listId, itemId }));
+    const checkedAt = s.entries.get(entryKey(listId, itemId))!.checkedAt!;
+    const stateAt = (now: number) => searchItems(s, 'gurka', listId, now).results[0]!.state;
+    expect(stateAt(checkedAt)).toBe('checked');
+    expect(stateAt(checkedAt + LIMITS.doneWindowMs + 1)).toBe('none');
   });
 
   it('gradd without dots finds the same items', () => {

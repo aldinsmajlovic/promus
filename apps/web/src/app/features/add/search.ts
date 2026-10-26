@@ -1,9 +1,16 @@
 import uFuzzy from '@leeoniya/ufuzzy';
-import { LIMITS, cleanName, entryKey, itemScore, normalizeName } from '@promus/shared';
+import { LIMITS, cleanName, entryKey, inDoneWindow, itemScore, normalizeName } from '@promus/shared';
 import type { HouseholdState, ItemState } from '@promus/shared';
 
 /** `ranges` are uFuzzy highlight ranges into `name`: [start0, end0, start1, end1, …]. */
-export type SearchResult = { itemId: string; name: string; note: string | null; onList: boolean; ranges: number[] };
+export type SearchResult = {
+  itemId: string;
+  name: string;
+  note: string | null;
+  /** On the list, checked off inside the Done window (also on the list's Done), or neither. */
+  state: 'none' | 'active' | 'checked';
+  ranges: number[];
+};
 export type Segment = { text: string; hit: boolean };
 
 const LIMIT = 20;
@@ -11,10 +18,22 @@ const LIMIT = 20;
 const fuzzy = new uFuzzy({ intraMode: 1 });
 
 /** The note it has on the list, or the one adding it would bring back. */
-export function resultOf(state: HouseholdState, item: ItemState, listId: string, ranges: number[] = []): SearchResult {
+export function resultOf(
+  state: HouseholdState,
+  item: ItemState,
+  listId: string,
+  now: number,
+  ranges: number[] = [],
+): SearchResult {
   const entry = state.entries.get(entryKey(listId, item.id));
-  const onList = entry?.state === 'active';
-  return { itemId: item.id, name: item.name, note: onList ? entry.note : item.lastNote, onList, ranges };
+  const shown = entry?.state === 'active' || (entry && inDoneWindow(entry, now)) ? entry : undefined;
+  return {
+    itemId: item.id,
+    name: item.name,
+    note: shown ? shown.note : item.lastNote,
+    state: shown?.state ?? 'none',
+    ranges,
+  };
 }
 
 /** Non-archived items matching `query`: the exact match first, then the most bought, then the best matched. */
@@ -43,7 +62,7 @@ export function searchItems(
   // stable, so equal scores keep uFuzzy's order
   matches.sort((a, b) => rank.get(b.item)! - rank.get(a.item)!);
 
-  const results = matches.slice(0, LIMIT).map((m) => resultOf(state, m.item, listId, m.ranges));
+  const results = matches.slice(0, LIMIT).map((m) => resultOf(state, m.item, listId, now, m.ranges));
   return { results, exact: exact ? results[0]! : null };
 }
 

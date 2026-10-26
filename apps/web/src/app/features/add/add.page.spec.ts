@@ -1,14 +1,10 @@
 import { Location } from '@angular/common';
 import { SpyLocation, provideLocationMocks } from '@angular/common/testing';
-import { TestKey } from '@angular/cdk/testing';
 import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed';
 import { Component, importProvidersFrom, provideAppInitializer, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { MatButtonHarness } from '@angular/material/button/testing';
 import { MATERIAL_ANIMATIONS } from '@angular/material/core';
-import { MatFormFieldHarness } from '@angular/material/form-field/testing';
-import { MatInputHarness } from '@angular/material/input/testing';
-import { MatActionListItemHarness } from '@angular/material/list/testing';
 import { MatSnackBarHarness } from '@angular/material/snack-bar/testing';
 import { Router, provideRouter } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
@@ -72,7 +68,7 @@ async function setup(bought: Bought[] = [], onList: string[] = []) {
   await fixture.whenStable();
   const el: HTMLElement = fixture.nativeElement;
   const loader = TestbedHarnessEnvironment.documentRootLoader(fixture);
-  const input = await loader.getHarness(MatInputHarness);
+  const input = el.querySelector('input')!;
   return { db, store, listId, fixture, el, loader, input };
 }
 
@@ -89,49 +85,53 @@ const onListNow = (t: Setup, name: string) =>
 const itemNames = (t: Setup) => [...t.store.state().items.values()].map((i) => i.name).sort();
 // DOM order: the best match first, drawn nearest the field
 const rowEls = (t: Setup) => [...t.el.querySelectorAll<HTMLElement>('.results > button')];
-const icons = (row: HTMLElement) =>
-  [...row.querySelectorAll('mat-icon')].map((i) => i.getAttribute('data-mat-icon-name'));
-const titles = async (t: Setup) =>
-  Promise.all((await t.loader.getAllHarnesses(MatActionListItemHarness)).map((r) => r.getTitle()));
+const name = (row: HTMLElement) => row.querySelector('.name')?.textContent?.trim();
+const titles = (t: Setup) => rowEls(t).map((r) => name(r) ?? r.textContent?.trim());
+const note = (row: HTMLElement) => row.querySelector('.note')?.textContent?.trim();
+/** The row's lead: an add icon, the empty circle, or the filled one. */
+const lead = (row: HTMLElement) =>
+  row.querySelector('.circle.checked') ? 'checked' : row.querySelector('.circle') ? 'circle' : 'add';
+/** The row's status text: On the list, Checked off, Added. */
+const tag = (row: HTMLElement) => row.querySelector('.tag')?.textContent?.trim();
+
+async function tap(t: Setup, row: HTMLElement) {
+  row.click();
+  await t.fixture.whenStable();
+}
 
 async function type(t: Setup, text: string) {
-  await t.input.setValue(text);
+  t.input.value = text;
+  t.input.dispatchEvent(new Event('input'));
   await t.fixture.whenStable();
 }
 
 async function enter(t: Setup) {
-  await (await t.input.host()).sendKeys(TestKey.ENTER);
+  t.input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
   await t.fixture.whenStable();
 }
 
-const errors = async (t: Setup) => (await t.loader.getHarness(MatFormFieldHarness)).getTextErrors();
-const focused = (t: Setup) => document.activeElement === t.el.querySelector('input');
+const errors = (t: Setup) => [...t.el.querySelectorAll('.error')].map((e) => e.textContent?.trim());
+const focused = (t: Setup) => document.activeElement === t.input;
 
 describe('AddPage', () => {
   it('shows usual items when the field is empty', async () => {
     const t = await setup([['Kaffe', 3], ['Mjölk', 8, '2 st'], ['Gurka', 1], ['Ost', 5]], ['Ost']);
-    expect(t.el.querySelector('h1')?.textContent?.trim()).toBe('Inköpslista');
+    expect(t.el.querySelector('.band .title')?.textContent?.trim()).toBe('Inköpslista');
     expect(await t.loader.getAllHarnesses(MatButtonHarness.with({ selector: '[aria-label="Stäng"]' }))).toHaveLength(1);
-    expect(await t.input.getPlaceholder()).toBe('Lägg till eller hitta');
+    expect(t.input.placeholder).toBe('Lägg till eller hitta');
     expect(focused(t)).toBe(true);
 
     // Ost is already on the list
-    expect(await titles(t)).toEqual(['Mjölk', 'Kaffe', 'Gurka']);
-    const rows = await t.loader.getAllHarnesses(MatActionListItemHarness);
-    expect(await rows[0]!.getSecondaryText()).toBe('2 st');
-    expect(rowEls(t).map(icons)).toEqual([
-      ['history', 'add'],
-      ['history', 'add'],
-      ['history', 'add'],
-    ]);
+    expect(titles(t)).toEqual(['Mjölk', 'Kaffe', 'Gurka']);
+    expect(note(rowEls(t)[0]!)).toBe('2 st');
+    expect(rowEls(t).map(lead)).toEqual(['add', 'add', 'add']);
 
-    // tapping one adds it with its note; it stays in place, highlighted, with a check
-    await rows[1]!.click();
-    await t.fixture.whenStable();
+    // tapping one adds it with its note; it stays in place, highlighted, marked Added
+    await tap(t, rowEls(t)[1]!);
     expect(onListNow(t, 'Kaffe')).toBe(true);
-    expect(await titles(t)).toEqual(['Mjölk', 'Kaffe', 'Gurka']);
+    expect(titles(t)).toEqual(['Mjölk', 'Kaffe', 'Gurka']);
     expect(rowEls(t)[1]!.classList).toContain('flash');
-    expect(icons(rowEls(t)[1]!)).toEqual(['history', 'check']);
+    expect(tag(rowEls(t)[1]!)).toBe('Tillagd');
     await vi.waitFor(() => expect(rowEls(t)[1]!.classList).not.toContain('flash'));
     expect(focused(t)).toBe(true);
   });
@@ -139,15 +139,14 @@ describe('AddPage', () => {
   it('Enter re-adds an exact match', async () => {
     const t = await setup([['Mjölk', 2, 'laktosfri'], ['Havremjölk', 4]]);
     await type(t, ' MJÖLK');
-    expect(await titles(t)).toEqual(['Mjölk', 'Havremjölk']);
-    expect(await t.loader.getAllHarnesses(MatActionListItemHarness.with({ title: /^Lägg till/ }))).toHaveLength(0);
+    expect(titles(t)).toEqual(['Mjölk', 'Havremjölk']);
 
     await enter(t);
     expect(onListNow(t, 'Mjölk')).toBe(true);
     expect(onListNow(t, 'Havremjölk')).toBe(false);
     expect(itemNames(t)).toEqual(['Havremjölk', 'Mjölk']);
     expect(t.store.state().entries.get(entryKey(t.listId, itemId(t.store, 'Mjölk')))?.note).toBe('laktosfri');
-    expect(await t.input.getValue()).toBe('');
+    expect(t.input.value).toBe('');
     expect(focused(t)).toBe(true);
 
     // at the top, so the keyboard doesn't hide it
@@ -167,64 +166,88 @@ describe('AddPage', () => {
     const t = await setup([['Grädde', 1]]);
     await type(t, 'grädd');
     // the create row comes last, farthest from the field
-    expect(await titles(t)).toEqual(['Grädde', 'Lägg till "grädd"']);
-    expect(icons(rowEls(t)[1]!)).toEqual(['add']);
+    expect(titles(t)).toEqual(['Grädde', 'Lägg till "grädd"']);
+    expect(lead(rowEls(t)[1]!)).toBe('add');
 
     await enter(t);
     expect(itemNames(t)).toEqual(['Grädde', 'grädd']);
     expect(onListNow(t, 'grädd')).toBe(true);
     expect(onListNow(t, 'Grädde')).toBe(false);
-    expect(await t.input.getValue()).toBe('');
+    expect(t.input.value).toBe('');
     expect(await (await t.loader.getHarness(MatSnackBarHarness)).getMessage()).toBe('grädd tillagd');
   });
 
   it('tapping a fuzzy match adds that item and clears the field', async () => {
     const t = await setup([['Grädde', 1], ['Gräddfil', 2]]);
     await type(t, 'gradd');
-    expect(await titles(t)).toEqual(['Gräddfil', 'Grädde', 'Lägg till "gradd"']);
+    expect(titles(t)).toEqual(['Gräddfil', 'Grädde', 'Lägg till "gradd"']);
     // matched letters are bold, as text
     expect([...rowEls(t)[1]!.querySelectorAll('b')].map((b) => b.textContent)).toEqual(['Grädd']);
 
-    await (await t.loader.getHarness(MatActionListItemHarness.with({ title: 'Grädde' }))).click();
-    await t.fixture.whenStable();
+    await tap(t, rowEls(t)[1]!);
     expect(onListNow(t, 'Grädde')).toBe(true);
     expect(itemNames(t)).toEqual(['Grädde', 'Gräddfil']);
-    expect(await t.input.getValue()).toBe('');
+    expect(t.input.value).toBe('');
     expect(focused(t)).toBe(true);
     // the matches stay a moment, the added one highlighted, then the usual items are back
     expect(rowEls(t).find((r) => r.classList.contains('flash'))?.textContent).toContain('Grädde');
     await vi.waitFor(() => expect(t.el.querySelector('.flash')).toBeNull());
-    expect(await titles(t)).toEqual(['Gräddfil', 'Grädde']);
+    expect(titles(t)).toEqual(['Gräddfil', 'Grädde']);
   });
 
-  it('items already on the list are marked and not added twice', async () => {
+  it('an item on the list checks off from here, and back', async () => {
+    const t = await setup([['Mjölk', 3]], ['Mjölk']);
+    await type(t, 'mjö');
+    const [row] = rowEls(t);
+    expect([lead(row!), tag(row!)]).toEqual(['circle', 'På listan']);
+
+    await tap(t, row!);
+    expect(rowEls(t)[0]!.querySelector('.strike')).not.toBeNull();
+    expect(await (await t.loader.getHarness(MatSnackBarHarness)).getMessage()).toBe('Mjölk avbockad');
+    expect([lead(rowEls(t)[0]!), tag(rowEls(t)[0]!)]).toEqual(['checked', 'Avbockad']);
+
+    await tap(t, rowEls(t)[0]!);
+    expect(await (await t.loader.getHarness(MatSnackBarHarness)).getMessage()).toBe('Mjölk tillbaka på listan');
+    expect([lead(rowEls(t)[0]!), tag(rowEls(t)[0]!)]).toEqual(['circle', 'På listan']);
+  });
+
+  it('Enter on an exact match on the list is refused and checks nothing off', async () => {
     const t = await setup([['Mjölk', 3]], ['Mjölk']);
     const outbox = await t.db.outbox.count();
     await type(t, 'mjölk');
-    const [row] = rowEls(t);
-    expect(row!.getAttribute('aria-disabled')).toBe('true');
-    expect(icons(row!)).toEqual(['history', 'check']);
-    expect(row!.querySelector('[data-mat-icon-name="check"]')?.getAttribute('aria-label')).toBe('På listan');
-
-    row!.click();
-    await t.fixture.whenStable();
     await enter(t);
-    expect(await errors(t)).toEqual(['Finns redan på listan']);
+    expect(errors(t)).toEqual(['Finns redan på listan']);
+    expect(t.store.state().entries.get(entryKey(t.listId, itemId(t.store, 'Mjölk')))?.state).toBe('active');
     expect(await t.db.outbox.count()).toBe(outbox);
     expect(await t.loader.getAllHarnesses(MatSnackBarHarness)).toHaveLength(0);
+  });
+
+  it('a double tap on a usual item adds it once and leaves it on the list', async () => {
+    const t = await setup([['Kaffe', 3]]);
+    const outbox = await t.db.outbox.count();
+    const [row] = rowEls(t);
+    // both before the first add has resolved
+    row!.click();
+    row!.click();
+    await t.fixture.whenStable();
+    expect(t.store.state().entries.get(entryKey(t.listId, itemId(t.store, 'Kaffe')))?.state).toBe('active');
+    expect(await (await t.loader.getHarness(MatSnackBarHarness)).getMessage()).toBe('Kaffe tillagd');
+    expect(tag(rowEls(t)[0]!)).toBe('Tillagd');
+    // a single entry.added
+    expect(await t.db.outbox.count()).toBe(outbox + 1);
   });
 
   it('a 201-character name shows the too-long message', async () => {
     const t = await setup();
     await type(t, 'a'.repeat(201));
     await enter(t);
-    expect(await errors(t)).toEqual(['Högst 200 tecken']);
+    expect(errors(t)).toEqual(['Högst 200 tecken']);
     expect(itemNames(t)).toEqual([]);
-    expect(await t.input.getValue()).toBe('a'.repeat(201));
+    expect(t.input.value).toBe('a'.repeat(201));
 
     // typing clears the message
     await type(t, 'a'.repeat(200));
-    expect(await errors(t)).toEqual([]);
+    expect(errors(t)).toEqual([]);
     await enter(t);
     expect(itemNames(t)).toEqual(['a'.repeat(200)]);
   });
@@ -232,7 +255,7 @@ describe('AddPage', () => {
   it('Enter on an empty field asks for a name', async () => {
     const t = await setup();
     await enter(t);
-    expect(await errors(t)).toEqual(['Ange ett namn']);
+    expect(errors(t)).toEqual(['Ange ett namn']);
   });
 
   it('close returns to the list, and Back from there does not reopen it', async () => {

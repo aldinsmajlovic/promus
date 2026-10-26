@@ -1,0 +1,69 @@
+<ng-container *transloco="let t">
+  <!-- taps keep the focus, and the keyboard, in the field -->
+  <div class="results" (mousedown)="$event.preventDefault()">
+    @for (r of view().rows; track r.itemId) {
+      <button
+        class="row"
+        [class.checked-off]="r.state === 'checked'"
+        [class.flash]="flash()?.itemId === r.itemId"
+        [disabled]="r.added"
+        (click)="tap(r)"
+      >
+        @if (r.state === 'none') {
+          <mat-icon class="plus" svgIcon="add" />
+        } @else {
+          <span class="circle" [class.checked]="r.state === 'checked'"><mat-icon svgIcon="check" /></span>
+        }
+        <span class="text">
+          <span class="name"
+            ><span class="strike">@for (s of r.segments; track $index) {@if (s.hit) {<b>{{ s.text }}</b>} @else {{{ s.text }}}}</span></span
+          >
+          @if (r.note) {
+            <span class="note">{{ r.note }}</span>
+          }
+        </span>
+        @if (r.added) {
+          <span class="tag">{{ t('add.added') }}</span>
+        } @else if (r.state === 'active') {
+          <span class="tag">{{ t('add.onList') }}</span>
+        } @else if (r.state === 'checked') {
+          <span class="tag">{{ t('add.checkedOff') }}</span>
+        }
+      </button>
+    }
+    @if (view().create; as name) {
+      <button class="row create" (click)="create()">
+        <mat-icon class="plus" svgIcon="add" />
+        <span class="text"><span class="name">{{ t('add.create', { name }) }}</span></span>
+      </button>
+    }
+  </div>
+
+  <div class="bar">
+    <div class="field add-field">
+      <input
+        #input
+        autofocus
+        enterkeyhint="enter"
+        [formControl]="query"
+        [placeholder]="t('add.placeholder')"
+        [attr.aria-label]="t('add.placeholder')"
+        (keydown.enter)="enter()"
+      />
+      @if (text()) {
+        <button
+          matIconButton
+          [attr.aria-label]="t('add.clear')"
+          (mousedown)="$event.preventDefault()"
+          (click)="cleared()"
+        >
+          <mat-icon svgIcon="close" />
+        </button>
+      }
+    </div>
+    @let refused = query.getError('refused');
+    @if (refused && query.touched) {
+      <p class="error" role="alert">{{ t(refused.key, refused.params) }}</p>
+    }
+  </div>
+</ng-container>

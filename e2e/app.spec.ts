@@ -46,7 +46,8 @@ test('add, check off and undo', async ({ page }) => {
 
   // the add's snackbar gives way to the check's, so its Undo is the only one left
   await expect(page.getByText('mjölk avbockad')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Ångra' })).toHaveCount(1);
+  // the add's is hidden from the accessibility tree as it leaves, but it is still there to take the click
+  await expect(page.locator('.mat-mdc-snack-bar-container')).toHaveCount(1);
   await page.getByRole('button', { name: 'Ångra' }).click();
   await expect(page.getByRole('checkbox', { name: 'mjölk', checked: false })).toBeVisible();
   await expect(page.getByRole('button', { name: /^Klart/ })).toBeHidden();

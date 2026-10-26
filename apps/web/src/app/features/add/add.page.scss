@@ -1,102 +1,16 @@
-@use '@angular/material' as mat;
+// the height of the space above the keyboard: the viewport resizes for it (interactive-widget in index.html)
+.frame {
+  height: 100dvh;
+  min-height: 0;
+}
 
-:host {
+.sheet {
   display: flex;
   flex-direction: column;
-  // the space above the keyboard: the viewport resizes for it (interactive-widget in index.html)
-  height: 100dvh;
-  max-width: 40rem;
-  margin-inline: auto;
+  min-height: 0;
 }
 
-mat-toolbar {
-  flex: none;
-  gap: 0.25rem;
-  padding-inline: 0.25rem 1rem;
-}
-
-h1 {
-  overflow: hidden;
-  margin: 0;
-  font: inherit;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
-// the first row, the best match, is drawn nearest the field; weaker ones stack upward
-.results {
-  display: flex;
-  flex: 1;
-  flex-direction: column-reverse;
-  overflow-y: auto;
-
-  > * {
-    flex: none;
-  }
-
-  // as in the mockups and the list screen
-  @include mat.list-overrides(
-    (
-      list-item-one-line-container-height: 3.5rem,
-    )
-  );
-
-  // icons centred on rows with a note too; Material top-aligns them there
-  [matListItemIcon],
-  [matListItemMeta] {
-    align-self: center;
-    margin-top: 0;
-  }
-}
-
-// disabled, but not dimmed: the check says it all
-.on-list {
-  @include mat.list-overrides(
-    (
-      list-item-disabled-state-layer-opacity: 0,
-      list-item-disabled-label-text-opacity: 1,
-      list-item-disabled-label-text-color: var(--mat-sys-on-surface-variant),
-      list-item-disabled-leading-icon-opacity: 1,
-      list-item-disabled-leading-icon-color: var(--mat-sys-on-surface-variant),
-      // a matListItemMeta icon is trailing meta to Material, coloured as supporting text
-      list-item-trailing-supporting-text-color: var(--mat-sys-primary),
-    )
-  );
-}
-
-// the row just added, which is on the list by now
-.flash {
-  @include mat.list-overrides(
-    (
-      list-item-container-color: var(--mat-sys-secondary-container),
-      list-item-disabled-label-text-color: var(--mat-sys-on-secondary-container),
-    )
-  );
-}
-
-.create {
-  @include mat.list-overrides(
-    (
-      list-item-label-text-color: var(--mat-sys-primary),
-      list-item-hover-label-text-color: var(--mat-sys-primary),
-      list-item-label-text-weight: 500,
-      list-item-leading-icon-color: var(--mat-sys-primary),
-      list-item-hover-leading-icon-color: var(--mat-sys-primary),
-    )
-  );
-}
-
-.bar {
-  flex: none;
-  padding: 0.5rem 0.75rem;
-}
-
-mat-form-field {
-  width: 100%;
-  // fully round: 28px is half the 56px field. Not corner-full (9999px): the outline's leading piece is as wide as the radius
-  @include mat.form-field-overrides(
-    (
-      outlined-container-shape: var(--mat-sys-corner-extra-large),
-    )
-  );
+// longhand only: the global .title sets the face
+.title {
+  font-size: 1.375rem;
 }
