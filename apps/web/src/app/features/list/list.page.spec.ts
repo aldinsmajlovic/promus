@@ -169,6 +169,17 @@ describe('ListPage', () => {
     spy.mockRestore();
   });
 
+  it('a Done row leaves at once, with no fold, unless it was swiped', async () => {
+    const { fixture } = await setup([['Mjölk']]);
+    const leaveDone = fixture.componentInstance['leaveDone'].bind(fixture.componentInstance);
+    const li = document.createElement('li');
+    const animationComplete = vi.fn();
+    leaveDone({ target: li, animationComplete });
+    expect(animationComplete).toHaveBeenCalledOnce();
+    expect(li.classList.contains('checked-off')).toBe(false);
+    expect(li.hasAttribute('aria-hidden')).toBe(false);
+  });
+
   it('while Done is folded, a checked row still leaves and is counted', async () => {
     const { el, fixture, store, listId } = await setup([['Mjölk'], ['Ost']]);
     await store.check(listId, itemId(store, 'Mjölk'));

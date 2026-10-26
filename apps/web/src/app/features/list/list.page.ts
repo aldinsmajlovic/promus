@@ -152,6 +152,12 @@ export class ListPage {
     this.afterAnimations(target, animationComplete);
   }
 
+  /** A Done row goes at once, folding the section included, unless it was swiped: then it slides out. */
+  protected leaveDone({ target, animationComplete }: AnimationCallbackEvent): void {
+    if (target.querySelector('.swept')) this.afterAnimations(target, animationComplete);
+    else animationComplete();
+  }
+
   /** None are running under reduced motion. */
   private afterAnimations(target: Element, done: () => void): void {
     void Promise.allSettled(target.getAnimations({ subtree: true }).map((a) => a.finished)).then(done);
