@@ -2,6 +2,7 @@
 
 What changed from the original plan, and why. Newest first, one line each.
 
+- **2026-10-26, sharing a list.** Any household member can share one list by a link that works for 14 days, for people without an account. The server keeps the link itself, not only its hash, so any member can show it again: anyone who can read the database already has the lists.
 - **2026-10-26, the empty list.** A basket in a tinted circle, "Nothing on Shopping list yet" and a pointer to Add or find, instead of one grey sentence. A new list looked dead rather than ready to fill.
 - **2026-10-26, Settings as rows that lead to pages.** Your account and the household each get a page, and theme and language change in place. More to explore, less on screen at once.
 - **2026-10-26, computer layout.** On a computer the list and an always-open Add or find sit side by side under the band, so items can be typed one after another and seen landing. Tablets held upright get the phone layout in a centered column.
