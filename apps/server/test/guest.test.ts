@@ -193,6 +193,30 @@ describe('guests', { timeout: 30_000 }, () => {
     expect((await t.send('GET', `/api/guest/${t.share.id}/me`, undefined, other)).status).toBe(401);
   });
 
+  it('a Bearer request never rides on the guest cookie', async () => {
+    const t = await setup();
+    const { cookie } = await t.joinAs('Jonas');
+    const res = await t.app.request(`/api/guest/${t.share.id}/name`, {
+      method: 'PUT',
+      headers: { Host: 'promus.test', 'Content-Type': 'application/json', Authorization: 'Bearer x', Cookie: cookie },
+      body: JSON.stringify({ name: 'Evil' }),
+    });
+    expect([res.status, await res.json()]).toEqual([401, { error: 'unauthenticated' }]);
+  });
+
+  it('a guest token only works under its own link', async () => {
+    const t = await setup();
+    const listB = newId();
+    await t.push(t.cookieA, [['list.created', { listId: listB, name: 'Other' }]]);
+    const shareB = (await (await t.send('POST', '/api/shares', { listId: listB })).json()) as Share;
+    const resB = await t.join(shareB.token, 'Bea');
+    const token = /=([^;]+)/.exec(resB.headers.get('set-cookie') ?? '')?.[1] ?? '';
+    const forA = `__Host-guest-${t.share.id}=${token}`;
+    const res = await t.me(forA);
+    expect([res.status, await res.json()]).toEqual([401, { error: 'unauthenticated' }]);
+    expect(((await (await t.check(t.share.token, forA)).json()) as ShareCheck).joined).toBe(false);
+  });
+
   it('never logs a token or a guest\'s name', async () => {
     const t = await setup();
     const { cookie, joined } = await t.joinAs('Jonas Secretname');

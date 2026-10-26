@@ -3,6 +3,7 @@ import { getCookie, setCookie } from 'hono/cookie';
 import { createMiddleware } from 'hono/factory';
 import type { AppEnv } from '../app.ts';
 import { findGuest, guestCookieName, shareIsLive } from '../guests.ts';
+import { bearerToken } from './auth.ts';
 import { findShareById } from '../shares.ts';
 import type { ShareRow } from '../shares.ts';
 
@@ -14,6 +15,8 @@ export const setGuestCookie = (c: Context, share: ShareRow, token: string, now: 
 
 export function requireGuest() {
   return createMiddleware<AppEnv>(async (c, next) => {
+    // csrf() skips Bearer requests, so they must not ride on the cookie.
+    if (bearerToken(c.req.header('Authorization')) !== null) return c.json({ error: 'unauthenticated' }, 401);
     const { db, now } = c.get('deps');
     const shareId = c.req.param('shareId') ?? '';
     const token = getCookie(c, guestCookieName(shareId), 'host');
