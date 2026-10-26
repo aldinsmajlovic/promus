@@ -9,7 +9,6 @@ import close from '@material-symbols/svg-400/rounded/close.svg';
 import contentCopy from '@material-symbols/svg-400/rounded/content_copy.svg';
 import deleteIcon from '@material-symbols/svg-400/rounded/delete.svg';
 import edit from '@material-symbols/svg-400/rounded/edit.svg';
-import history from '@material-symbols/svg-400/rounded/history.svg';
 import historyToggleOff from '@material-symbols/svg-400/rounded/history_toggle_off.svg';
 import keyboardArrowDown from '@material-symbols/svg-400/rounded/keyboard_arrow_down.svg';
 import keyboardArrowUp from '@material-symbols/svg-400/rounded/keyboard_arrow_up.svg';
@@ -32,7 +31,6 @@ const ICONS: Record<string, string> = {
   arrow_back: arrowBack,
   arrow_drop_down: arrowDropDown,
   close,
-  history,
   remove_shopping_cart: removeShoppingCart,
   history_toggle_off: historyToggleOff,
   logout,

@@ -32,8 +32,10 @@ export class AddOrFind {
   protected readonly text = toSignal(this.query.valueChanges, { initialValue: '' });
   /** The row just added and the text it was found with: the field clears, the rows stay a moment. */
   protected readonly flash = signal<{ itemId: string; text: string } | null>(null);
-  /** Added in this visit: these rows say so and are inert, so a double tap can't add an item and check it off. */
+  /** Added in this visit: while still on the list these rows say so and are inert, so a double tap can't add an item and check it off. */
   protected readonly added = signal<ReadonlySet<string>>(new Set());
+  /** Adds that haven't settled: a second tap meanwhile does nothing. */
+  private readonly adding = new Set<string>();
   private readonly needle = computed(() => this.text() || (this.flash()?.text ?? ''));
   // as the view opened: an added one keeps its place, so the next tap hits what it aims at
   private readonly usual = computed(() => {
@@ -61,7 +63,7 @@ export class AddOrFind {
     }
     const added = this.added();
     return {
-      rows: results.map((r) => ({ ...r, segments: segments(r.name, r.ranges), added: added.has(r.itemId) })),
+      rows: results.map((r) => ({ ...r, segments: segments(r.name, r.ranges), added: added.has(r.itemId) && r.state !== 'none' })),
       create,
     };
   });
@@ -72,7 +74,7 @@ export class AddOrFind {
 
   protected async tap(r: SearchResult): Promise<void> {
     const listId = this.listId();
-    if (!listId || this.added().has(r.itemId)) return;
+    if (!listId || (r.state !== 'none' && this.added().has(r.itemId))) return;
     if (r.state === 'none') await this.add(r);
     else if (r.state === 'active') await this.actions.run(this.store.check(listId, r.itemId), SNACK);
     else await this.actions.run(this.store.uncheck(listId, r.itemId), SNACK);
@@ -80,14 +82,20 @@ export class AddOrFind {
 
   private async add(r: SearchResult): Promise<void> {
     const listId = this.listId();
-    if (!listId || this.added().has(r.itemId)) return;
-    // before the first await, so a second tap before the add resolves finds the row inert
+    if (!listId || this.adding.has(r.itemId)) return;
+    // before the first await, so a second tap before the add resolves does nothing
+    this.adding.add(r.itemId);
     this.added.update((a) => new Set(a).add(r.itemId));
     const text = this.needle();
-    if (!(await this.actions.run(this.store.addItem(listId, r.itemId), SNACK))) {
-      this.added.update((a) => new Set([...a].filter((id) => id !== r.itemId)));
-      return;
+    let token;
+    try {
+      token = await this.actions.run(this.store.addItem(listId, r.itemId), SNACK);
+    } finally {
+      this.adding.delete(r.itemId);
+      // a failed add leaves nothing marked
+      if (!token) this.added.update((a) => new Set([...a].filter((id) => id !== r.itemId)));
     }
+    if (!token) return;
     this.cleared();
     const flash = { itemId: r.itemId, text };
     this.flash.set(flash);

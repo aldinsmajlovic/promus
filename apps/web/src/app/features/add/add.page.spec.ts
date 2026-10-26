@@ -237,6 +237,38 @@ describe('AddPage', () => {
     expect(await t.db.outbox.count()).toBe(outbox + 1);
   });
 
+  it('an undone add can be added again', async () => {
+    const t = await setup([['Kaffe', 3]]);
+    await tap(t, rowEls(t)[0]!);
+    expect(tag(rowEls(t)[0]!)).toBe('Tillagd');
+    await (await t.loader.getHarness(MatSnackBarHarness)).dismissWithAction();
+    await t.fixture.whenStable();
+    expect(onListNow(t, 'Kaffe')).toBe(false);
+    expect([lead(rowEls(t)[0]!), tag(rowEls(t)[0]!), rowEls(t)[0]!.hasAttribute('disabled')]).toEqual([
+      'add',
+      undefined,
+      false,
+    ]);
+
+    const outbox = await t.db.outbox.count();
+    await tap(t, rowEls(t)[0]!);
+    expect(onListNow(t, 'Kaffe')).toBe(true);
+    expect(await t.db.outbox.count()).toBe(outbox + 1);
+    expect(tag(rowEls(t)[0]!)).toBe('Tillagd');
+  });
+
+  it('a failed add leaves the row tappable', async () => {
+    const t = await setup([['Kaffe', 3]]);
+    const add = vi.spyOn(t.store, 'addItem').mockResolvedValueOnce(null);
+    await tap(t, rowEls(t)[0]!);
+    expect(onListNow(t, 'Kaffe')).toBe(false);
+    expect([tag(rowEls(t)[0]!), rowEls(t)[0]!.hasAttribute('disabled')]).toEqual([undefined, false]);
+
+    add.mockRestore();
+    await tap(t, rowEls(t)[0]!);
+    expect(onListNow(t, 'Kaffe')).toBe(true);
+  });
+
   it('a 201-character name shows the too-long message', async () => {
     const t = await setup();
     await type(t, 'a'.repeat(201));
