@@ -96,6 +96,12 @@ export function restoreShare(
   });
 }
 
+/** Any link by id, ended or not: a guest's cookie names its link. */
+export function findShareById(db: DatabaseSync, id: string): ShareRow | undefined {
+  const row = db.prepare(`${SELECT} WHERE s.id = ?`).get(id) as Row | undefined;
+  return row && toRow(row);
+}
+
 export function findShareByToken(db: DatabaseSync, token: string, now: number): ShareRow | undefined {
   const row = db.prepare(`${SELECT} WHERE s.token_hash = ? AND ${LIVE}`).get(hashToken(token), now) as Row | undefined;
   return row && toRow(row);
