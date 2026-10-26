@@ -6,5 +6,6 @@ export * from './fold.ts';
 export * from './views.ts';
 export * from './undo.ts';
 export * from './auth.ts';
+export * from './share.ts';
 export * from './errors.ts';
 export * from './sync-client.ts';

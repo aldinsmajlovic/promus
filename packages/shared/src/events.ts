@@ -64,7 +64,7 @@ type FoldKeys = 'id' | 'type' | 'v' | 'hlc' | 'occurredAt' | 'undoOf' | 'payload
 // distributive, so each variant keeps its type<->payload link
 export type FoldEvent = (EventInput extends infer E ? (E extends EventInput ? Pick<E, FoldKeys> : never) : never) & { userId?: string };
 
-export type RejectCode = 'invalid' | 'clock_skew' | 'forbidden_household';
+export type RejectCode = 'invalid' | 'clock_skew' | 'forbidden_household' | 'out_of_scope';
 export type PushResponse = {
   accepted: string[];
   rejected: { id: string | null; code: RejectCode; message: string }[];
