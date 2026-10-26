@@ -91,7 +91,7 @@
             @if (doneOpen()) {
               <ul class="done">
                 @for (e of view().done; track e.itemId; let i = $index) {
-                  <li [animate.enter]="arriving()">
+                  <li [animate.enter]="arriving()" (animate.leave)="leave($event, e)">
                     <div class="swipe-bg" aria-hidden="true">
                       {{ t('list.swipeRemove') }}<mat-icon svgIcon="delete" />
                     </div>

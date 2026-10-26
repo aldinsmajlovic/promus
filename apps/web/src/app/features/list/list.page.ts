@@ -141,15 +141,20 @@ export class ListPage {
 
   /**
    * A row checked off pops its circle, strikes its name and folds, hidden from screen readers meanwhile since
-   * its Done copy is already there; a removed one just goes.
+   * its Done copy is already there. A swiped one stays until its slide out has finished; any other just goes.
    */
   protected leave({ target, animationComplete }: AnimationCallbackEvent, e: EntryView): void {
+    if (target.querySelector('.swept')) return this.afterAnimations(target, animationComplete);
     const checked = this.view().done.some((d) => d.itemId === e.itemId);
     if (!checked || this.list()?.id !== this.shown) return animationComplete();
     target.setAttribute('aria-hidden', 'true');
     target.classList.add('checked-off');
-    // none under reduced motion
-    void Promise.allSettled(target.getAnimations().map((a) => a.finished)).then(animationComplete);
+    this.afterAnimations(target, animationComplete);
+  }
+
+  /** None are running under reduced motion. */
+  private afterAnimations(target: Element, done: () => void): void {
+    void Promise.allSettled(target.getAnimations({ subtree: true }).map((a) => a.finished)).then(done);
   }
 
   /**
