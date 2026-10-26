@@ -6,24 +6,24 @@ import arrowBack from '@material-symbols/svg-400/rounded/arrow_back.svg';
 import arrowDropDown from '@material-symbols/svg-400/rounded/arrow_drop_down.svg';
 import check from '@material-symbols/svg-400/rounded/check.svg';
 import chevronRight from '@material-symbols/svg-400/rounded/chevron_right.svg';
-import group from '@material-symbols/svg-400/rounded/group.svg';
-import contrast from '@material-symbols/svg-400/rounded/contrast.svg';
-import translate from '@material-symbols/svg-400/rounded/translate.svg';
-import refresh from '@material-symbols/svg-400/rounded/refresh.svg';
 import close from '@material-symbols/svg-400/rounded/close.svg';
 import contentCopy from '@material-symbols/svg-400/rounded/content_copy.svg';
+import contrast from '@material-symbols/svg-400/rounded/contrast.svg';
 import deleteIcon from '@material-symbols/svg-400/rounded/delete.svg';
-import download from '@material-symbols/svg-400/rounded/download.svg';
 import edit from '@material-symbols/svg-400/rounded/edit.svg';
+import group from '@material-symbols/svg-400/rounded/group.svg';
 import historyToggleOff from '@material-symbols/svg-400/rounded/history_toggle_off.svg';
 import keyboardArrowDown from '@material-symbols/svg-400/rounded/keyboard_arrow_down.svg';
 import keyboardArrowUp from '@material-symbols/svg-400/rounded/keyboard_arrow_up.svg';
 import logout from '@material-symbols/svg-400/rounded/logout.svg';
+import mobileArrowDown from '@material-symbols/svg-400/rounded/mobile_arrow_down.svg';
 import moreVert from '@material-symbols/svg-400/rounded/more_vert.svg';
 import personAdd from '@material-symbols/svg-400/rounded/person_add.svg';
+import refresh from '@material-symbols/svg-400/rounded/refresh.svg';
 import removeShoppingCart from '@material-symbols/svg-400/rounded/remove_shopping_cart.svg';
 import share from '@material-symbols/svg-400/rounded/share.svg';
 import shoppingBasket from '@material-symbols/svg-400/rounded/shopping_basket.svg';
+import translate from '@material-symbols/svg-400/rounded/translate.svg';
 import visibility from '@material-symbols/svg-400/rounded/visibility.svg';
 import visibilityOff from '@material-symbols/svg-400/rounded/visibility_off.svg';
 
@@ -44,8 +44,7 @@ const ICONS: Record<string, string> = {
   group,
   contrast,
   translate,
-  // The package has no install_mobile; download is the nearest in it.
-  install_mobile: download,
+  mobile_arrow_down: mobileArrowDown,
   refresh,
   edit,
   delete: deleteIcon,

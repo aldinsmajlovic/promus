@@ -103,12 +103,31 @@ describe('SettingsPage', () => {
   });
 
   it('theme changes in place from a menu', async () => {
+    // the browser bar colours, as in index.html
+    document.head.insertAdjacentHTML(
+      'beforeend',
+      '<meta name="theme-color" content="#22401A" media="(prefers-color-scheme: light)" data-scheme="light">' +
+        '<meta name="theme-color" content="#0E1A09" media="(prefers-color-scheme: dark)" data-scheme="dark">',
+    );
+    const metas = [...document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]')];
     const t = await setup();
     expect(t.text('.theme-row .val')).toBe('System');
+
     await t.pick('theme', 'Mörkt');
     expect(html.style.colorScheme).toBe('dark');
+    expect(metas.map((m) => m.media)).toEqual(['not all', 'all']);
     expect(t.text('.theme-row .val')).toBe('Mörkt');
     await vi.waitFor(async () => expect(await t.db.getMeta('theme')).toBe('dark'));
+
+    await t.pick('theme', 'Ljust');
+    expect(html.style.colorScheme).toBe('light');
+    expect(metas.map((m) => m.media)).toEqual(['all', 'not all']);
+
+    await t.pick('theme', 'System');
+    expect(html.style.colorScheme).toBe('light dark');
+    expect(metas.map((m) => m.media)).toEqual(['(prefers-color-scheme: light)', '(prefers-color-scheme: dark)']);
+    await vi.waitFor(async () => expect(await t.db.getMeta('theme')).toBe('system'));
+    for (const m of metas) m.remove();
   });
 
   it('language changes in place from a menu', async () => {
@@ -117,6 +136,14 @@ describe('SettingsPage', () => {
     await vi.waitFor(() => expect(t.text('h1')).toBe('Settings'));
     expect(html.lang).toBe('en');
     await vi.waitFor(async () => expect(await t.db.getMeta('lang')).toBe('en'));
+
+    // System follows the browser
+    const languages = vi.spyOn(navigator, 'languages', 'get').mockReturnValue(['sv-SE']);
+    await t.pick('lang', 'System');
+    languages.mockRestore();
+    await vi.waitFor(() => expect(t.text('h1')).toBe('Inställningar'));
+    expect(html.lang).toBe('sv');
+    await vi.waitFor(async () => expect(await t.db.getMeta('lang')).toBe('system'));
   });
 
   it('shows the app version', async () => {
