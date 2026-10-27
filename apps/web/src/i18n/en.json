@@ -105,6 +105,8 @@
     "settings": "Settings",
     "swipeRemove": "Remove",
     "toGet": "{{n}} to get",
+    "total": "≈ {{total}}",
+    "unpriced": "{{n}} without a price",
     "with": "with",
     "withLabel": "Shared with {{names}}"
   },
@@ -122,6 +124,9 @@
   "phone": {
     "local": "This is the server's own address, which your phone can't open. On your phone, use the server's https:// address.",
     "scan": "Scan with your phone's camera to open Promus there."
+  },
+  "prices": {
+    "title": "Set prices"
   },
   "settings": {
     "account": "Account",

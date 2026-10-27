@@ -105,6 +105,8 @@
     "settings": "Inställningar",
     "swipeRemove": "Ta bort",
     "toGet": "{{n}} att handla",
+    "total": "≈ {{total}}",
+    "unpriced": "{{n}} utan pris",
     "with": "med",
     "withLabel": "Delas med {{names}}"
   },
@@ -122,6 +124,9 @@
   "phone": {
     "local": "Det här är serverns egen adress, som mobilen inte kan öppna. Använd serverns https://-adress i mobilen.",
     "scan": "Skanna med mobilens kamera för att öppna Promus där."
+  },
+  "prices": {
+    "title": "Sätt priser"
   },
   "settings": {
     "account": "Konto",

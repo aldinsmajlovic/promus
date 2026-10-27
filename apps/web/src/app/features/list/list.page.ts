@@ -16,6 +16,7 @@ import {
   viewChild,
   viewChildren,
 } from '@angular/core';
+import { MatBottomSheet } from '@angular/material/bottom-sheet';
 import { MatIconButton } from '@angular/material/button';
 import { MatRipple } from '@angular/material/core';
 import { MatDivider } from '@angular/material/divider';
@@ -37,6 +38,7 @@ import { AddOrFind } from '../add/add-or-find';
 import { type EditSheetData, openItemOptions } from './edit-sheet';
 import { ListMenu } from './list-menu';
 import { PeopleMenu } from './people-menu';
+import { PriceSheet, type PriceSheetData } from './price-sheet';
 import { ProfileButton } from './profile-button';
 import { RowGestures } from './row-gestures';
 
@@ -100,6 +102,7 @@ export class ListPage {
   private readonly household = inject(Household);
   private readonly shares = inject(Shares);
   private readonly lang = toSignal(inject(TranslocoService).langChanges$, { requireSync: true });
+  private readonly sheets = inject(MatBottomSheet);
   /** A guest's list: no list menu, and Add or find in the link's own data. */
   protected readonly guest = inject(GUEST) !== null;
   protected readonly wide = inject(WIDE);
@@ -114,6 +117,13 @@ export class ListPage {
     const list = this.list();
     if (!list) return { active: [], done: [] };
     return listView(this.store.state(), list.id, this.store.now(), this.current.collator());
+  });
+  /** What the list will cost, Done included so it's the whole trip, and the rows without a price; null until one has. */
+  protected readonly cost = computed(() => {
+    const rows = [...this.view().active, ...this.view().done];
+    if (rows.every((e) => e.price === null)) return null;
+    const total = rows.reduce((sum, e) => sum + (e.price ?? 0) * e.quantity, 0);
+    return { total: formatPrice(total, this.lang()), unpriced: rows.filter((e) => e.price === null) };
   });
   /** Undefined until meta `doneFolded` is first read; then Done shows, open unless folded on this device. */
   protected readonly doneOpen = this.fold.open;
@@ -182,6 +192,12 @@ export class ListPage {
   protected noteLine(e: EntryView): string {
     const cost = e.price === null ? null : formatPrice(e.price * e.quantity, this.lang());
     return [e.note, cost].filter(Boolean).join(' · ');
+  }
+
+  protected priceUnpriced(rows: EntryView[]): void {
+    const data: PriceSheetData = rows.map(({ itemId, name }) => ({ itemId, name }));
+    // the page's injector: a guest's page has its own Store. It saves on close, so a refused price keeps it open
+    this.sheets.open(PriceSheet, { data, injector: this.injector, disableClose: true, autoFocus: 'first-tabbable' });
   }
 
   protected toggleDone(): void {

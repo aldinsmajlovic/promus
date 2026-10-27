@@ -781,6 +781,76 @@ describe('ListPage', () => {
     expect(rows(t.el, true).map(lines)).toEqual([['', '49,90 kr']]);
   });
 
+  it('the total shows once a row has a price, counts Done and quantities, and says how many have none', async () => {
+    const t = await setup([['Mjölk'], ['Bröd'], ['Ost']]);
+    const [milk, bread, cheese] = [itemId(t.store, 'Mjölk'), itemId(t.store, 'Bröd'), itemId(t.store, 'Ost')];
+    const total = () => text(t.el.querySelector('.total'));
+    expect(t.el.querySelector('.total')).toBeNull();
+
+    await t.store.setQuantity(t.listId, milk, 3);
+    await t.store.setPrices([{ itemId: milk, price: 1490 }]);
+    await t.fixture.whenStable();
+    expect(total()).toBe('≈ 44,70 kr · 2 utan pris');
+
+    await t.store.setPrices([{ itemId: bread, price: 3500 }, { itemId: cheese, price: 8950 }]);
+    await t.store.check(t.listId, cheese);
+    await t.fixture.whenStable();
+    expect(total()).toBe('≈ 169,20 kr');
+    // under the rows to get, above Done
+    const order = [...t.el.querySelectorAll('main ul, main .total, main [aria-expanded]')].map((e) => e.tagName);
+    expect(order).toEqual(['UL', 'P', 'BUTTON', 'UL']);
+  });
+
+  it('the rows without a price are priced in one sheet, with one undo', async () => {
+    const t = await setup([['Mjölk'], ['Bröd'], ['Ost']]);
+    const [milk, bread, cheese] = [itemId(t.store, 'Mjölk'), itemId(t.store, 'Bröd'), itemId(t.store, 'Ost')];
+    await t.store.setPrices([{ itemId: milk, price: 1490 }]);
+    await t.fixture.whenStable();
+    t.el.querySelector<HTMLElement>('.total button')!.click();
+    const sheet = await t.loader.getHarness(MatBottomSheetHarness);
+    const fields = await sheet.getAllHarnesses(MatFormFieldHarness);
+    expect(await Promise.all(fields.map((f) => f.getLabel()))).toEqual(['Bröd', 'Ost']);
+    const inputs = [...document.querySelectorAll<HTMLInputElement>('app-price-sheet input')];
+
+    await (await fields[0]!.getControl(MatInputHarness))!.setValue('35');
+    inputs[0]!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+    expect(document.activeElement).toBe(inputs[1]);
+    await (await fields[1]!.getControl(MatInputHarness))!.setValue('89,50');
+    inputs[1]!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+    await t.fixture.whenStable();
+    expect(await t.loader.getAllHarnesses(MatBottomSheetHarness)).toHaveLength(0);
+    expect(text(t.el.querySelector('.total'))).toBe('≈ 139,40 kr');
+
+    const snackBar = await t.loader.getHarness(MatSnackBarHarness);
+    expect(await snackBar.getMessage()).toBe('Priser sparade');
+    await snackBar.dismissWithAction();
+    await t.fixture.whenStable();
+    expect([milk, bread, cheese].map((id) => t.store.state().items.get(id)?.price)).toEqual([1490, null, null]);
+  });
+
+  it('a price that does not read keeps the sheet open on it, and saves nothing', async () => {
+    const t = await setup([['Mjölk'], ['Bröd'], ['Ost']]);
+    await t.store.setPrices([{ itemId: itemId(t.store, 'Mjölk'), price: 1490 }]);
+    await t.fixture.whenStable();
+    t.el.querySelector<HTMLElement>('.total button')!.click();
+    const sheet = await t.loader.getHarness(MatBottomSheetHarness);
+    const fields = await sheet.getAllHarnesses(MatFormFieldHarness);
+    await (await fields[0]!.getControl(MatInputHarness))!.setValue('35');
+    await (await fields[1]!.getControl(MatInputHarness))!.setValue('gratis');
+    await sheet.dismiss();
+    await t.fixture.whenStable();
+    expect(await t.loader.getAllHarnesses(MatBottomSheetHarness)).toHaveLength(1);
+    expect(await fields[1]!.getTextErrors()).toEqual(['Skriv ett pris, till exempel 14,90']);
+    expect(t.store.state().items.get(itemId(t.store, 'Bröd'))?.price).toBeNull();
+
+    await (await fields[1]!.getControl(MatInputHarness))!.setValue('');
+    await sheet.dismiss();
+    await t.fixture.whenStable();
+    expect(await t.loader.getAllHarnesses(MatBottomSheetHarness)).toHaveLength(0);
+    expect(t.store.state().items.get(itemId(t.store, 'Bröd'))?.price).toBe(3500);
+    expect(await (await t.loader.getHarness(MatSnackBarHarness)).getMessage()).toBe('Pris sparat');
+  });
+
   it('rows are labelled checkboxes', async () => {
     const { el } = await setup([['Mjölk', 'laktosfri']]);
     const [row] = rows(el, false);

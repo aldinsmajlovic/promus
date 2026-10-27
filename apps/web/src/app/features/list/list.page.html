@@ -77,6 +77,18 @@
             }
           </ul>
 
+          @if (cost(); as c) {
+            <p class="total">
+              {{ t('list.total', { total: c.total }) }}
+              @if (c.unpriced.length) {
+                <span aria-hidden="true">·</span>
+                <button class="unpriced" matRipple (click)="priceUnpriced(c.unpriced)">
+                  {{ t('list.unpriced', { n: c.unpriced.length }) }}
+                </button>
+              }
+            </p>
+          }
+
           @if (view().done.length && doneOpen() !== undefined) {
             <mat-divider />
             <button
