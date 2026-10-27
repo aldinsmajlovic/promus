@@ -82,7 +82,7 @@
               {{ t('list.total', { total: c.total }) }}
               @if (c.unpriced.length) {
                 <span aria-hidden="true">·</span>
-                <button class="unpriced" matRipple (click)="priceUnpriced(c.unpriced)">
+                <button class="unpriced state" matRipple (click)="priceUnpriced(c.unpriced)">
                   {{ t('list.unpriced', { n: c.unpriced.length }) }}
                 </button>
               }
