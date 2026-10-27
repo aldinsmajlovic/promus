@@ -95,7 +95,7 @@
     "done": "Klart ({{n}})",
     "emptyHint": "Lägg till den första varan med Lägg till eller hitta nedan.",
     "emptyTitle": "Inget på {{list}} än",
-    "left": "{{left}} kvar",
+    "left": "{{left}} kvar av {{total}}",
     "linkUntil": "Länken fungerar till {{date}}",
     "moreFor": "Alternativ för {{name}}",
     "new": "Ny lista",
@@ -107,7 +107,6 @@
     "settings": "Inställningar",
     "swipeRemove": "Ta bort",
     "toGet": "{{n}} att handla",
-    "total": "≈ {{total}} totalt",
     "unpriced": "{{n}} utan pris",
     "with": "med",
     "withLabel": "Delas med {{names}}"

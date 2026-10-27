@@ -77,8 +77,8 @@ async function fill(page: Page, password: string): Promise<void> {
     await page.getByRole('checkbox', { name }).click({ button: 'right' });
     if (set.note) await page.getByLabel('Note').fill(set.note);
     for (let q = 1; q < (set.quantity ?? 1); q++) await page.getByRole('button', { name: 'More', exact: true }).click();
-    if (set.price) await page.getByLabel('Price').fill(set.price);
-    await page.getByLabel('Price').press('Enter');
+    if (set.price) await page.getByLabel('Price', { exact: true }).fill(set.price);
+    await page.getByLabel('Price', { exact: true }).press('Enter');
   }
   for (const name of CHECKED) await page.getByRole('checkbox', { name }).tap();
   await settle(page, 'Settings for demo');

@@ -79,13 +79,17 @@
 
           @if (cost(); as c) {
             <p class="section total">
-              {{ t('list.total', { total: c.total }) }}
-              <span aria-hidden="true">·</span>
-              {{ t('list.left', { left: c.left }) }}
+              {{ t('list.left', { left: c.left, total: c.total }) }}
               @if (c.unpriced.length) {
-                <span aria-hidden="true">·</span>
-                <button class="unpriced state" matRipple (click)="priceUnpriced(c.unpriced)">
-                  {{ t('list.unpriced', { n: c.unpriced.length }) }}
+                @let unpriced = t('list.unpriced', { n: c.unpriced.length });
+                <button
+                  class="unpriced state"
+                  matRipple
+                  [attr.aria-label]="unpriced"
+                  [title]="unpriced"
+                  (click)="priceUnpriced(c.unpriced)"
+                >
+                  <mat-icon svgIcon="sell" />{{ c.unpriced.length }}
                 </button>
               }
             </p>

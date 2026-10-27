@@ -794,13 +794,16 @@ describe('ListPage', () => {
     await t.store.setQuantity(t.listId, milk, 3);
     await t.store.setPrices([{ itemId: milk, price: 1490 }]);
     await t.fixture.whenStable();
-    expect(total()).toBe('≈ 45 kr totalt · 45 kr kvar · 2 utan pris');
+    expect(total()).toBe('45 kr kvar av 45 kr 2');
+    // a tag and a count, named for screen readers and on hover
+    const unpriced = t.el.querySelector('.total button')!;
+    expect([unpriced.getAttribute('aria-label'), unpriced.getAttribute('title')]).toEqual(['2 utan pris', '2 utan pris']);
 
     await t.store.setPrices([{ itemId: bread, price: 3500 }, { itemId: cheese, price: 8950 }]);
     await t.store.check(t.listId, cheese);
     await t.fixture.whenStable();
     // Ost is in Done: in the total, not in what's left
-    expect(total()).toBe('≈ 169 kr totalt · 80 kr kvar');
+    expect(total()).toBe('80 kr kvar av 169 kr');
     // under the rows to get, above Done
     const order = [...t.el.querySelectorAll('main ul, main .total, main [aria-expanded]')].map((e) => e.tagName);
     expect(order).toEqual(['UL', 'P', 'BUTTON', 'UL']);
@@ -839,7 +842,7 @@ describe('ListPage', () => {
     inputs[1]!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
     await t.fixture.whenStable();
     expect(await t.loader.getAllHarnesses(MatBottomSheetHarness)).toHaveLength(0);
-    expect(text(t.el.querySelector('.total'))).toBe('≈ 139 kr totalt · 139 kr kvar');
+    expect(text(t.el.querySelector('.total'))).toBe('139 kr kvar av 139 kr');
 
     const snackBar = await t.loader.getHarness(MatSnackBarHarness);
     expect(await snackBar.getMessage()).toBe('Priser sparade');

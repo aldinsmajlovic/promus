@@ -149,18 +149,18 @@ test('a price and a quantity, typed once, come back with the item', async ({ pag
   await page.getByRole('checkbox', { name: 'Havregryn' }).click({ button: 'right' });
   await page.getByRole('button', { name: 'Fler' }).click();
   await page.getByRole('button', { name: 'Fler' }).click();
-  await page.getByLabel('Pris').fill('14,90');
-  await page.getByLabel('Pris').press('Enter');
+  await page.getByLabel('Pris', { exact: true }).fill('14,90');
+  await page.getByLabel('Pris', { exact: true }).press('Enter');
   const row = page.getByRole('checkbox', { name: 'Havregryn', checked: false });
   await expect(row).toContainText('×3');
   await expect(row).toContainText('44,70 kr');
   const total = page.locator('.total');
-  await expect(total).toContainText('≈ 45 kr totalt · 45 kr kvar');
+  await expect(total).toContainText('45 kr kvar av 45 kr');
 
   // checked off, it's still in the total, and no longer left
   await row.click();
   await expect(page.getByRole('checkbox', { name: 'Havregryn', checked: true })).toBeVisible();
-  await expect(total).toContainText('≈ 45 kr totalt · 0 kr kvar');
+  await expect(total).toContainText('0 kr kvar av 45 kr');
 
   await page.getByRole('link', { name: 'Lägg till eller hitta' }).click();
   await page.getByPlaceholder('Lägg till eller hitta').fill('havregryn');
@@ -168,5 +168,5 @@ test('a price and a quantity, typed once, come back with the item', async ({ pag
   await expect(page.getByText('Havregryn tillagd')).toBeVisible();
   await page.getByRole('button', { name: 'Stäng' }).click();
   await expect(row).toContainText('×3');
-  await expect(total).toContainText('≈ 45 kr totalt · 45 kr kvar');
+  await expect(total).toContainText('45 kr kvar av 45 kr');
 });
