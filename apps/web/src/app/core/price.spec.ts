@@ -36,6 +36,8 @@ describe('formatPrice', () => {
     const plain = (s: string) => s.replace(/\s/g, ' ');
     expect(plain(formatPrice(4470, 'sv'))).toBe('44,70 kr');
     expect(plain(formatPrice(4470, 'en'))).toBe('SEK 44.70');
+    expect(plain(formatPrice(4470, 'sv', { whole: true }))).toBe('45 kr');
+    expect(plain(formatPrice(4440, 'en', { whole: true }))).toBe('SEK 44');
   });
 });
 

@@ -118,12 +118,14 @@ export class ListPage {
     if (!list) return { active: [], done: [] };
     return listView(this.store.state(), list.id, this.store.now(), this.current.collator());
   });
-  /** What the list will cost, Done included so it's the whole trip, and the rows without a price; null until one has. */
+  /** The list's total, Done included, what's left to get, and the rows without a price; null until one has a price. */
   protected readonly cost = computed(() => {
-    const rows = [...this.view().active, ...this.view().done];
+    const { active, done } = this.view();
+    const rows = [...active, ...done];
     if (rows.every((e) => e.price === null)) return null;
-    const total = rows.reduce((sum, e) => sum + (e.price ?? 0) * e.quantity, 0);
-    return { total: formatPrice(total, this.lang()), unpriced: rows.filter((e) => e.price === null) };
+    const sum = (es: EntryView[]) =>
+      formatPrice(es.reduce((ore, e) => ore + (e.price ?? 0) * e.quantity, 0), this.lang(), { whole: true });
+    return { total: sum(rows), left: sum(active), unpriced: rows.filter((e) => e.price === null) };
   });
   /** Undefined until meta `doneFolded` is first read; then Done shows, open unless folded on this device. */
   protected readonly doneOpen = this.fold.open;

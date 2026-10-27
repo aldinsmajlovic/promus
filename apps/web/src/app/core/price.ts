@@ -14,9 +14,13 @@ export function parsePrice(text: string): number | null {
   return ore;
 }
 
-/** "44,70 kr", or "SEK 44.70" in English. */
-export const formatPrice = (ore: number, lang: string): string =>
-  new Intl.NumberFormat(lang, { style: 'currency', currency: 'SEK' }).format(ore / 100);
+/** "44,70 kr", or "SEK 44.70" in English; `whole` rounds to kronor, "45 kr", for an estimate. */
+export const formatPrice = (ore: number, lang: string, { whole = false } = {}): string =>
+  new Intl.NumberFormat(lang, {
+    style: 'currency',
+    currency: 'SEK',
+    ...(whole ? { minimumFractionDigits: 0, maximumFractionDigits: 0 } : {}),
+  }).format(ore / 100);
 
 /** What a Price field starts with: "14,90", without "kr" or grouping, so `parsePrice` reads it back. */
 export const priceText = (ore: number | null, lang: string): string =>

@@ -11,7 +11,7 @@ In Latin, a *promus* is the household steward who brings provisions out of the s
 
 ## Features
 
-- Re-add anything you've bought before with a few letters and a tap, typos and diacritics included: "gradd" finds "grädd". The same item comes back, never a duplicate, with its usual quantity and price, and the list adds up what the trip will cost.
+- Re-add anything you've bought before with a few letters and a tap, typos and diacritics included: "gradd" finds "grädd". The same item comes back, never a duplicate, with its usual quantity and price, and the list shows its total and what's left to buy.
 - With the add field empty, your most-bought items that aren't on the list are one tap away.
 - Works fully offline in the store. Changes sync when the server is reachable, with nothing lost or duplicated.
 - Checked items move to a Done section and leave the list after 24 hours.

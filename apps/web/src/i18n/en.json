@@ -95,6 +95,7 @@
     "done": "Done ({{n}})",
     "emptyHint": "Add the first item with Add or find below.",
     "emptyTitle": "Nothing on {{list}} yet",
+    "left": "{{left}} left",
     "linkUntil": "Link works until {{date}}",
     "moreFor": "Options for {{name}}",
     "new": "New list",
@@ -105,7 +106,7 @@
     "settings": "Settings",
     "swipeRemove": "Remove",
     "toGet": "{{n}} to get",
-    "total": "≈ {{total}}",
+    "total": "≈ {{total}} total",
     "unpriced": "{{n}} without a price",
     "with": "with",
     "withLabel": "Shared with {{names}}"

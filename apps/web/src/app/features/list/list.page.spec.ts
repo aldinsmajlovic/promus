@@ -781,7 +781,7 @@ describe('ListPage', () => {
     expect(rows(t.el, true).map(lines)).toEqual([['', '49,90 kr']]);
   });
 
-  it('the total shows once a row has a price, counts Done and quantities, and says how many have none', async () => {
+  it('the total and what is left show once a row has a price, with quantities, and how many have none', async () => {
     const t = await setup([['Mjölk'], ['Bröd'], ['Ost']]);
     const [milk, bread, cheese] = [itemId(t.store, 'Mjölk'), itemId(t.store, 'Bröd'), itemId(t.store, 'Ost')];
     const total = () => text(t.el.querySelector('.total'));
@@ -790,12 +790,13 @@ describe('ListPage', () => {
     await t.store.setQuantity(t.listId, milk, 3);
     await t.store.setPrices([{ itemId: milk, price: 1490 }]);
     await t.fixture.whenStable();
-    expect(total()).toBe('≈ 44,70 kr · 2 utan pris');
+    expect(total()).toBe('≈ 45 kr totalt · 45 kr kvar · 2 utan pris');
 
     await t.store.setPrices([{ itemId: bread, price: 3500 }, { itemId: cheese, price: 8950 }]);
     await t.store.check(t.listId, cheese);
     await t.fixture.whenStable();
-    expect(total()).toBe('≈ 169,20 kr');
+    // Ost is in Done: in the total, not in what's left
+    expect(total()).toBe('≈ 169 kr totalt · 80 kr kvar');
     // under the rows to get, above Done
     const order = [...t.el.querySelectorAll('main ul, main .total, main [aria-expanded]')].map((e) => e.tagName);
     expect(order).toEqual(['UL', 'P', 'BUTTON', 'UL']);
@@ -819,7 +820,7 @@ describe('ListPage', () => {
     inputs[1]!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
     await t.fixture.whenStable();
     expect(await t.loader.getAllHarnesses(MatBottomSheetHarness)).toHaveLength(0);
-    expect(text(t.el.querySelector('.total'))).toBe('≈ 139,40 kr');
+    expect(text(t.el.querySelector('.total'))).toBe('≈ 139 kr totalt · 139 kr kvar');
 
     const snackBar = await t.loader.getHarness(MatSnackBarHarness);
     expect(await snackBar.getMessage()).toBe('Priser sparade');

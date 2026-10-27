@@ -80,6 +80,8 @@
           @if (cost(); as c) {
             <p class="section total">
               {{ t('list.total', { total: c.total }) }}
+              <span aria-hidden="true">·</span>
+              {{ t('list.left', { left: c.left }) }}
               @if (c.unpriced.length) {
                 <span aria-hidden="true">·</span>
                 <button class="unpriced state" matRipple (click)="priceUnpriced(c.unpriced)">
