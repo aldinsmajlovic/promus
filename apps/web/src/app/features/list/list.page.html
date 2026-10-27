@@ -7,6 +7,7 @@
           <p class="meta">
             {{ t('list.toGet', { n: view().active.length }) }}
             <!-- checked on every render, not cached: a link runs out without anything in it changing -->
+            <!-- ponytail: only on a render, so a page nobody touches keeps an ended link's guests. Upgrade path: a timer at expiresAt -->
             @let link = shares.liveFor(l.id);
             <app-people-menu
               [people]="link ? withGuests() : members()"
