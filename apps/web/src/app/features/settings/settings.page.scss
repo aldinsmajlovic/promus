@@ -28,6 +28,14 @@ button.row {
       background: color-mix(in srgb, currentColor 6%, transparent);
     }
   }
+
+  // inset, as on the list's rows: the group's rounded clip would cut a ring outside. Rounded like the group,
+  // so its corners clear that clip too
+  &:focus-visible {
+    border-radius: inherit;
+    outline: 3px solid var(--mat-sys-secondary);
+    outline-offset: -3px;
+  }
 }
 
 .row + .row,
