@@ -73,7 +73,7 @@ export function peopleOnList(db: DatabaseSync, share: ShareRow): Person[] {
 
 /**
  * Why a guest may not push `e`, judged on its own, or null. `created` holds the item ids that already exist. A rename
- * is judged again in `guestRefusals`, on the fold.
+ * or a price is judged again in `guestRefusals`, on the fold.
  */
 export function guestRejection(
   e: EventInput,
@@ -86,10 +86,11 @@ export function guestRejection(
   if (e.type === 'item.created') return created.has(e.payload.itemId) ? 'out_of_scope' : null;
   // A guest never archives or unarchives, not even its own item: a later event can make that item an alias of the
   // household's, and the stored archive would then land on theirs. Undoing a guest's add takes back the entry only.
-  return e.type === 'item.renamed' ? null : 'out_of_scope';
+  return isItemChange(e) ? null : 'out_of_scope';
 }
 
-type Rename = Extract<EventInput, { type: 'item.renamed' }>;
+type ItemChange = Extract<EventInput, { type: 'item.renamed' | 'item.priceSet' }>;
+const isItemChange = (e: EventInput): e is ItemChange => e.type === 'item.renamed' || e.type === 'item.priceSet';
 
 /** The guest's refusals among a push's events that passed every other check, by event id. */
 export function guestRefusals(db: DatabaseSync, { guestId, share }: GuestContext, events: EventInput[]): Map<string, RejectCode> {
@@ -111,11 +112,11 @@ export function guestRefusals(db: DatabaseSync, { guestId, share }: GuestContext
     if (code) refused.set(e.id, code);
     else if (e.type === 'item.created') ctx.created.add(e.payload.itemId);
   }
-  const renames = batch.filter((e): e is Rename => e.type === 'item.renamed' && !refused.has(e.id));
-  if (renames.length === 0) return refused;
-  // A rename must land on an item on the list. The household folds in hlc order, not in the order a batch arrives:
-  // a create dated earlier sorts before theirs and changes which item an id is. So renames are judged on the fold
-  // of the stored events and the batch together, and one refused rename refuses them all.
+  const changes = batch.filter((e): e is ItemChange => isItemChange(e) && !refused.has(e.id));
+  if (changes.length === 0) return refused;
+  // A rename or a price must land on an item on the list. The household folds in hlc order, not in the order a batch
+  // arrives: a create dated earlier sorts before theirs and changes which item an id is. So they are judged on the
+  // fold of the stored events and the batch together, and one refused one refuses them all.
   const stored = householdEvents(db, share.householdId);
   const last = stored.at(-1)?.seq ?? 0;
   const all: StoredEvent[] = [
@@ -124,6 +125,6 @@ export function guestRefusals(db: DatabaseSync, { guestId, share }: GuestContext
   ];
   const state = fold(all);
   const scope = scopeItems(all, shareScope(share), state);
-  if (renames.some((e) => !scope.has(resolveItemId(state, e.payload.itemId)))) for (const e of renames) refused.set(e.id, 'out_of_scope');
+  if (changes.some((e) => !scope.has(resolveItemId(state, e.payload.itemId)))) for (const e of changes) refused.set(e.id, 'out_of_scope');
   return refused;
 }

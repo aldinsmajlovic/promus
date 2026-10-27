@@ -163,6 +163,45 @@ describe('guest sync', { timeout: 30_000 }, () => {
     expect(t.lines.join('')).not.toContain('Jonas');
   });
 
+  it('a guest sets prices and quantities on the list, and only there', async () => {
+    const t = await setup();
+    const listB = newId();
+    const [milk, bread, cheese] = [newId(), newId(), newId()];
+    const list = t.anna.listId;
+    await t.push(
+      t.ev('list.created', { listId: listB, name: 'Hardware' }),
+      t.ev('item.created', { itemId: milk, name: 'Milk' }),
+      t.ev('entry.added', { listId: list, itemId: milk }),
+      t.ev('item.created', { itemId: bread, name: 'Bread' }),
+      t.ev('entry.added', { listId: listB, itemId: bread }),
+      t.ev('item.created', { itemId: cheese, name: 'Cheese' }),
+      t.ev('item.priceSet', { itemId: milk, price: 1490 }),
+    );
+    const g = await t.shared();
+    expect((await t.pulled(await g.gpull())).events.some((e) => e.type === 'item.priceSet' && e.payload.itemId === milk)).toBe(true);
+    expect(await g.verdicts(t.ev('item.priceSet', { itemId: milk, price: 1690 }))).toEqual(['accepted']);
+    expect(await g.verdicts(t.ev('item.priceSet', { itemId: bread, price: 2500 }))).toEqual(['out_of_scope']);
+    expect(await g.verdicts(t.ev('entry.quantitySet', { listId: list, itemId: milk, quantity: 3 }))).toEqual(['accepted']);
+    expect(await g.verdicts(t.ev('entry.quantitySet', { listId: listB, itemId: bread, quantity: 3 }))).toEqual(['out_of_scope']);
+    // their own "cheese" is the household's Cheese, which isn't on the list until the add
+    const mine = newId();
+    expect(
+      await g.verdicts(
+        t.ev('item.created', { itemId: mine, name: 'cheese' }),
+        t.ev('entry.added', { listId: list, itemId: mine }),
+        t.ev('item.priceSet', { itemId: mine, price: 4990 }),
+      ),
+    ).toEqual(['accepted', 'accepted', 'accepted']);
+    // one refused price refuses the batch's renames and prices
+    expect(
+      await g.verdicts(t.ev('item.priceSet', { itemId: bread, price: 1 }), t.ev('item.renamed', { itemId: milk, name: 'Oat milk' })),
+    ).toEqual(['out_of_scope', 'out_of_scope']);
+    const state = await t.annaFold();
+    expect([state.items.get(milk)?.price, state.items.get(bread)?.price, state.items.get(cheese)?.price]).toEqual([1690, null, 4990]);
+    expect(state.items.get(milk)?.name).toBe('Milk');
+    expect(state.entries.get(entryKey(list, milk))?.quantity).toBe(3);
+  });
+
   const undoAdd = (name: string, oneBatch: boolean) => async () => {
     const t = await setup();
     const milk = newId();
