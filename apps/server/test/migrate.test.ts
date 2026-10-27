@@ -14,8 +14,8 @@ const tables = (db: DatabaseSync) =>
 describe('migrate', () => {
   it('applies all migrations to a fresh database', () => {
     const db = openDatabase(join(tmp(), 'a.db'));
-    expect(migrate(db, MIGRATIONS_DIR)).toBe(3);
-    expect(version(db)).toBe(3);
+    expect(migrate(db, MIGRATIONS_DIR)).toBe(4);
+    expect(version(db)).toBe(4);
     for (const t of ['users', 'households', 'household_members', 'sessions', 'events', 'invites', 'shares', 'guests']) {
       expect(tables(db)).toContain(t);
     }
@@ -28,7 +28,7 @@ describe('migrate', () => {
   it('is a no-op when up to date', () => {
     const db = openDatabase(join(tmp(), 'a.db'));
     migrate(db, MIGRATIONS_DIR);
-    expect(migrate(db, MIGRATIONS_DIR)).toBe(3);
+    expect(migrate(db, MIGRATIONS_DIR)).toBe(4);
   });
 
   it('upgrades an older database and keeps its data', () => {

@@ -59,6 +59,27 @@ export function insertUser(
     .run(userId, username, norm, passwordHash, now);
 }
 
+/** Inside a transaction: a household owned by `userId`, with a default list. */
+export function insertHousehold(
+  db: DatabaseSync,
+  { userId, locale, now, sessionId }: { userId: string; locale: Locale; now: number; sessionId: string },
+): { householdId: string; listId: string } {
+  const householdId = newId();
+  const listId = newId();
+  const event = makeEvent(
+    'list.created',
+    { listId, name: DEFAULT_LIST_NAME[locale] },
+    { householdId, hlc: formatHlc(now, 0, 'server'), occurredAt: now },
+  );
+  db.prepare('INSERT INTO households (id, created_at) VALUES (?, ?)').run(householdId, now);
+  db.prepare("INSERT INTO household_members (household_id, user_id, role) VALUES (?, ?, 'owner')").run(householdId, userId);
+  db.prepare(
+    `INSERT INTO events (id, household_id, user_id, session_id, type, v, hlc, occurred_at, received_at, payload)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  ).run(event.id, householdId, userId, sessionId, event.type, event.v, event.hlc, event.occurredAt, now, JSON.stringify(event.payload));
+  return { householdId, listId };
+}
+
 export async function createUser(
   db: DatabaseSync,
   opts: {
@@ -77,24 +98,11 @@ export async function createUser(
   const passwordHash = await hashPassword(opts.password);
   const { now } = opts;
   const userId = newId();
-  const householdId = newId();
-  const listId = newId();
-  const event = makeEvent(
-    'list.created',
-    { listId, name: DEFAULT_LIST_NAME[opts.locale] },
-    { householdId, hlc: formatHlc(now, 0, 'server'), occurredAt: now },
-  );
-  transaction(db, () => {
+  return transaction(db, () => {
     if (opts.assertNoUsers && db.prepare('SELECT 1 FROM users LIMIT 1').get()) throw new AlreadySetUpError();
     insertUser(db, { userId, username, passwordHash, now });
-    db.prepare('INSERT INTO households (id, created_at) VALUES (?, ?)').run(householdId, now);
-    db.prepare("INSERT INTO household_members (household_id, user_id, role) VALUES (?, ?, 'owner')").run(householdId, userId);
-    db.prepare(
-      `INSERT INTO events (id, household_id, user_id, session_id, type, v, hlc, occurred_at, received_at, payload)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    ).run(event.id, householdId, userId, opts.sessionId ?? 'cli', event.type, event.v, event.hlc, event.occurredAt, now, JSON.stringify(event.payload));
+    return { userId, ...insertHousehold(db, { userId, locale: opts.locale, now, sessionId: opts.sessionId ?? 'cli' }) };
   });
-  return { userId, householdId, listId };
 }
 
 export async function setPassword(db: DatabaseSync, username: string, password: string, now: number): Promise<void> {

@@ -5,6 +5,7 @@ import {
   NetworkError,
   guestNameSchema,
   inviteAcceptSchema,
+  inviteCreateSchema,
   inviteTokenSchema,
   loginRequestSchema,
   setupRequestSchema,
@@ -16,6 +17,8 @@ import type {
   EventInput,
   GuestMe,
   InviteAccept,
+  InviteCheck,
+  InviteCreate,
   Member,
   PullResponse,
   PushResponse,
@@ -70,8 +73,8 @@ export class ApiClient implements SyncApi {
     return this.request('POST', '/api/setup', setupRequestSchema.parse(req));
   }
 
-  createInvite(): Promise<{ id: string; token: string; expiresAt: number }> {
-    return this.request('POST', '/api/invites');
+  createInvite(req: InviteCreate): Promise<{ id: string; token: string; expiresAt: number }> {
+    return this.request('POST', '/api/invites', inviteCreateSchema.parse(req));
   }
 
   revokeInvite(id: string): Promise<void> {
@@ -79,7 +82,7 @@ export class ApiClient implements SyncApi {
   }
 
   // tokens only ever in a body: the server logs every path
-  checkInvite(token: string): Promise<{ expiresAt: number; invitedBy: string }> {
+  checkInvite(token: string): Promise<InviteCheck> {
     return this.request('POST', '/api/invites/check', inviteTokenSchema.parse({ token }));
   }
 

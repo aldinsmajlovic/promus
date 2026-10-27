@@ -21,7 +21,7 @@ Run it against the server's own database:
 
 Without `DATA_DIR`, the CLI uses `./data`, which is a separate database. `user:create` would then create an account the server never sees. `backup` refuses a database that doesn't exist: it exits with `No database at <path>; check DATA_DIR` and creates nothing.
 
-You rarely need `user:create`. The first account comes from the setup wizard in the browser, and everyone else joins through an invite from **Settings**. The setup code the wizard asks for is in the server's log: `docker logs promus | grep 'Setup code'`, or `journalctl -u promus | grep 'Setup code'` for a systemd install.
+You rarely need `user:create`. The first account comes from the setup wizard in the browser, and everyone else joins through an invite from **Settings**, to your household or to lists of their own. The setup code the wizard asks for is in the server's log: `docker logs promus | grep 'Setup code'`, or `journalctl -u promus | grep 'Setup code'` for a systemd install.
 
 ## What the commands do
 

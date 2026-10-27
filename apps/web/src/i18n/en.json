@@ -77,6 +77,8 @@
   "invite": {
     "copy": "Copy link",
     "intro": "Whoever opens this link can join your household and share its lists. It works once, for 7 days.",
+    "ownIntro": "Whoever opens this link gets an account with lists of their own. You don't see each other's lists. It works once, for 7 days.",
+    "ownTitle": "Invite a friend",
     "share": "Share",
     "title": "Invite someone"
   },
@@ -84,6 +86,9 @@
     "intro": "Choose a username and password for yourself. The link works once.",
     "invalid": "This link has expired or was already used. Ask for a new one.",
     "invitedBy": "{{name}} invited you",
+    "ownSubmit": "Create account",
+    "ownTagline": "Create an account for lists of your own.",
+    "ownTitle": "Your own lists",
     "submit": "Join",
     "tagline": "Join to share their household's lists.",
     "title": "Join a household"
@@ -136,6 +141,8 @@
     "back": "Back",
     "dark": "Dark",
     "en": "English",
+    "friend": "Invite a friend",
+    "friendHint": "With lists of their own",
     "household": "Household",
     "householdIntro": "Everyone here shares all of the household's lists.",
     "install": "Install app",

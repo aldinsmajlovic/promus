@@ -32,10 +32,12 @@ async function setup() {
     { id: me, username: 'anna', role: 'owner' },
     { id: newId(), username: 'maja', role: 'member' },
   ];
-  const fetch = vi.fn<typeof globalThis.fetch>(async () =>
-    new Response(JSON.stringify({ user: { id: me, username: 'anna' }, households: [{ id: 'h1', role: 'owner', members }] }), {
-      status: 200,
-    }),
+  const fetch = vi.fn<typeof globalThis.fetch>(async (url) =>
+    url === '/api/invites'
+      ? new Response(JSON.stringify({ id: 'i1', token: 'tok', expiresAt: 1 }), { status: 201 })
+      : new Response(JSON.stringify({ user: { id: me, username: 'anna' }, households: [{ id: 'h1', role: 'owner', members }] }), {
+          status: 200,
+        }),
   );
   const status = signal<SyncStatus>({ kind: 'idle', pending: 0, rejected: 0 });
   TestBed.configureTestingModule({
@@ -70,7 +72,7 @@ async function setup() {
     const menu = await loader.getHarness(MatMenuHarness.with({ selector: `.${row}-row` }));
     await menu.clickItem({ text: item });
   };
-  return { db, status, harness, el, loader, text, pick };
+  return { db, fetch, status, harness, el, loader, text, pick };
 }
 
 afterEach(() => {
@@ -100,6 +102,19 @@ describe('SettingsPage', () => {
     await vi.waitFor(() => expect(t.text('.household-row .sub')).toBe('Du och maja'));
     expect(t.el.querySelector('.household-row')?.getAttribute('href')).toBe('/settings/household');
     expect(t.el.querySelectorAll('.household-row app-face').length).toBe(2);
+  });
+
+  it('Invite a friend shows a link to lists of their own', async () => {
+    const t = await setup();
+    expect(t.text('.friend-row .main')).toBe(sv.settings.friend);
+    expect(t.text('.friend-row .sub')).toBe(sv.settings.friendHint);
+    t.el.querySelector<HTMLButtonElement>('.friend-row')!.click();
+    const sheet = () => document.querySelector('mat-bottom-sheet-container');
+    await vi.waitFor(() => expect(sheet()?.textContent).toContain(sv.invite.ownIntro));
+    expect(sheet()!.querySelector('h2')?.textContent).toBe(sv.invite.ownTitle);
+    expect(sheet()!.textContent).toContain('https://promus.example/join#tok');
+    const [, init] = t.fetch.mock.calls.find(([url]) => url === '/api/invites')!;
+    expect(JSON.parse(init!.body as string)).toEqual({ ownHousehold: true });
   });
 
   it('theme changes in place from a menu', async () => {

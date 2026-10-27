@@ -16,6 +16,7 @@ import { SyncService } from '../../core/sync.service';
 import { type ThemeMode, ThemeService } from '../../core/theme';
 import { Face } from '../../shared/face';
 import { PhoneCard } from '../../shared/phone-card';
+import { injectInvite } from './invite-sheet';
 
 @Component({
   selector: 'app-settings-page',
@@ -56,6 +57,7 @@ export class SettingsPage {
   });
   protected readonly version = version;
   protected readonly back = injectBack();
+  protected readonly invite = injectInvite();
   protected readonly langs: { value: Lang | 'system'; label: string }[] = [
     { value: 'system', label: 'settings.system' },
     { value: 'sv', label: 'settings.sv' },

@@ -17,9 +17,16 @@ export const setupRequestSchema = accountSchema.extend({
 });
 export type SetupRequest = z.infer<typeof setupRequestSchema>;
 
+/** `ownHousehold`: the invitee gets a household and lists of their own instead of joining yours. */
+export const inviteCreateSchema = z.object({ ownHousehold: z.boolean().optional() });
+export type InviteCreate = z.infer<typeof inviteCreateSchema>;
+
 export const inviteTokenSchema = z.object({ token: z.string().min(1).max(100) });
-export const inviteAcceptSchema = accountSchema.extend(inviteTokenSchema.shape);
+/** `locale` names the default list of an own-household invite. */
+export const inviteAcceptSchema = accountSchema.extend(inviteTokenSchema.shape).extend({ locale: z.enum(['sv', 'en']).optional() });
 export type InviteAccept = z.infer<typeof inviteAcceptSchema>;
+
+export type InviteCheck = { expiresAt: number; invitedBy: string; ownHousehold: boolean };
 
 /** A household member, as Settings lists them. */
 export type Member = { id: string; username: string; role: string };

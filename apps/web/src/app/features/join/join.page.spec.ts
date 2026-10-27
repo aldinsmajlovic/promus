@@ -31,7 +31,7 @@ async function setup(answers: Answers = {}, cached?: Session) {
   const db = new PromusDb(`join-${newId()}`);
   if (cached) await db.setMeta('session', cached);
   const fetch = vi.fn<typeof globalThis.fetch>(async (url, init) => {
-    if (url === '/api/invites/check') return (answers.check ?? (() => json(200, { expiresAt: Date.now() + 1000, invitedBy: 'anna' })))();
+    if (url === '/api/invites/check') return (answers.check ?? (() => json(200, { expiresAt: Date.now() + 1000, invitedBy: 'anna', ownHousehold: false })))();
     if (url === '/api/invites/accept') return (answers.accept ?? (() => json(201, {})))(JSON.parse(init!.body as string));
     if (url === '/api/auth/login') return (answers.login ?? (() => json(200, { user: bo, householdId: anna.householdId })))();
     if (url === '/api/me') return json(200, { user: bo, households: [] });
@@ -61,11 +61,11 @@ async function setup(answers: Answers = {}, cached?: Session) {
   const harness = await RouterTestingHarness.create('/join#the-token');
   const loader = TestbedHarnessEnvironment.documentRootLoader(harness.fixture);
   const el: HTMLElement = harness.fixture.nativeElement;
-  const join = async (username: string) => {
+  const join = async (username: string, submit = sv.join.submit) => {
     const field = (selector: string) => loader.getHarness(MatInputHarness.with({ selector }));
     await (await field('[autocomplete="username"]')).setValue(username);
     await (await field('[autocomplete="new-password"]')).setValue('correct horse');
-    await (await loader.getHarness(MatButtonHarness.with({ text: sv.join.submit }))).click();
+    await (await loader.getHarness(MatButtonHarness.with({ text: submit }))).click();
   };
   const accepts = () => fetch.mock.calls.filter(([url]) => url === '/api/invites/accept');
   return { db, fetch, el, join, accepts };
@@ -84,8 +84,18 @@ describe('JoinPage', () => {
     expect(JSON.parse(check!.body as string)).toEqual({ token: 'the-token' });
     await t.join('bo');
     await vi.waitFor(() => expect(t.el.textContent).toContain(sv.phone.scan));
-    expect(JSON.parse(t.accepts()[0]![1]!.body as string)).toEqual({ token: 'the-token', username: 'bo', password: 'correct horse' });
+    expect(JSON.parse(t.accepts()[0]![1]!.body as string)).toEqual({ token: 'the-token', username: 'bo', password: 'correct horse', locale: 'sv' });
     expect(await t.db.getMeta('session')).toMatchObject({ userId: 'u2', householdId: anna.householdId });
+  });
+
+  it('an invite to lists of your own says so, and creates the account', async () => {
+    const t = await setup({ check: () => json(200, { expiresAt: Date.now() + 1000, invitedBy: 'anna', ownHousehold: true }) });
+    await vi.waitFor(() => expect(t.el.textContent).toContain(sv.join.ownTagline));
+    expect(t.el.textContent).not.toContain(sv.join.tagline);
+    await t.join('bo', sv.join.ownSubmit);
+    await vi.waitFor(() => expect(t.el.textContent).toContain(sv.phone.scan));
+    expect(t.el.querySelector('h1')?.textContent).toContain(sv.join.ownTitle);
+    expect(t.accepts()).toHaveLength(1);
   });
 
   it('an expired or used link says so', async () => {

@@ -36,6 +36,13 @@
           </span>
           <mat-icon class="go" svgIcon="chevron_right" />
         </a>
+        <button class="row friend-row" type="button" (click)="invite(true)">
+          <span class="ic"><mat-icon svgIcon="person_add" /></span>
+          <span class="txt">
+            <span class="main">{{ t('settings.friend') }}</span>
+            <span class="sub">{{ t('settings.friendHint') }}</span>
+          </span>
+        </button>
       </div>
 
       <div class="group">

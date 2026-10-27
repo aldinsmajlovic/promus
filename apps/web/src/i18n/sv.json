@@ -77,6 +77,8 @@
   "invite": {
     "copy": "Kopiera länk",
     "intro": "Den som öppnar länken kan gå med i ditt hushåll och dela dess listor. Den fungerar en gång, i 7 dagar.",
+    "ownIntro": "Den som öppnar länken får ett konto med egna listor. Ni ser inte varandras listor. Den fungerar en gång, i 7 dagar.",
+    "ownTitle": "Bjud in en vän",
     "share": "Dela",
     "title": "Bjud in någon"
   },
@@ -84,6 +86,9 @@
     "intro": "Välj ett användarnamn och lösenord åt dig. Länken fungerar en gång.",
     "invalid": "Länken har gått ut eller redan använts. Be om en ny.",
     "invitedBy": "{{name}} bjöd in dig",
+    "ownSubmit": "Skapa konto",
+    "ownTagline": "Skapa ett konto för egna listor.",
+    "ownTitle": "Dina egna listor",
     "submit": "Gå med",
     "tagline": "Gå med och dela hushållets listor.",
     "title": "Gå med i ett hushåll"
@@ -136,6 +141,8 @@
     "back": "Tillbaka",
     "dark": "Mörkt",
     "en": "English",
+    "friend": "Bjud in en vän",
+    "friendHint": "Med egna listor",
     "household": "Hushåll",
     "householdIntro": "Alla här delar alla hushållets listor.",
     "install": "Installera appen",

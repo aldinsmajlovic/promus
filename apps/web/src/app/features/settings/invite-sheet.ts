@@ -1,15 +1,53 @@
 import { Clipboard } from '@angular/cdk/clipboard';
 import { Component, inject } from '@angular/core';
 import { MatButton } from '@angular/material/button';
-import { MAT_BOTTOM_SHEET_DATA } from '@angular/material/bottom-sheet';
+import { MAT_BOTTOM_SHEET_DATA, MatBottomSheet } from '@angular/material/bottom-sheet';
 import { MatIcon } from '@angular/material/icon';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { MatSnackBar, type MatSnackBarConfig } from '@angular/material/snack-bar';
 import { TranslocoDirective, TranslocoService } from '@jsverse/transloco';
 import { Actions } from '../../core/actions';
+import { ApiClient } from '../../core/api';
 import { ORIGIN, isLocalOrigin } from '../../core/platform';
 import { QrCode } from '../../shared/qr-code';
 
-export type InviteSheetData = { url: string };
+export type InviteSheetData = { url: string; ownHousehold: boolean };
+
+// at the top: the invite sheet takes the bottom of the screen
+const SNACK: MatSnackBarConfig = { duration: 5000, verticalPosition: 'top' };
+
+/**
+ * Creates an invite, to your household or to lists of their own, and shows its link; Undo revokes it. Call it
+ * in an injection context, such as a field initializer.
+ */
+export function injectInvite(): (ownHousehold: boolean) => Promise<void> {
+  const api = inject(ApiClient);
+  const sheet = inject(MatBottomSheet);
+  const snackBar = inject(MatSnackBar);
+  const t = inject(TranslocoService);
+  const actions = inject(Actions);
+  const origin = inject(ORIGIN);
+  return async (ownHousehold) => {
+    let invite: { id: string; token: string };
+    try {
+      invite = await api.createInvite({ ownHousehold });
+    } catch (err) {
+      actions.failed(err, SNACK);
+      return;
+    }
+    const data: InviteSheetData = { url: `${origin}/join#${invite.token}`, ownHousehold };
+    const ref = sheet.open(InviteSheet, { data });
+    snackBar
+      .open(t.translate('snack.inviteCreated'), t.translate('snack.undo'), SNACK)
+      .onAction()
+      .subscribe(() => {
+        ref.dismiss();
+        api.revokeInvite(invite.id).then(
+          () => snackBar.open(t.translate('snack.inviteRevoked'), undefined, SNACK),
+          (err: unknown) => actions.failed(err, SNACK),
+        );
+      });
+  };
+}
 
 /** An invite link to scan, share or copy. */
 @Component({
@@ -17,8 +55,8 @@ export type InviteSheetData = { url: string };
   imports: [MatButton, MatIcon, TranslocoDirective, QrCode],
   template: `
     <ng-container *transloco="let t">
-      <h2>{{ t('invite.title') }}</h2>
-      <p>{{ t('invite.intro') }}</p>
+      <h2>{{ t(data.ownHousehold ? 'invite.ownTitle' : 'invite.title') }}</h2>
+      <p>{{ t(data.ownHousehold ? 'invite.ownIntro' : 'invite.intro') }}</p>
       @if (local) {
         <p>{{ t('phone.local') }}</p>
       } @else {

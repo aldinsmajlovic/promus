@@ -92,6 +92,14 @@ describe('HouseholdPage', () => {
     await vi.waitFor(() => expect(t.sheet()).toBeNull());
   });
 
+  it('invites to this household', async () => {
+    const t = await setup();
+    const body = () => JSON.parse(t.fetch.mock.calls.find(([url]) => url === '/api/invites')![1]!.body as string);
+    await t.invite();
+    await vi.waitFor(() => expect(t.sheet()?.textContent).toContain(sv.invite.intro));
+    expect(body()).toEqual({ ownHousehold: false });
+  });
+
   it('on localhost, the sheet explains instead of showing a QR code', async () => {
     const t = await setup('http://localhost:8080');
     await t.invite();

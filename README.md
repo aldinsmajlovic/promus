@@ -18,11 +18,11 @@ In Latin, a *promus* is the household steward who brings provisions out of the s
 - Every action can be undone from the snackbar. There are no confirmation dialogs.
 - Share several lists and one item history with your household: invite each person with a link or a QR code to an account of their own. Friends without one can use a single list from a link, until it expires.
 - Installs on Android and iPhone. Swedish and English, with light and dark themes.
-- Runs on your own server, with no public sign-up. Every change is kept with when it happened and who made it.
+- Runs on your own server, with no public sign-up: a friend can get lists of their own on it from an invite link. Every change is kept with when it happened and who made it.
 
 ## Status
 
-Early: the list, search, offline sync, undo, the setup wizard and household invites are done, and being tried day to day. Sharing a list by link, prices and quantities are new.
+Early: the list, search, offline sync, undo, the setup wizard and household invites are done, and being tried day to day. Sharing a list by link, prices, quantities and invites to lists of one's own are new.
 Stats come next, then data export and a Home Assistant integration.
 
 ## Quick start

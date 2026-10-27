@@ -4,7 +4,7 @@ import { newId } from '@promus/shared';
 import { hashPassword } from './auth/password.ts';
 import { hashToken } from './auth/sessions.ts';
 import { transaction } from './db.ts';
-import { checkPassword, checkUsername, insertUser } from './users.ts';
+import { type Locale, checkPassword, checkUsername, insertHousehold, insertUser } from './users.ts';
 
 export const INVITE_TTL_MS = 7 * 86_400_000;
 
@@ -16,12 +16,12 @@ export class InviteInvalidError extends Error {
   }
 }
 
-type InviteRow = { id: string; household_id: string; expires_at: number; invited_by: string };
+type InviteRow = { id: string; household_id: string; expires_at: number; invited_by: string; own_household: number };
 
 export function findValidInvite(db: DatabaseSync, tokenHash: string, now: number): InviteRow | undefined {
   return db
     .prepare(
-      `SELECT i.id, i.household_id, i.expires_at, u.username AS invited_by
+      `SELECT i.id, i.household_id, i.expires_at, i.own_household, u.username AS invited_by
        FROM invites i JOIN users u ON u.id = i.created_by
        WHERE i.token_hash = ? AND i.used_at IS NULL AND i.revoked_at IS NULL AND i.expires_at >= ?`,
     )
@@ -31,14 +31,14 @@ export function findValidInvite(db: DatabaseSync, tokenHash: string, now: number
 /** The token is returned once and only its hash is stored, as for sessions. */
 export function createInvite(
   db: DatabaseSync,
-  { householdId, userId, now }: { householdId: string; userId: string; now: number },
+  { householdId, userId, ownHousehold, now }: { householdId: string; userId: string; ownHousehold: boolean; now: number },
 ): { id: string; token: string; expiresAt: number } {
   const id = newId();
   const token = randomBytes(32).toString('base64url');
   const expiresAt = now + INVITE_TTL_MS;
   db.prepare(
-    'INSERT INTO invites (id, household_id, token_hash, created_by, created_at, expires_at) VALUES (?, ?, ?, ?, ?, ?)',
-  ).run(id, householdId, hashToken(token), userId, now, expiresAt);
+    'INSERT INTO invites (id, household_id, token_hash, created_by, created_at, expires_at, own_household) VALUES (?, ?, ?, ?, ?, ?, ?)',
+  ).run(id, householdId, hashToken(token), userId, now, expiresAt, ownHousehold ? 1 : 0);
   return { id, token, expiresAt };
 }
 
@@ -51,12 +51,13 @@ export function revokeInvite(db: DatabaseSync, id: string, householdIds: string[
 }
 
 /**
- * A new account joins the invite's household as a member: no household or list of its own. Throws
- * AccountError, UserExistsError (the invite stays usable) or InviteInvalidError.
+ * A new account joins the invite's household as a member, with no household or list of its own; or, for an
+ * own-household invite, gets a household and default list of its own, as from the CLI. Throws AccountError,
+ * UserExistsError (the invite stays usable) or InviteInvalidError.
  */
 export async function acceptInvite(
   db: DatabaseSync,
-  opts: { tokenHash: string; username: string; password: string; now: number },
+  opts: { tokenHash: string; username: string; password: string; locale: Locale; now: number },
 ): Promise<{ userId: string; householdId: string }> {
   const username = checkUsername(opts.username);
   checkPassword(opts.password);
@@ -67,9 +68,14 @@ export async function acceptInvite(
     const invite = findValidInvite(db, opts.tokenHash, opts.now);
     if (!invite) throw new InviteInvalidError();
     insertUser(db, { userId, username, passwordHash, now: opts.now });
-    db.prepare("INSERT INTO household_members (household_id, user_id, role) VALUES (?, ?, 'member')")
-      .run(invite.household_id, userId);
+    let householdId = invite.household_id;
+    if (invite.own_household) {
+      householdId = insertHousehold(db, { userId, locale: opts.locale, now: opts.now, sessionId: 'invite' }).householdId;
+    } else {
+      db.prepare("INSERT INTO household_members (household_id, user_id, role) VALUES (?, ?, 'member')")
+        .run(householdId, userId);
+    }
     db.prepare('UPDATE invites SET used_at = ?, used_by = ? WHERE id = ?').run(opts.now, userId, invite.id);
-    return { userId, householdId: invite.household_id };
+    return { userId, householdId };
   });
 }

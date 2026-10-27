@@ -1,9 +1,10 @@
 import { Component, inject, signal } from '@angular/core';
 import { MatButton } from '@angular/material/button';
 import { ActivatedRoute, Router } from '@angular/router';
-import { TranslocoDirective } from '@jsverse/transloco';
+import { TranslocoDirective, TranslocoService } from '@jsverse/transloco';
 import { ApiError } from '@promus/shared';
 import { ApiClient } from '../../core/api';
+import type { Lang } from '../../core/i18n';
 import { SECURE_CONTEXT } from '../../core/platform';
 import { CookieRejectedError, SessionService } from '../../core/session';
 import { SyncService } from '../../core/sync.service';
@@ -25,9 +26,9 @@ type State = 'checking' | 'form' | 'invalid' | 'phone';
           @if (state() === 'form' && invitedBy(); as name) {
             <span class="face tone-1" aria-hidden="true">{{ initialOf(name) }}</span>
             <h1 class="brand">{{ t('join.invitedBy', { name }) }}</h1>
-            <p class="lede">{{ t('join.tagline') }}</p>
+            <p class="lede">{{ t(ownHousehold() ? 'join.ownTagline' : 'join.tagline') }}</p>
           } @else {
-            <h1 class="brand">{{ t('join.title') }}</h1>
+            <h1 class="brand">{{ t(ownHousehold() ? 'join.ownTitle' : 'join.title') }}</h1>
           }
         </header>
 
@@ -38,7 +39,7 @@ type State = 'checking' | 'form' | 'invalid' | 'phone';
             @switch (state()) {
               @case ('form') {
                 <p>{{ t('join.intro') }}</p>
-                <app-account-form submitLabel="join.submit" [busy]="busy()" [error]="error()" (submitted)="join($event)" />
+                <app-account-form [submitLabel]="ownHousehold() ? 'join.ownSubmit' : 'join.submit'" [busy]="busy()" [error]="error()" (submitted)="join($event)" />
               }
               @case ('invalid') {
                 <p role="alert">{{ t('join.invalid') }}</p>
@@ -74,6 +75,7 @@ export class JoinPage {
   private readonly session = inject(SessionService);
   private readonly sync = inject(SyncService);
   private readonly router = inject(Router);
+  private readonly transloco = inject(TranslocoService);
   private readonly token = inject(ActivatedRoute).snapshot.fragment ?? '';
   protected readonly secure = inject(SECURE_CONTEXT);
   protected readonly state = signal<State>('checking');
@@ -81,6 +83,7 @@ export class JoinPage {
   protected readonly error = signal<FormError | null>(null);
   protected readonly cookieRejected = signal(false);
   protected readonly invitedBy = signal('');
+  protected readonly ownHousehold = signal(false);
   protected readonly initialOf = initialOf;
   // the account exists once accept succeeds: a retry only signs in, the invite is spent
   private accepted = false;
@@ -92,8 +95,9 @@ export class JoinPage {
       return;
     }
     this.api.checkInvite(this.token).then(
-      ({ invitedBy }) => {
+      ({ invitedBy, ownHousehold }) => {
         this.invitedBy.set(invitedBy);
+        this.ownHousehold.set(ownHousehold);
         this.state.set('form');
       },
       (err: unknown) => {
@@ -111,7 +115,8 @@ export class JoinPage {
       // before the invite is used up: a sign-in that this device refuses must leave it usable
       await this.session.assertCanSignIn(username);
       if (!this.accepted) {
-        await this.api.acceptInvite({ token: this.token, username, password });
+        const locale = this.transloco.getActiveLang() as Lang;
+        await this.api.acceptInvite({ token: this.token, username, password, locale });
         this.accepted = true;
       }
       await this.session.login(username, password);

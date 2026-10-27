@@ -32,10 +32,10 @@ async function setup() {
       headers: { ...SAME_ORIGIN, 'Content-Type': 'application/json', ...(cookie ? { Cookie: cookie } : {}) },
       body: body === undefined ? undefined : JSON.stringify(body),
     });
-  const invite = async (cookie = cookieA) => (await (await send('POST', '/api/invites', undefined, cookie)).json()) as Created;
+  const invite = async (cookie = cookieA, body?: unknown) => (await (await send('POST', '/api/invites', body, cookie)).json()) as Created;
   const check = (token: string) => send('POST', '/api/invites/check', { token });
-  const accept = (token: string, username = 'Bo', password = PW) =>
-    send('POST', '/api/invites/accept', { token, username, password });
+  const accept = (token: string, username = 'Bo', password = PW, locale?: string) =>
+    send('POST', '/api/invites/accept', { token, username, password, locale });
   const me = async (cookie: string) =>
     (await (await t.app.request('/api/me', { headers: { Cookie: cookie } })).json()) as {
       households: { id: string; role: string; members: { id: string; username: string; role: string }[] }[];
@@ -104,7 +104,47 @@ describe('invites', { timeout: 30_000 }, () => {
     const { token } = await t.invite();
     const res = await t.check(token);
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ expiresAt: T0 + 7 * DAY, invitedBy: 'Anna' });
+    expect(await res.json()).toEqual({ expiresAt: T0 + 7 * DAY, invitedBy: 'Anna', ownHousehold: false });
+  });
+
+  it('an own-household invite gives the new account a household and list of its own', async () => {
+    const t = await setup();
+    const { id, token } = await t.invite(t.cookieA, { ownHousehold: true });
+    expect(await (await t.check(token)).json()).toEqual({ expiresAt: T0 + 7 * DAY, invitedBy: 'Anna', ownHousehold: true });
+    // the inviter's household, so the inviter can revoke it
+    expect(t.db.prepare('SELECT household_id, own_household FROM invites WHERE id = ?').get(id))
+      .toEqual({ household_id: t.anna.householdId, own_household: 1 });
+
+    expect((await t.accept(token, 'Bo', PW, 'sv')).status).toBe(201);
+    const bo = t.db.prepare("SELECT id FROM users WHERE username = 'Bo'").get() as { id: string };
+    const cookieB = cookieOf(await login(t.app, 'bo', PW));
+    const { households } = await t.me(cookieB);
+    expect(households).toEqual([{ id: expect.any(String), role: 'owner', members: [{ id: bo.id, username: 'Bo', role: 'owner' }] }]);
+    expect(households[0]!.id).not.toBe(t.anna.householdId);
+    expect((await t.me(t.cookieA)).households[0]!.members).toEqual([{ id: t.anna.userId, username: 'Anna', role: 'owner' }]);
+
+    const pulled = (await (await t.app.request('/api/sync/pull', { headers: { Cookie: cookieB } })).json()) as PullResponse;
+    expect(pulled.events.map((e) => [e.type, e.householdId, (e.payload as { name: string }).name]))
+      .toEqual([['list.created', households[0]!.id, 'Inköpslista']]);
+    expect((await t.accept(token, 'Cia')).status).toBe(404);
+  });
+
+  it('an own-household invite names the list in English without a locale', async () => {
+    const t = await setup();
+    const { token } = await t.invite(t.cookieA, { ownHousehold: true });
+    expect((await t.accept(token)).status).toBe(201);
+    const cookieB = cookieOf(await login(t.app, 'bo', PW));
+    const pulled = (await (await t.app.request('/api/sync/pull', { headers: { Cookie: cookieB } })).json()) as PullResponse;
+    expect(pulled.events.map((e) => (e.payload as { name: string }).name)).toEqual(['Shopping list']);
+  });
+
+  it('refuses an invite request it can\'t read', async () => {
+    const t = await setup();
+    for (const body of [{ ownHousehold: 'yes' }, 'x']) {
+      const res = await t.send('POST', '/api/invites', body, t.cookieA);
+      expect(res.status).toBe(400);
+      expect(await res.json()).toEqual({ error: 'invalid_request' });
+    }
   });
 
   it('a token expires after 7 days', async () => {

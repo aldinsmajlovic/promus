@@ -78,6 +78,13 @@ In **Settings**, open **Household** and tap **Invite someone**. The link shows a
 - **Joining:** whoever opens it chooses their own username and password, joins your household, and sees the same lists and item history.
 - **Removing someone:** not possible yet. Until it is, `user:password` from the [server commands](cli.md) signs them out everywhere.
 
+## Invite a friend
+
+For a friend who wants Promus but not your lists: in **Settings**, tap **Invite a friend**. The link shows as for an invite, works once, for 7 days, and **Undo** in the snackbar cancels it.
+- **Joining:** whoever opens it chooses a username and password and gets an account on your server with a list of their own, named in the language they chose. It works offline and syncs as yours does.
+- **Who sees what:** they don't see your lists and you don't see theirs, in the app. Their lists are in your database and your backups, as everyone's are.
+- **A forgotten password:** `user:password` from the [server commands](cli.md) sets a new one.
+
 ## Share a list
 
 To let friends without an account use one list, tap the list's name and choose **Share**, for example **Share Taco night**. The link shows as a QR code, with **Share** and **Copy**. Whoever opens it types a name, or leaves it empty to show as Guest, and is on the list. On that phone, the link opens the list straight away after that.
