@@ -3,6 +3,7 @@ import * as z from 'zod';
 import { isKind } from './events.ts';
 import type { StoredEvent } from './events.ts';
 import { compareEvents, fold, resolveItemId } from './fold.ts';
+import type { HouseholdState } from './fold.ts';
 import { cleanName } from './normalize.ts';
 import { inDoneWindow } from './views.ts';
 
@@ -33,8 +34,7 @@ export type GuestMe = {
 /** `fromSeq` is the household's last `seq` when the link was made, `madeAt` its `created_at`. */
 export type ShareScope = { listId: string; fromSeq: number; madeAt: number };
 
-function scopeOf(events: StoredEvent[], { listId, fromSeq, madeAt }: ShareScope) {
-  const now = fold(events);
+function scopeOf(events: StoredEvent[], { listId, fromSeq, madeAt }: ShareScope, now = fold(events)) {
   const before = fold(events.filter((e) => e.seq <= fromSeq));
   const itemOf = (e: { payload: { itemId: string } }) => resolveItemId(now, e.payload.itemId);
   // the items on the list at the moment -> the entry.added their entry starts from
@@ -57,8 +57,9 @@ function scopeOf(events: StoredEvent[], { listId, fromSeq, madeAt }: ShareScope)
   return { itemOf, starts, entered, items: new Set([...starts.keys(), ...entered.keys()]) };
 }
 
-/** The resolved ids of the items a guest of `scope` may know. */
-export const scopeItems = (events: StoredEvent[], scope: ShareScope): Set<string> => scopeOf(events, scope).items;
+/** The resolved ids of the items a guest of `scope` may know. `now`, when given, is `fold(events)`. */
+export const scopeItems = (events: StoredEvent[], scope: ShareScope, now?: HouseholdState): Set<string> =>
+  scopeOf(events, scope, now).items;
 
 /**
  * The household's events a guest of `scope` may have after `after`, sorted by `seq`: the list's own, the item

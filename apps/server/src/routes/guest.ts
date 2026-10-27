@@ -1,7 +1,9 @@
 import { Hono } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
 import { getCookie } from 'hono/cookie';
-import { GUEST_NAME_MAX, cleanGuestName, guestNameSchema, sharedEvents, shareJoinSchema, shareTokenSchema } from '@promus/shared';
+import {
+  GUEST_NAME_MAX, LIMITS, cleanGuestName, guestNameSchema, hlcWall, sharedEvents, shareJoinSchema, shareTokenSchema,
+} from '@promus/shared';
 import type { GuestMe, PullResponse, RejectCode, ShareCheck, ShareJoined } from '@promus/shared';
 import type { AppDeps, AppEnv } from '../app.ts';
 import { householdEvents, lastSeq, listState } from '../events-repo.ts';
@@ -94,6 +96,12 @@ export function guestRoutes(deps: Pick<AppDeps, 'db' | 'logger' | 'now'>) {
         const message = (code: RejectCode) => (code === 'out_of_scope' ? 'not on the shared list' : "not the shared list's household");
         return {
           who: { userId: guest.guestId, sessionId: guest.guestId },
+          // a guest's events can't sort before items the household made long before the link. A phone with a slow
+          // clock gets clock_skew, and its sync restamps the events and pushes them again
+          refuse: (e) =>
+            hlcWall(e.hlc) < guest.share.createdAt - LIMITS.maxClockSkewMs
+              ? { code: 'clock_skew', message: 'event is more than one hour before the link was made' }
+              : null,
           judge: (events) => new Map([...guestRefusals(db, guest, events)].map(([id, code]) => [id, { code, message: message(code) }])),
           logged: { guestId: guest.guestId },
         };
