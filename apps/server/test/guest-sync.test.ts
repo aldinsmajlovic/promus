@@ -109,6 +109,7 @@ describe('guest sync', { timeout: 30_000 }, () => {
     const bread = newId();
     const events = [t.ev('item.created', { itemId: bread, name: 'Bread' }), t.ev('entry.added', { listId: t.anna.listId, itemId: bread })];
     expect(await g.verdicts(...events)).toEqual(['accepted', 'accepted']);
+    expect(await g.verdicts(...events)).toEqual(['accepted', 'accepted']);
     for (const e of events)
       expect(t.db.prepare('SELECT user_id, session_id FROM events WHERE id = ?').get(e.id)).toEqual({ user_id: g.guestId, session_id: g.guestId });
     expect((await t.annaFold()).entries.get(entryKey(t.anna.listId, bread))?.addedBy).toBe(g.guestId);
@@ -209,6 +210,17 @@ describe('guest sync', { timeout: 30_000 }, () => {
     expect((await t.annaFold()).aliases.get(bread)).toBe(mine);
     expect(await g.verdicts(t.ev('item.archived', { itemId: mine }))).toEqual(['out_of_scope']);
     expect((await t.annaFold()).items.get(mine)?.archived).toBe(false);
+  });
+
+  it("a guest can't claim a household item by its id", async () => {
+    const t = await setup();
+    const milk = newId();
+    await t.push(t.ev('item.created', { itemId: milk, name: 'Milk' }), t.ev('entry.added', { listId: t.anna.listId, itemId: milk }));
+    const g = await t.shared();
+    expect((await t.pulled(await g.gpull())).events.map((e) => e.type === 'item.created' && e.payload.itemId)).toContain(milk);
+    expect(await g.verdicts(t.ev('item.created', { itemId: milk, name: 'Mine' }))).toEqual(['out_of_scope']);
+    expect(await g.verdicts(t.ev('item.archived', { itemId: milk }))).toEqual(['out_of_scope']);
+    expect((await t.annaFold()).items.get(milk)).toMatchObject({ name: 'Milk', archived: false });
   });
 
   it('an ended link refuses pull and push', async () => {

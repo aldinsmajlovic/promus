@@ -77,8 +77,12 @@ export function guestRejection(e: EventInput, { householdId, listId, state, scop
   const ownItem = (id: string): boolean =>
     own.has(id) && state.items.has(id) && ![...state.aliases].some(([alias, real]) => real === id && !own.has(alias));
   switch (e.type) {
-    case 'item.created':
-      return null;
+    // an id the household already has stays theirs: the fold would skip this, but `own` would take it in. Its own
+    // ids again are a retried push
+    case 'item.created': {
+      const id = e.payload.itemId;
+      return own.has(id) || !(state.items.has(id) || state.aliases.has(id)) ? null : 'out_of_scope';
+    }
     case 'item.renamed': {
       const id = resolveItemId(state, e.payload.itemId);
       return scope.has(id) || ownItem(id) ? null : 'out_of_scope';
