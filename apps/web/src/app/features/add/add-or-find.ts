@@ -13,13 +13,16 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { MatIconButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
+import { MatMenu, MatMenuContent, MatMenuItem, MatMenuTrigger } from '@angular/material/menu';
 import type { MatSnackBarConfig } from '@angular/material/snack-bar';
 import { TranslocoDirective } from '@jsverse/transloco';
 import { cleanName, frequentItems, normalizeName } from '@promus/shared';
 import { Actions, refuse } from '../../core/actions';
 import { CurrentList } from '../../core/current-list';
+import { GUEST } from '../../core/db';
 import { WIDE } from '../../core/layout';
 import { Store, ValidationError } from '../../core/store';
+import { RowGestures } from '../list/row-gestures';
 import { type SearchResult, resultOf, searchItems, segments } from './search';
 
 // on a phone, at the bottom it would sit on the field; `in-toolbar` keeps it off the rows and Close uncovered.
@@ -30,7 +33,17 @@ const FLASH_MS = 600;
 /** Adds items and finds the ones already on the list, which check off and back right here. */
 @Component({
   selector: 'app-add-or-find',
-  imports: [ReactiveFormsModule, MatIconButton, MatIcon, TranslocoDirective],
+  imports: [
+    ReactiveFormsModule,
+    MatIconButton,
+    MatIcon,
+    MatMenu,
+    MatMenuContent,
+    MatMenuItem,
+    MatMenuTrigger,
+    RowGestures,
+    TranslocoDirective,
+  ],
   templateUrl: './add-or-find.html',
   styleUrl: './add-or-find.scss',
 })
@@ -41,6 +54,8 @@ export class AddOrFind {
   private readonly list = inject(CurrentList).list;
   private readonly listId = computed(() => this.list()?.id);
   private readonly wide = inject(WIDE);
+  // a guest's suggestions are the household's: not theirs to change
+  protected readonly guest = inject(GUEST) !== null;
   protected readonly query = new FormControl('', { nonNullable: true });
   protected readonly text = toSignal(this.query.valueChanges, { initialValue: '' });
   /** The row just added and the text it was found with: the field clears, the rows stay a moment. */
@@ -151,6 +166,10 @@ export class AddOrFind {
       if (!(err instanceof ValidationError)) throw err;
       refuse(this.query, err);
     }
+  }
+
+  protected archive(itemId: string): void {
+    void this.actions.run(this.store.archiveItem(itemId), this.snack());
   }
 
   /** The field's own input, not the add clearing it: Added rows stay inert through a double tap. */

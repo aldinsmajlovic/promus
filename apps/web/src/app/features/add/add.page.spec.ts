@@ -5,6 +5,7 @@ import { Component, importProvidersFrom, provideAppInitializer, signal } from '@
 import { TestBed } from '@angular/core/testing';
 import { MatButtonHarness } from '@angular/material/button/testing';
 import { MATERIAL_ANIMATIONS } from '@angular/material/core';
+import { MatMenuHarness } from '@angular/material/menu/testing';
 import { MatSnackBarHarness } from '@angular/material/snack-bar/testing';
 import { Router, provideRouter } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
@@ -222,6 +223,26 @@ describe('AddPage', () => {
     await tap(t, rowEls(t)[0]!);
     expect(await (await t.loader.getHarness(MatSnackBarHarness)).getMessage()).toBe('Mjölk tillbaka på listan');
     expect([lead(rowEls(t)[0]!), tag(rowEls(t)[0]!)]).toEqual(['circle', 'På listan']);
+  });
+
+  it('holding a row offers to remove it from the suggestions, with undo', async () => {
+    const t = await setup([['Mjölk', 3], ['Ost', 2]]);
+    expect(titles(t)).toEqual(['Mjölk', 'Ost']);
+    rowEls(t)[0]!.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+    const menu = await t.loader.getHarness(MatMenuHarness);
+    const [item] = await menu.getItems();
+    expect(await item!.getText()).toBe('Ta bort från förslag');
+    await item!.click();
+    await t.fixture.whenStable();
+    expect(titles(t)).toEqual(['Ost']);
+    // back in the field, as after a tap
+    expect(focused(t)).toBe(true);
+
+    const snackBar = await t.loader.getHarness(MatSnackBarHarness);
+    expect(await snackBar.getMessage()).toBe('Mjölk borttagen från förslag');
+    await snackBar.dismissWithAction();
+    await t.fixture.whenStable();
+    expect(titles(t)).toEqual(['Mjölk', 'Ost']);
   });
 
   it('Enter on an exact match on the list is refused and checks nothing off', async () => {

@@ -2,6 +2,7 @@
 
 What changed from the original plan, and why. Newest first, one line each.
 
+- **2026-10-27, holding a suggestion.** Holding a row in Add or find, or right-clicking it, opens a menu with Remove from suggestions, with undo. Before, an item had to be on the list to be removed from the suggestions. The owner expected it there.
 - **2026-10-27, the total in one phrase.** "167 kr kvar av 326 kr", or "326 kr totalt" while it's all left, and a price tag with the count of items without a price, instead of "≈ 326 kr totalt · 167 kr kvar · 2 utan pris". The owner found the line long and clumsy.
 - **2026-10-27, who paid what.** When two or more people have checked off priced items in Done, the list shows what each paid: whoever checks an item off paid for it, at its price now, so prices typed from the receipt afterwards count. How to split it is left to them. The owner tried prices first, then asked for it.
 - **2026-10-27, prices and quantities.** An item can have a price and an entry a quantity, typed once and brought back on the next add, as notes are: people don't type specifics if they have to every time. No units: a price is what you usually pay for the item as you buy it, and prices are in kronor. Guests set them too, so a guest's price is the household's. A list shows its total, Done included, and what's left, in whole kronor: one list often runs over several trips, so neither alone is the trip.

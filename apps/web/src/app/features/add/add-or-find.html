@@ -4,10 +4,13 @@
     @for (r of view().rows; track r.itemId) {
       <button
         class="row"
+        appRowGestures
+        [swipe]="false"
         [class.checked-off]="r.state === 'checked'"
         [class.flash]="flash()?.itemId === r.itemId"
         [disabled]="r.added"
         (click)="tap(r)"
+        (held)="guest || options.openMenu()"
       >
         @if (r.state === 'none') {
           <mat-icon class="plus" svgIcon="add" />
@@ -30,6 +33,14 @@
         } @else if (r.state === 'checked') {
           <span class="tag">{{ t('add.checkedOff') }}</span>
         }
+        <!-- the row's menu, on a hold: the field gets the focus back, as after a tap -->
+        <span
+          #options="matMenuTrigger"
+          class="anchor"
+          [matMenuTriggerFor]="menu"
+          [matMenuTriggerData]="{ itemId: r.itemId }"
+          (menuClosed)="input.focus()"
+        ></span>
       </button>
     }
     @if (view().create; as name) {
@@ -39,6 +50,14 @@
       </button>
     }
   </div>
+
+  <mat-menu #menu="matMenu" xPosition="before">
+    <ng-template matMenuContent let-itemId="itemId">
+      <button mat-menu-item (click)="archive(itemId)">
+        <mat-icon svgIcon="history_toggle_off" />{{ t('edit.archive') }}
+      </button>
+    </ng-template>
+  </mat-menu>
 
   <div class="bar">
     <div class="field add-field">

@@ -30,6 +30,7 @@
   font: inherit;
   text-align: start;
   cursor: pointer;
+  position: relative;
   -webkit-tap-highlight-color: transparent;
   transition: background 300ms;
 
@@ -54,6 +55,13 @@
   &.flash {
     background: var(--promus-tint);
   }
+}
+
+// the row's menu opens from the whole row; taps go through to it
+.anchor {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
 }
 
 .plus {
