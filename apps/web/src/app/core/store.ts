@@ -281,10 +281,12 @@ export class Store {
     return one('snack.added', item.name, { type: 'entry.added', payload });
   }
 
+  /** A guest's plan goes without its archives and unarchives, and one with nothing left changes nothing. */
   private act(plan: (s: HouseholdState) => Plan | null): Promise<UndoToken | null> {
     return this.serial(async () => {
       const p = plan(this.current());
-      return p ? this.run(p) : null;
+      if (p && this.guest) p.drafts = p.drafts.filter(guestMay);
+      return p?.drafts.length ? this.run(p) : null;
     });
   }
 
@@ -296,7 +298,7 @@ export class Store {
 
   /**
    * Writes the drafts as events, then applies them; resolves to the drafts that undo them. A guest's archives and
-   * unarchives are left out.
+   * unarchives are left out, also from an undo.
    */
   private async commit(all: Draft[]): Promise<Draft[]> {
     const drafts = this.guest ? all.filter(guestMay) : all;

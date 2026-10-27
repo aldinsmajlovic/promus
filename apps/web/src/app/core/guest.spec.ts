@@ -13,7 +13,7 @@ import { TranslocoTestingModule } from '@jsverse/transloco';
 import { ApiError, SHARE_TTL_MS, formatHlc, makeEvent, newId } from '@promus/shared';
 import type { EventInput, EventType, PayloadOf, StoredEvent } from '@promus/shared';
 import Dexie from 'dexie';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, onTestFinished, vi } from 'vitest';
 import sv from '../../i18n/sv.json';
 import { ROUTER_FEATURES } from '../app.config';
 import { routes } from '../app.routes';
@@ -110,7 +110,7 @@ let seq = 0;
 
 /**
  * A guest of a link to "Tacokväll", as Task 8 leaves it after joining: meta in place, the list pulled. `items` are on
- * the list, `archived` items the household has archived.
+ * the list, `archived` items the household has archived, on the list too when also in `items`.
  */
 async function joined(items: string[] = [], archived: string[] = []) {
   const shareId = newId();
@@ -125,14 +125,19 @@ async function joined(items: string[] = [], archived: string[] = []) {
     events.push({ ...made, seq: ++seq, userId: anna, receivedAt: at });
   };
   add('list.created', { listId, name: 'Tacokväll' });
+  const ids = new Map<string, string>();
   for (const name of items) {
     const itemId = newId();
+    ids.set(name, itemId);
     add('item.created', { itemId, name });
     add('entry.added', { listId, itemId });
   }
   for (const name of archived) {
-    const itemId = newId();
-    add('item.created', { itemId, name });
+    let itemId = ids.get(name);
+    if (!itemId) {
+      itemId = newId();
+      add('item.created', { itemId, name });
+    }
     add('item.archived', { itemId });
   }
   const name = `promus-guest-${shareId}`;
@@ -278,13 +283,13 @@ describe('guest mode', () => {
           ? error('unauthenticated', 401)
           : undefined;
     const log = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    onTestFinished(() => log.mockRestore());
     await t.harness.navigateByUrl(taco.url);
     const sync = t.guestOf(SyncService);
     await sync.syncNow();
     await sync.syncNow();
     expect(sync.status()).toMatchObject({ kind: 'error', messageKey: 'sync.serverError' });
     expect(log).toHaveBeenCalledWith('sync failed', expect.any(ApiError));
-    log.mockRestore();
     expect(t.asked.filter((url) => url === '/api/guest/check').length).toBeGreaterThan(1);
     expect(t.router.url).toBe(taco.url);
     expect(await Dexie.exists(taco.name)).toBe(true);
@@ -315,6 +320,7 @@ describe('guest mode', () => {
       await (wide ? t.loader.getHarness(MatDialogHarness) : t.loader.getHarness(MatBottomSheetHarness));
       expect(await t.loader.getAllHarnesses(MatSnackBarHarness)).toHaveLength(1);
       const log = vi.spyOn(console, 'error');
+      onTestFinished(() => log.mockRestore());
       t.server.answer = (url) => (url.startsWith('/api/guest/') ? error('share_ended', 401) : undefined);
       await sync.syncNow();
       await t.harness.fixture.whenStable();
@@ -378,6 +384,17 @@ describe('guest mode', () => {
     expect(t.pushed[taco.shareId]?.map((e) => e.type)).toEqual(['entry.added']);
     expect(t.guestOf(SyncService).status().kind).toBe('idle');
     expect(t.harness.routeNativeElement?.textContent).toContain('Gräddfil');
+  });
+
+  it("a guest typing the name of an archived item already on the list adds nothing, and offers no Undo", async () => {
+    const t = await setup();
+    const taco = await joined(['Gräddfil'], ['Gräddfil']);
+    await t.open(taco.url);
+    expect(await t.guestOf(Actions).run(t.guestOf(Store).addByName(taco.listId, 'gräddfil'))).toBeNull();
+    await t.harness.fixture.whenStable();
+    expect(await t.loader.getAllHarnesses(MatSnackBarHarness)).toHaveLength(0);
+    await t.guestOf(SyncService).syncNow();
+    expect(t.pushed[taco.shareId]).toBeUndefined();
   });
 
   it("a guest's undo of a new item takes only the entry back", async () => {
