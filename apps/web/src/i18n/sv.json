@@ -117,6 +117,7 @@
     "invalid": "Fel användarnamn eller lösenord",
     "offline": "Kan inte nå servern",
     "password": "Lösenord",
+    "pendingOtherAccount": "Enheten har ändringar från ett annat konto som heter {{username}} som inte kan synkas hit. Radera webbplatsens data i webbläsaren för att logga in",
     "pendingOtherUser": "Synka eller logga in som {{username}} först",
     "rateLimited": "För många försök. Försök igen senare",
     "submit": "Logga in",

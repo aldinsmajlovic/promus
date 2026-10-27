@@ -117,6 +117,7 @@
     "invalid": "Wrong username or password",
     "offline": "Can't reach the server",
     "password": "Password",
+    "pendingOtherAccount": "This device holds changes from another account named {{username}} that can't sync here. To sign in, delete this site's data in the browser",
     "pendingOtherUser": "Sync or sign in as {{username}} first",
     "rateLimited": "Too many attempts. Try again later",
     "submit": "Sign in",

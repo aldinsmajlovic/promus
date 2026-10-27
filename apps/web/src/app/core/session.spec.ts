@@ -98,6 +98,7 @@ describe('SessionService', () => {
     const log = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     const refused = await sessions.login('anna', 'pw').catch((err: unknown) => err);
     expect(refused).toBeInstanceOf(PendingOtherUserError);
+    expect(refused).toMatchObject({ messageKey: 'login.pendingOtherAccount', params: { username: 'anna' } });
     expect(log).toHaveBeenCalledWith('server logout failed', boom);
     log.mockRestore();
     expect(api.logout).toHaveBeenCalledOnce();

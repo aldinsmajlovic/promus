@@ -6,12 +6,14 @@ import { DexieSyncStorage } from './dexie-storage';
 
 /** Another user signed in while the cached user's changes are still queued; the UI shows `messageKey`. */
 export class PendingOtherUserError extends Error {
-  readonly messageKey = 'login.pendingOtherUser';
+  readonly messageKey: string;
   readonly params: { username: string };
 
-  constructor(username: string) {
+  /** `otherAccount`: the server knows the name as another account, so these changes can never sync. */
+  constructor(username: string, otherAccount = false) {
     super(`${username} has unsynced changes`);
     this.name = 'PendingOtherUserError';
+    this.messageKey = otherAccount ? 'login.pendingOtherAccount' : 'login.pendingOtherUser';
     this.params = { username };
   }
 }
@@ -61,7 +63,8 @@ export class SessionService {
         if (!(err instanceof PendingChangesError)) throw err;
         // another account behind the cached name: keep its queued events and session, end the new one
         await this.endServerSession();
-        throw new PendingOtherUserError(cached?.username ?? '');
+        const sameName = normalizeName(user.username) === normalizeName(cached?.username ?? '');
+        throw new PendingOtherUserError(cached?.username ?? '', sameName);
       });
     }
     const session = { userId: user.id, username: user.username, householdId };

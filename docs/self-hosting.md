@@ -134,6 +134,7 @@ On every device:
    1. Sign in again as the **same** user. That keeps the local copy and its unsynced changes.
    2. Let it sync, until the badge on your initial is gone.
    3. Open **Settings**, tap your name, sign out, and sign in again.
+3. If signing in says the changes are from **another account** with that name, the server no longer has the account they were made by: it was created after the backup, or the device last synced with another server. Those changes can't sync anywhere. Delete the site's data in the browser, then sign in.
 
 **Then end every live link and share it again.** Ending deletes what guests' phones keep of the list. A guest whose phone had synced past the backup would otherwise miss new changes without a word.
 
