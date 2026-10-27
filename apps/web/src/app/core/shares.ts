@@ -1,13 +1,14 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { AuthError, NetworkError, type Share, type SharesResponse } from '@promus/shared';
 import { ApiClient } from './api';
-import { PromusDb } from './db';
+import { GUEST, PromusDb } from './db';
 
 /** The household's live links, and every guest it has had, cached in `meta` so they show offline. */
 @Injectable({ providedIn: 'root' })
 export class Shares {
   private readonly api = inject(ApiClient);
   private readonly db = inject(PromusDb);
+  private readonly guest = inject(GUEST) !== null;
   private readonly state = signal<SharesResponse>({ shares: [], guests: [] });
   readonly data = this.state.asReadonly();
   private readonly names = computed(() => new Map(this.state().guests.map((g) => [g.id, g.name])));
@@ -15,6 +16,8 @@ export class Shares {
 
   /** Never rejects: the cached links stay when the server can't be asked. */
   refresh(): Promise<void> {
+    // a guest's page never asks the household's endpoints
+    if (this.guest) return this.last;
     return (this.last = this.load());
   }
 

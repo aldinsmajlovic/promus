@@ -15,7 +15,7 @@ import {
 } from '@promus/shared';
 import type { Draft, EventInput, HouseholdState, ItemState } from '@promus/shared';
 import { liveQuery } from 'dexie';
-import { PromusDb } from './db';
+import { GUEST, PromusDb } from './db';
 import { DexieSyncStorage } from './dexie-storage';
 import { requestPersistence } from './persist';
 import { SyncService } from './sync.service';
@@ -72,6 +72,9 @@ const valid = (event: EventInput): EventInput => {
   throw result.error;
 };
 
+// guests never archive or unarchive: their undo of a new item takes it off the list, and the item stays
+const guestMay = (d: Draft): boolean => d.type !== 'item.archived' && d.type !== 'item.unarchived';
+
 const one = (messageKey: string, name: string, draft: Draft): Plan => ({ messageKey, name, drafts: [draft] });
 
 const entryPlan = (
@@ -98,6 +101,7 @@ const entryOf = (s: HouseholdState, listId: string, itemId: string) => {
 export class Store {
   private readonly db = inject(PromusDb);
   private readonly storage = inject(DexieSyncStorage);
+  private readonly guest = inject(GUEST) !== null;
   // SyncService injects the Store, so it is looked up on first use
   private readonly injector = inject(Injector);
   private readonly current = signal<HouseholdState>(emptyState(), { equal: () => false });
@@ -311,7 +315,8 @@ export class Store {
     const state = this.current();
     const inverse: Draft[] = [];
     for (const e of events) {
-      inverse.unshift(...inverseOf(e, state));
+      const undo = inverseOf(e, state);
+      inverse.unshift(...(this.guest ? undo.filter(guestMay) : undo));
       applyEvent(state, e);
     }
     this.current.set(state);

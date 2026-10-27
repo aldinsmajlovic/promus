@@ -160,6 +160,24 @@ describe('SyncService', () => {
     expect(sync.status()).toEqual({ kind: 'idle', pending: 0, rejected: 1 });
   });
 
+  it('keeps quiet when the server refuses an undo as out of scope, and only then', async () => {
+    const { api, store, sync } = await setup(async (events) => accepted(events));
+    const token = await store.createList('Grillkväll');
+    await sync.syncNow();
+    api.push.mockImplementation(async (events) => ({
+      accepted: [],
+      rejected: events.map((e) => ({ id: e.id, code: 'out_of_scope' as const, message: 'not on the list' })),
+      serverTime: Date.now(),
+    }));
+    // as a guest's undo outside its link is
+    await store.undo(token);
+    await sync.syncNow();
+    expect(sync.status()).toEqual({ kind: 'idle', pending: 0, rejected: 0 });
+    await store.createList('Tacokväll');
+    await sync.syncNow();
+    expect(sync.status()).toEqual({ kind: 'error', messageKey: 'sync.rejected', pending: 0, rejected: 1 });
+  });
+
   it('reports a refusal even when the pull then fails', async () => {
     const { api, sync } = await setup(async (events) => ({
       accepted: [],

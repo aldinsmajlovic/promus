@@ -1,4 +1,4 @@
-import { Component, computed, inject } from '@angular/core';
+import { Component, Injector, computed, inject } from '@angular/core';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { MAT_BOTTOM_SHEET_DATA, MatBottomSheet, MatBottomSheetRef } from '@angular/material/bottom-sheet';
 import { MAT_DIALOG_DATA, MatDialog, MatDialogRef } from '@angular/material/dialog';
@@ -25,9 +25,17 @@ export type EditSheetData = {
 
 /** The row's options: a dialog beside it on a computer, a bottom sheet otherwise. Call in an injection context. */
 export function openItemOptions(data: EditSheetData, row: HTMLElement): void {
+  // the caller's injector, not the root's: a guest's page has its own Store
+  const injector = inject(Injector);
   // it closes itself after saving, so a refused value keeps it open; no keyboard until a field is tapped
   if (!inject(WIDE)()) {
-    inject(MatBottomSheet).open(EditSheet, { data, ariaLabel: data.name, disableClose: true, autoFocus: 'dialog' });
+    inject(MatBottomSheet).open(EditSheet, {
+      data,
+      injector,
+      ariaLabel: data.name,
+      disableClose: true,
+      autoFocus: 'dialog',
+    });
     return;
   }
   const rect = row.getBoundingClientRect();
@@ -37,6 +45,7 @@ export function openItemOptions(data: EditSheetData, row: HTMLElement): void {
     rect.top < innerHeight / 2 ? { left, top: `${rect.top}px` } : { left, bottom: `${innerHeight - rect.bottom}px` };
   inject(MatDialog).open(EditSheet, {
     data,
+    injector,
     width: '20rem',
     ariaLabel: data.name,
     autoFocus: 'dialog',

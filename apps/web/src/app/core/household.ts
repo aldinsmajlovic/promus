@@ -1,7 +1,7 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { AuthError, type Member, NetworkError, type Person } from '@promus/shared';
 import { ApiClient } from './api';
-import { PromusDb } from './db';
+import { GUEST, PromusDb } from './db';
 import { SessionService } from './session';
 import { Shares } from './shares';
 
@@ -12,6 +12,7 @@ export class Household {
   private readonly db = inject(PromusDb);
   private readonly session = inject(SessionService);
   private readonly shares = inject(Shares);
+  private readonly guest = inject(GUEST) !== null;
   private readonly list = signal<Member[]>([]);
   // ids not known when first looked up, so each makes Shares ask the server once, not on every render
   private readonly asked = new Set<string>();
@@ -40,6 +41,8 @@ export class Household {
   // ponytail: refreshed only when the list or Household opens; refresh on an unknown author if new members' faces lag
   /** Never rejects: the cached list stays when the server can't be asked. */
   async refresh(): Promise<void> {
+    // a guest's page never asks the household's endpoints
+    if (this.guest) return;
     try {
       const cached = await this.db.getMeta('members');
       this.list.set(cached ?? []);

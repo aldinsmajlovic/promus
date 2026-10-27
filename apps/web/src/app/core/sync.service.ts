@@ -1,5 +1,5 @@
-import { DOCUMENT, Injectable, computed, inject, signal } from '@angular/core';
-import { ApiError, AuthError, NetworkError, syncOnce } from '@promus/shared';
+import { DOCUMENT, DestroyRef, Injectable, InjectionToken, computed, inject, signal } from '@angular/core';
+import { ApiError, AuthError, NetworkError, type SyncApi, syncOnce } from '@promus/shared';
 import { ApiClient } from './api';
 import { PromusDb } from './db';
 import { DexieSyncStorage, StaleSyncError } from './dexie-storage';
@@ -13,6 +13,15 @@ export type SyncStatus = {
 };
 
 type Outcome = Pick<SyncStatus, 'kind' | 'messageKey'>;
+
+/** Where push and pull go: the household's endpoints, or a guest's link. */
+export const SYNC_API = new InjectionToken<SyncApi>('SYNC_API', { factory: () => inject(ApiClient) });
+
+/**
+ * In place of the `auth` status: called with the server's 401 once the run is done with the database, and what it
+ * throws becomes the status.
+ */
+export const SYNC_AUTH_FAILED = new InjectionToken<(err: AuthError) => Promise<void>>('SYNC_AUTH_FAILED');
 
 const SOON_MS = 2000;
 const EVERY_MS = 15_000;
@@ -36,7 +45,8 @@ function failure(err: unknown): Outcome {
 @Injectable({ providedIn: 'root' })
 export class SyncService {
   private readonly store = inject(Store);
-  private readonly api = inject(ApiClient);
+  private readonly api = inject(SYNC_API);
+  private readonly authFailed = inject(SYNC_AUTH_FAILED, { optional: true });
   private readonly db = inject(PromusDb);
   private readonly doc = inject(DOCUMENT);
   private readonly outcome = signal<Outcome>({ kind: 'idle' });
@@ -51,6 +61,11 @@ export class SyncService {
   private soonTimer: ReturnType<typeof setTimeout> | undefined;
   private running: AbortController | null = null;
   private rerun = false;
+
+  constructor() {
+    // a guest route's instance goes with its route
+    inject(DestroyRef).onDestroy(() => this.stop());
+  }
 
   start(): void {
     if (this.running) return;
@@ -110,6 +125,7 @@ export class SyncService {
     }
     this.outcome.set({ kind: 'syncing' });
     let outcome: Outcome = { kind: 'idle' };
+    let authError: AuthError | null = null;
     try {
       // this run's writes land only in the session it starts in
       await syncOnce(new DexieSyncStorage(this.db, session), this.api, () => Date.now());
@@ -117,16 +133,20 @@ export class SyncService {
     } catch (err) {
       // not a failure: the session changed under the run, which wrote nothing; the next run starts afresh
       if (err instanceof StaleSyncError) this.rerun = true;
+      else if (err instanceof AuthError && this.authFailed) authError = err;
       else outcome = failure(err);
     } finally {
       // the store keeps every refusal for diagnostics; new ones are the error, even if a later step failed
       const refused = (await this.countRejected()) > before;
       this.outcome.set(refused ? { kind: 'error', messageKey: 'sync.rejected' } : outcome);
     }
+    // last: it may delete the database
+    if (authError) await this.authFailed?.(authError);
   }
 
   private async countRejected(): Promise<number> {
-    const count = await this.db.rejected.count();
+    // a guest's undo outside its link (an archive, say) is refused by design: no news to the guest
+    const count = await this.db.rejected.filter((r) => !(r.code === 'out_of_scope' && r.event.undoOf)).count();
     this.rejected.set(count);
     return count;
   }

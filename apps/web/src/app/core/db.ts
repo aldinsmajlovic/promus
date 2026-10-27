@@ -1,10 +1,16 @@
-import { Injectable } from '@angular/core';
+import { Injectable, InjectionToken } from '@angular/core';
 import type { EventInput, Member, HlcState, RejectedEvent, SharesResponse, StoredEvent } from '@promus/shared';
 import Dexie, { type Table } from 'dexie';
 import type { Lang } from './i18n';
 import type { ThemeMode } from './theme';
 
 export type Session = { userId: string; username: string; householdId: string };
+
+/**
+ * The link a guest route serves, or null for the household. `guestGuard` fills in `shareId` before anything opens
+ * that route's database.
+ */
+export const GUEST = new InjectionToken<{ shareId: string } | null>('GUEST', { factory: () => null });
 
 /** `pushed` is 0 or 1: booleans are not valid IndexedDB keys. */
 export type OutboxRow = { id: string; hlc: string; pushed: 0 | 1; event: EventInput };
@@ -15,7 +21,10 @@ export type Meta = {
   serverOffset: number;
   hlc: HlcState;
   deviceId: string;
+  /** In a guest's database, `userId` is the guest's id and `username` their name, '' for "Guest". */
   session: Session;
+  /** Only in a guest's database, one per link: `promus-guest-<shareId>`. */
+  guest: { shareId: string; token: string; listId: string; householdId: string; sharedBy: string; expiresAt: number };
   members: Member[];
   shares: SharesResponse;
   currentListId: string;

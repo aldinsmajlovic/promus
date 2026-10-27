@@ -5,7 +5,7 @@ import {
   provideAppInitializer,
   provideBrowserGlobalErrorListeners,
 } from '@angular/core';
-import { provideRouter, withViewTransitions } from '@angular/router';
+import { provideRouter, withAutoCleanupInjectors, withViewTransitions } from '@angular/router';
 import { provideServiceWorker } from '@angular/service-worker';
 import { routes } from './app.routes';
 import { LangService, provideI18n } from './core/i18n';
@@ -34,7 +34,8 @@ export async function startup(): Promise<void> {
 export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
-    provideRouter(routes, withViewTransitions({ skipInitialTransition: true })),
+    // a guest route's services and database go once it's left, and come back fresh
+    provideRouter(routes, withViewTransitions({ skipInitialTransition: true }), withAutoCleanupInjectors()),
     provideServiceWorker('ngsw-worker.js', {
       enabled: !isDevMode(),
       registrationStrategy: 'registerWhenStable:30000',
