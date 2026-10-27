@@ -271,6 +271,11 @@ app-add-page .title {
   color: #4A3418;
 }
 
+// a guest of a shared list, on the band and on the sheet alike
+.face.guest {
+  box-shadow: inset 0 0 0 1.5px #fff;
+}
+
 .face .badge {
   position: absolute;
   top: -0.25rem;
@@ -381,7 +386,8 @@ app-add-page .title {
   padding: 0.5rem;
 }
 
-.list-menu {
+.list-menu,
+.people-menu {
   --mat-menu-container-shape: 1.125rem;
 }
 

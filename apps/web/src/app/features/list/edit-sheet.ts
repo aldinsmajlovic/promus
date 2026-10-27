@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, computed, inject } from '@angular/core';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { MAT_BOTTOM_SHEET_DATA, MatBottomSheet, MatBottomSheetRef } from '@angular/material/bottom-sheet';
 import { MAT_DIALOG_DATA, MatDialog, MatDialogRef } from '@angular/material/dialog';
@@ -9,10 +9,19 @@ import { MatActionList, MatListItem, MatListItemIcon } from '@angular/material/l
 import { TranslocoDirective } from '@jsverse/transloco';
 import { filter, merge } from 'rxjs';
 import { Actions, refuse } from '../../core/actions';
+import { Household } from '../../core/household';
 import { WIDE } from '../../core/layout';
 import { Store, type UndoToken, ValidationError } from '../../core/store';
+import { Face } from '../../shared/face';
 
-export type EditSheetData = { listId: string; itemId: string; name: string; note: string | null };
+/** `addedBy` is null for an add this phone hasn't synced yet: yours. */
+export type EditSheetData = {
+  listId: string;
+  itemId: string;
+  name: string;
+  note: string | null;
+  addedBy: string | null;
+};
 
 /** The row's options: a dialog beside it on a computer, a bottom sheet otherwise. Call in an injection context. */
 export function openItemOptions(data: EditSheetData, row: HTMLElement): void {
@@ -51,11 +60,24 @@ export function openItemOptions(data: EditSheetData, row: HTMLElement): void {
     MatListItem,
     MatListItemIcon,
     TranslocoDirective,
+    Face,
   ],
   template: `
     <ng-container *transloco="let t">
       @if (!dialog) {
         <div class="handle"></div>
+      }
+      @if (by(); as b) {
+        @let byName = b.name ?? t('guest.name');
+        <div class="by">
+          <app-face [member]="{ id: b.id, username: byName }" [guest]="b.guest" />
+          <span class="who">
+            <b>{{ b.you ? t('edit.addedByYou') : t('list.addedBy', { name: byName }) }}</b>
+            @if (b.guest) {
+              <span>{{ t('edit.guestOnList') }}</span>
+            }
+          </span>
+        </div>
       }
       <h2 class="brand">{{ data.name }}</h2>
       @for (field of fields; track field.label) {
@@ -90,6 +112,28 @@ export function openItemOptions(data: EditSheetData, row: HTMLElement): void {
       border-radius: var(--mat-sys-corner-full);
       background: var(--mat-sys-on-surface-variant);
       opacity: 0.4;
+    }
+    .by {
+      --face-size: 2.25rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-block-end: 1rem;
+      padding-block-end: 1rem;
+      border-block-end: 1px solid var(--mat-sys-outline-variant);
+    }
+    .who {
+      display: flex;
+      flex-direction: column;
+    }
+    b {
+      color: var(--promus-text);
+      font-size: 1.0625rem;
+      font-weight: 600;
+    }
+    .who span {
+      color: var(--promus-muted);
+      font-size: 0.84375rem;
     }
     // no font shorthand or family: the global .brand sets the face
     h2 {
@@ -127,6 +171,14 @@ export class EditSheet {
       };
   private readonly store = inject(Store);
   private readonly actions = inject(Actions);
+  private readonly household = inject(Household);
+  /** Who put it on the list, once known. */
+  protected readonly by = computed(() => {
+    const you = this.household.you();
+    const id = this.data.addedBy ?? you;
+    const person = id && this.household.person(id);
+    return person ? { ...person, you: id === you } : undefined;
+  });
   private readonly name = new FormControl(this.data.name, { nonNullable: true });
   private readonly note = new FormControl(this.data.note ?? '', { nonNullable: true });
   protected readonly fields = [

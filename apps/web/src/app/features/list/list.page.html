@@ -3,21 +3,10 @@
     <header class="band">
       <div class="head">
         <h1><app-list-menu /></h1>
-        @if (list()) {
-          @let others = household.others();
+        @if (list(); as l) {
           <p class="meta">
             {{ t('list.toGet', { n: view().active.length }) }}
-            @if (others.length) {
-              <span class="with" role="img" [attr.aria-label]="t('list.withLabel', { names: sharedWith() })">
-                {{ t('list.with') }}
-                @for (m of others.slice(0, 3); track m.id) {
-                  <app-face [member]="m" />
-                }
-                @if (others.length > 3) {
-                  +{{ others.length - 3 }}
-                }
-              </span>
-            }
+            <app-people-menu [people]="people()" [until]="link()?.expiresAt ?? null" [list]="l.name" />
           </p>
         }
       </div>
@@ -36,6 +25,7 @@
           <ul>
             @for (e of view().active; track e.itemId; let i = $index) {
               @let by = addedBy(e);
+              @let byName = by?.name ?? t('guest.name');
               <li [animate.enter]="arriving()" (animate.leave)="leave($event, e)">
                 <div class="swipe-bg" aria-hidden="true">
                   {{ t('list.swipeRemove') }}<mat-icon svgIcon="delete" />
@@ -48,7 +38,7 @@
                   appRowGestures
                   role="checkbox"
                   aria-checked="false"
-                  [attr.aria-description]="by ? t('list.addedBy', { name: by.username }) : null"
+                  [attr.aria-description]="by ? t('list.addedBy', { name: byName }) : null"
                   (click)="check(l.id, e, i)"
                   (held)="edit(l.id, e, r)"
                   (swiped)="remove(l.id, e, i, activeRows, r)"
@@ -61,7 +51,7 @@
                     }
                   </span>
                   @if (by) {
-                    <app-face [member]="by" />
+                    <app-face [member]="{ id: by.id, username: byName }" [guest]="by.guest" />
                   }
                 </button>
                 <button

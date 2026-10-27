@@ -16,24 +16,25 @@ import {
   viewChild,
   viewChildren,
 } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
 import { MatIconButton } from '@angular/material/button';
 import { MatRipple } from '@angular/material/core';
 import { MatDivider } from '@angular/material/divider';
 import { MatIcon } from '@angular/material/icon';
 import { RouterLink } from '@angular/router';
-import { TranslocoDirective, TranslocoService } from '@jsverse/transloco';
-import { type EntryView, type Member, listView } from '@promus/shared';
+import { TranslocoDirective } from '@jsverse/transloco';
+import { type EntryView, type Person, listView } from '@promus/shared';
 import { Actions } from '../../core/actions';
 import { CurrentList } from '../../core/current-list';
 import { PromusDb } from '../../core/db';
 import { Household } from '../../core/household';
 import { WIDE } from '../../core/layout';
+import { Shares } from '../../core/shares';
 import { Store, type UndoToken } from '../../core/store';
 import { Face } from '../../shared/face';
 import { AddOrFind } from '../add/add-or-find';
 import { type EditSheetData, openItemOptions } from './edit-sheet';
 import { ListMenu } from './list-menu';
+import { PeopleMenu } from './people-menu';
 import { ProfileButton } from './profile-button';
 import { RowGestures } from './row-gestures';
 
@@ -79,6 +80,7 @@ class DoneFold {
     TranslocoDirective,
     ProfileButton,
     ListMenu,
+    PeopleMenu,
     Face,
     RowGestures,
     AddOrFind,
@@ -93,8 +95,8 @@ export class ListPage {
   private readonly actions = inject(Actions);
   private readonly injector = inject(Injector);
   private readonly doc = inject(DOCUMENT);
-  private readonly lang = toSignal(inject(TranslocoService).langChanges$, { requireSync: true });
-  protected readonly household = inject(Household);
+  private readonly household = inject(Household);
+  private readonly shares = inject(Shares);
   protected readonly wide = inject(WIDE);
   protected readonly activeRows = viewChildren('activeRow', { read: ElementRef });
   protected readonly doneRows = viewChildren('doneRow', { read: ElementRef });
@@ -110,9 +112,19 @@ export class ListPage {
   });
   /** Undefined until meta `doneFolded` is first read; then Done shows, open unless folded on this device. */
   protected readonly doneOpen = this.fold.open;
-  protected readonly sharedWith = computed(() =>
-    new Intl.ListFormat(this.lang(), { type: 'conjunction' }).format(this.household.others().map((m) => m.username)),
-  );
+  /** The list's live link. */
+  protected readonly link = computed(() => {
+    const list = this.list();
+    return list ? this.shares.liveFor(list.id) : null;
+  });
+  /** The household, and the guests of the list's live link. */
+  protected readonly people = computed((): Person[] => [
+    ...this.household.members().map((m) => ({ id: m.id, name: m.username, guest: false })),
+    ...this.shares
+      .data()
+      .guests.filter((g) => g.shareId === this.link()?.id)
+      .map((g) => ({ id: g.id, name: g.name, guest: true })),
+  ]);
   // the list the last render showed in full, Done included: rows arriving in it or leaving it move, a list that
   // loads or switches just shows. Angular runs the enter and leave animations after rendering, before this is
   // updated in the read phase. On a cold start Done waits on its meta read, so its first rows would arrive if this
@@ -121,6 +133,7 @@ export class ListPage {
 
   constructor() {
     void this.household.refresh();
+    void this.shares.refresh();
     afterRenderEffect({
       read: () => {
         this.shown = this.doneOpen() === undefined ? undefined : this.list()?.id;
@@ -147,7 +160,7 @@ export class ListPage {
   }
 
   protected edit(listId: string, e: EntryView, row: HTMLElement): void {
-    const data: EditSheetData = { listId, itemId: e.itemId, name: e.name, note: e.note };
+    const data: EditSheetData = { listId, itemId: e.itemId, name: e.name, note: e.note, addedBy: e.addedBy };
     runInInjectionContext(this.injector, () => openItemOptions(data, row));
   }
 
@@ -155,9 +168,9 @@ export class ListPage {
     this.fold.toggle();
   }
 
-  /** Who added an active row, when that was someone else in the household. */
-  protected addedBy(e: EntryView): Member | undefined {
-    return e.addedBy && e.addedBy !== this.household.you() ? this.household.byId().get(e.addedBy) : undefined;
+  /** Who added an active row, when that was someone else: in the household, or a guest. */
+  protected addedBy(e: EntryView): Person | undefined {
+    return e.addedBy && e.addedBy !== this.household.you() ? this.household.person(e.addedBy) : undefined;
   }
 
   protected arriving(): string {

@@ -11,9 +11,19 @@ export class Shares {
   private readonly state = signal<SharesResponse>({ shares: [], guests: [] });
   readonly data = this.state.asReadonly();
   private readonly names = computed(() => new Map(this.state().guests.map((g) => [g.id, g.name])));
+  private last: Promise<void> = Promise.resolve();
 
   /** Never rejects: the cached links stay when the server can't be asked. */
-  async refresh(): Promise<void> {
+  refresh(): Promise<void> {
+    return (this.last = this.load());
+  }
+
+  /** The newest refresh, so a lookup can wait for an answer already on its way. */
+  settled(): Promise<void> {
+    return this.last;
+  }
+
+  private async load(): Promise<void> {
     try {
       this.state.set((await this.db.getMeta('shares')) ?? { shares: [], guests: [] });
       const data = await this.api.shares();

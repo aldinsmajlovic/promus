@@ -16,12 +16,14 @@ export function initialOf(username: string): string {
 @Component({
   selector: 'app-face',
   template: `{{ initial() }}@if (badge(); as b) {<span class="badge">{{ b }}</span>}`,
-  host: { '[class]': '"face tone-" + tone()', 'aria-hidden': 'true' },
+  host: { '[class]': '"face tone-" + tone()', '[class.guest]': 'guest()', 'aria-hidden': 'true' },
 })
 export class Face {
   private readonly household = inject(Household);
   readonly member = input.required<{ id: string; username: string }>();
   readonly badge = input<string | null>(null);
+  /** A guest of a shared list, marked with a thin white ring. */
+  readonly guest = input(false);
   protected readonly initial = computed(() => initialOf(this.member().username));
   protected readonly tone = computed(() => faceTone(this.member().id, this.member().id === this.household.you()));
 }

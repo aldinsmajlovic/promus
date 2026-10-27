@@ -24,7 +24,9 @@
     "close": "Close"
   },
   "edit": {
+    "addedByYou": "Added by you",
     "archive": "Remove from suggestions",
+    "guestOnList": "Guest on this list",
     "name": "Name",
     "note": "Note",
     "remove": "Remove from list"
@@ -35,6 +37,9 @@
     "nameTaken": "That name already exists",
     "nameTooLong": "At most {{max}} characters",
     "noteTooLong": "At most {{max}} characters"
+  },
+  "guest": {
+    "name": "Guest"
   },
   "https": {
     "cookie": "Signed in, but this browser didn't keep the session. Open Promus over HTTPS.",
@@ -68,9 +73,11 @@
     "done": "Done ({{n}})",
     "emptyHint": "Add the first item with Add or find below.",
     "emptyTitle": "Nothing on {{list}} yet",
+    "linkUntil": "Link works until {{date}}",
     "moreFor": "Options for {{name}}",
     "new": "New list",
     "newName": "Name the new list",
+    "peopleOn": "On {{list}}",
     "profile": "Settings for {{name}}",
     "rename": "Rename list",
     "settings": "Settings",

@@ -14,6 +14,10 @@ import { QrCode } from '../../shared/qr-code';
 
 export type ShareSheetData = { listName: string; share: Share };
 
+/** The day a link works until, as "Mon 9 Nov". */
+export const untilDay = (at: number, lang: string): string =>
+  new Intl.DateTimeFormat(lang, { weekday: 'short', day: 'numeric', month: 'short' }).format(at);
+
 /** A list's link to scan, share or copy, until when it works, and End link. */
 @Component({
   selector: 'app-share-sheet',
@@ -109,11 +113,7 @@ export class ShareSheet {
   private readonly transloco = inject(TranslocoService);
   private readonly actions = inject(Actions);
   protected readonly url = `${inject(ORIGIN)}/share#${this.data.share.token}`;
-  protected readonly until = new Intl.DateTimeFormat(this.transloco.getActiveLang(), {
-    weekday: 'short',
-    day: 'numeric',
-    month: 'short',
-  }).format(this.data.share.expiresAt);
+  protected readonly until = untilDay(this.data.share.expiresAt, this.transloco.getActiveLang());
   protected readonly canShare = typeof navigator.share === 'function';
 
   protected share(): void {

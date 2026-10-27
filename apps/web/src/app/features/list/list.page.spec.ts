@@ -8,10 +8,11 @@ import { MatDialogHarness } from '@angular/material/dialog/testing';
 import { MatFormFieldHarness } from '@angular/material/form-field/testing';
 import { MatInputHarness } from '@angular/material/input/testing';
 import { MatActionListItemHarness } from '@angular/material/list/testing';
+import { MatMenuHarness } from '@angular/material/menu/testing';
 import { MatSnackBarHarness } from '@angular/material/snack-bar/testing';
 import { provideRouter } from '@angular/router';
 import { TranslocoTestingModule } from '@jsverse/transloco';
-import { type Member, type StoredEvent, entryKey, formatHlc, newId } from '@promus/shared';
+import { type Member, type SharesResponse, type StoredEvent, entryKey, formatHlc, newId } from '@promus/shared';
 import { describe, expect, it, vi } from 'vitest';
 import sv from '../../../i18n/sv.json';
 import { FETCH } from '../../core/api';
@@ -23,16 +24,24 @@ import { SessionService } from '../../core/session';
 import { Store } from '../../core/store';
 import { SyncService, type SyncStatus } from '../../core/sync.service';
 import { ListPage } from './list.page';
+import { untilDay } from './share-sheet';
 
 function configure(db: PromusDb, wide = false) {
   const status = signal<SyncStatus>({ kind: 'idle', pending: 0, rejected: 0 });
   const sync = { status, syncNow: vi.fn(async () => undefined), soon: () => undefined };
+  // the household's links and guests, as the server has them now
+  const server: { shares: SharesResponse } = { shares: { shares: [], guests: [] } };
+  // the page asks who's in the household; no household in the answer keeps the cached members
+  const fetch = vi.fn<typeof globalThis.fetch>(async (url) =>
+    url === '/api/shares'
+      ? Response.json(server.shares)
+      : Response.json({ user: { id: 'u1', username: 'anna' }, households: [] }),
+  );
   TestBed.configureTestingModule({
     providers: [
       { provide: PromusDb, useValue: db },
       { provide: SyncService, useValue: sync },
-      // the page asks who's in the household; no household in the answer keeps the cached members
-      { provide: FETCH, useValue: async () => Response.json({ user: { id: 'u1', username: 'anna' }, households: [] }) },
+      { provide: FETCH, useValue: fetch },
       { provide: WIDE, useValue: signal(wide) },
       { provide: MATERIAL_ANIMATIONS, useValue: { animationsDisabled: true } },
       provideRouter([]),
@@ -46,18 +55,26 @@ function configure(db: PromusDb, wide = false) {
       ),
     ],
   });
-  return sync;
+  return { sync, server, fetch };
 }
 
-/** `others` are the household's members besides you, cached in meta `members` as the page finds them. */
-async function setup(items: [name: string, note?: string][] = [], others: string[] = [], wide = false) {
+/**
+ * `others` are the household's members besides you, cached in meta `members` as the page finds them; `shares`
+ * is what the server says of the household's links when the page opens.
+ */
+async function setup(
+  items: [name: string, note?: string][] = [],
+  others: string[] = [],
+  wide = false,
+  shares?: (listId: string) => SharesResponse,
+) {
   const db = new PromusDb(`list-${newId()}`);
   const you: Member = { id: newId(), username: 'anna', role: 'owner' };
   const members = [you, ...others.map((username) => ({ id: newId(), username, role: 'member' }))];
   const householdId = newId();
   await db.setMeta('session', { userId: you.id, username: you.username, householdId });
   await db.setMeta('members', members);
-  const sync = configure(db, wide);
+  const { sync, server, fetch } = configure(db, wide);
   const store = TestBed.inject(Store);
   await TestBed.inject(SessionService).load();
   await store.load();
@@ -66,11 +83,33 @@ async function setup(items: [name: string, note?: string][] = [], others: string
     await store.addByName(listId, name);
     if (note) await store.setNote(listId, itemId(store, name), note);
   }
+  if (shares) server.shares = shares(listId);
   const fixture = TestBed.createComponent(ListPage);
   await fixture.whenStable();
   const el: HTMLElement = fixture.nativeElement;
   const loader = TestbedHarnessEnvironment.documentRootLoader(fixture);
-  return { db, store, listId, fixture, el, loader, sync, members, householdId };
+  return { db, store, listId, fixture, el, loader, sync, server, fetch, members, householdId };
+}
+
+/** Puts `adds` on the list as pulled from the server, later than the local adds, so each names who added it. */
+async function pull(t: Awaited<ReturnType<typeof setup>>, adds: [name: string, userId: string][]) {
+  const later = Date.now() + 60_000;
+  const events = adds.map(
+    ([name, userId], i): StoredEvent => ({
+      id: newId(),
+      householdId: t.householdId,
+      type: 'entry.added',
+      v: 1,
+      hlc: formatHlc(later + i, 0, 'other'),
+      occurredAt: later + i,
+      payload: { listId: t.listId, itemId: itemId(t.store, name) },
+      seq: i + 1,
+      userId,
+      receivedAt: later + i,
+    }),
+  );
+  await t.db.events.bulkAdd(events);
+  await t.store.load();
 }
 
 /** The app starting again on this device: its services anew, over the same database. */
@@ -90,6 +129,9 @@ function itemId(store: Store, name: string): string {
 const text = (el: Element | null) => el?.textContent?.replace(/\s+/g, ' ').trim() ?? '';
 const rows = (el: HTMLElement, checked: boolean) =>
   [...el.querySelectorAll(`[role="checkbox"][aria-checked="${checked}"]`)] as HTMLElement[];
+const row = (el: HTMLElement, name: string) => rows(el, false).find((r) => text(r.querySelector('.name')) === name)!;
+const sharesAsked = (fetch: ReturnType<typeof configure>['fetch']) =>
+  fetch.mock.calls.filter(([url]) => url === '/api/shares').length;
 const names = (el: HTMLElement, checked = false) => rows(el, checked).map((r) => text(r.querySelector('.name')));
 // the menu triggers carry aria-expanded too
 const doneToggle = (el: HTMLElement) => el.querySelector<HTMLElement>('main [aria-expanded]');
@@ -278,22 +320,11 @@ describe('ListPage', () => {
     const failed = vi.spyOn(console, 'error');
     const t = await setup([['Mjölk'], ['Ost'], ['Smör']], ['bo']);
     const [you, bo] = t.members;
-    // pulled from the server, later than the local adds: the last entry.added names who added it
-    const later = Date.now() + 60_000;
-    const pulled = (name: string, userId: string, seq: number): StoredEvent => ({
-      id: newId(),
-      householdId: t.householdId,
-      type: 'entry.added',
-      v: 1,
-      hlc: formatHlc(later + seq, 0, 'other'),
-      occurredAt: later + seq,
-      payload: { listId: t.listId, itemId: itemId(t.store, name) },
-      seq,
-      userId,
-      receivedAt: later + seq,
-    });
-    await t.db.events.bulkAdd([pulled('Mjölk', you!.id, 1), pulled('Ost', bo!.id, 2), pulled('Smör', newId(), 3)]);
-    await t.store.load();
+    await pull(t, [
+      ['Mjölk', you!.id],
+      ['Ost', bo!.id],
+      ['Smör', newId()],
+    ]);
     await vi.waitFor(() => expect(t.el.querySelectorAll('main app-face')).toHaveLength(1));
     const ost = rows(t.el, false).find((r) => text(r.querySelector('.name')) === 'Ost')!;
     expect(text(ost.querySelector('app-face'))).toBe('B');
@@ -306,6 +337,104 @@ describe('ListPage', () => {
     expect(t.el.querySelectorAll('main app-face')).toHaveLength(0);
     expect(failed).not.toHaveBeenCalled();
     failed.mockRestore();
+  });
+
+  it("a row a guest added shows the guest's face, ringed; one without a name is G for Guest", async () => {
+    const t = await setup([['Chorizo'], ['Öl']], [], false, () => ({
+      shares: [],
+      guests: [
+        { id: 'g1', shareId: 's1', name: 'Fredrik' },
+        { id: 'g2', shareId: 's1', name: null },
+      ],
+    }));
+    await pull(t, [
+      ['Chorizo', 'g1'],
+      ['Öl', 'g2'],
+    ]);
+    await vi.waitFor(() => expect(t.el.querySelectorAll('main app-face')).toHaveLength(2));
+    for (const [name, initial, by] of [
+      ['Chorizo', 'F', 'Fredrik'],
+      ['Öl', 'G', 'Gäst'],
+    ]) {
+      const face = row(t.el, name!).querySelector('app-face')!;
+      expect(text(face)).toBe(initial);
+      expect(face.classList).toContain('guest');
+      expect(row(t.el, name!).getAttribute('aria-description')).toBe(`Tillagd av ${by}`);
+    }
+  });
+
+  it('a guest the page does not know yet shows no face, and the household\'s links are asked for once', async () => {
+    const failed = vi.spyOn(console, 'error');
+    const t = await setup([['Chorizo'], ['Öl'], ['Lime']]);
+    // the page asks when it opens
+    await vi.waitFor(() => expect(sharesAsked(t.fetch)).toBe(1));
+    // Fredrik joined since; g9 the server doesn't know either
+    t.server.shares = { shares: [], guests: [{ id: 'g1', shareId: 's1', name: 'Fredrik' }] };
+    await pull(t, [
+      ['Chorizo', 'g1'],
+      ['Öl', 'g9'],
+    ]);
+    await vi.waitFor(() => expect(text(row(t.el, 'Chorizo').querySelector('app-face'))).toBe('F'));
+    expect(row(t.el, 'Öl').querySelector('app-face')).toBeNull();
+    expect(sharesAsked(t.fetch)).toBe(2);
+
+    // rendering again asks no more
+    row(t.el, 'Lime').click();
+    await t.fixture.whenStable();
+    expect(row(t.el, 'Öl').querySelector('app-face')).toBeNull();
+    expect(sharesAsked(t.fetch)).toBe(2);
+    expect(failed).not.toHaveBeenCalled();
+    failed.mockRestore();
+  });
+
+  it("\"with\" shows the household and the guests of this list's link; tapping it says until when", async () => {
+    const expiresAt = Date.now() + 86_400_000;
+    const t = await setup([['Mjölk']], ['bo'], false, (listId) => ({
+      shares: [
+        { id: 's1', listId, token: 'tok1', expiresAt, createdBy: 'u1' },
+        { id: 's2', listId: newId(), token: 'tok2', expiresAt, createdBy: 'u1' },
+      ],
+      guests: [
+        { id: 'g1', shareId: 's1', name: 'Fredrik' },
+        { id: 'g2', shareId: 's1', name: null },
+        // another list's guest, and one of a link that has ended
+        { id: 'g3', shareId: 's2', name: 'Felix' },
+        { id: 'g4', shareId: 's0', name: 'Jonas' },
+      ],
+    }));
+    await vi.waitFor(() => expect(t.el.querySelectorAll('.with app-face')).toHaveLength(3));
+    expect(t.el.querySelector('.with')!.getAttribute('aria-label')).toBe('Delas med bo, Fredrik och Gäst');
+
+    await (await t.loader.getHarness(MatMenuHarness.with({ selector: '.with' }))).open();
+    const panel = document.querySelector('.people-menu')!;
+    expect(text(panel.querySelector('.heading'))).toBe('På Inköpslista');
+    expect([...panel.querySelectorAll('.person .name')].map(text)).toEqual(['anna', 'bo', 'Fredrik', 'Gäst']);
+    expect(text(panel.querySelector('.until'))).toBe(`Länken fungerar till ${untilDay(expiresAt, 'sv')}`);
+  });
+
+  it.each([
+    ['Chorizo', ['F', 'Tillagd av Fredrik', 'Gäst på den här listan'], true],
+    ['Ost', ['B', 'Tillagd av bo', ''], false],
+    ['Smör', ['A', 'Tillagd av dig', ''], false],
+    // added on this phone and not yet synced: no one has stamped who added it
+    ['Mjölk', ['A', 'Tillagd av dig', ''], false],
+  ])('item options of %s start with who added it', async (name, by, guest) => {
+    const t = await setup([['Mjölk'], ['Chorizo'], ['Ost'], ['Smör']], ['bo'], false, () => ({
+      shares: [],
+      guests: [{ id: 'g1', shareId: 's1', name: 'Fredrik' }],
+    }));
+    const [you, bo] = t.members;
+    await pull(t, [
+      ['Chorizo', 'g1'],
+      ['Ost', bo!.id],
+      ['Smör', you!.id],
+    ]);
+    await vi.waitFor(() => expect(t.el.querySelectorAll('main app-face')).toHaveLength(2));
+    t.el.querySelector<HTMLElement>(`[aria-label="Alternativ för ${name}"]`)!.click();
+    await t.loader.getHarness(MatBottomSheetHarness);
+    const block = document.querySelector('app-edit-sheet .by')!;
+    expect(['app-face', 'b', '.who span'].map((part) => text(block.querySelector(part)))).toEqual(by);
+    expect(block.querySelector('app-face')!.classList.contains('guest')).toBe(guest);
   });
 
   it('focus stays in the list when a row moves to the other section', async () => {
