@@ -17,14 +17,15 @@ import { createUser } from '../apps/server/src/users.ts';
 // The docs' screenshots, light and dark: a fresh build against a throwaway database, filled
 // through the UI with made-up items and guests. A directory as the first argument takes them instead.
 const OUT = process.argv[2] ?? 'docs/images';
-const ITEMS: [name: string, note?: string][] = [
-  ['Bananas'],
-  ['Bread'],
-  ['Coffee', 'dark roast'],
-  ['Eggs', '12'],
-  ['Milk', 'lactose free'],
+// two without a price, so the total says so
+const ITEMS: [name: string, set?: { note?: string; price?: string; quantity?: number }][] = [
+  ['Bananas', { price: '24.90' }],
+  ['Bread', { price: '32' }],
+  ['Coffee', { note: 'dark roast', price: '54.90' }],
+  ['Eggs', { note: '12', price: '39' }],
+  ['Milk', { note: 'lactose free', price: '14.90', quantity: 3 }],
   ['Tomatoes'],
-  ['Butter'],
+  ['Butter', { price: '62' }],
   ['Yogurt'],
 ];
 const CHECKED = ['Butter', 'Yogurt'];
@@ -71,11 +72,13 @@ async function fill(page: Page, password: string): Promise<void> {
   await page.getByRole('button', { name: 'Sign in' }).click();
 
   await add(page, ITEMS.map(([name]) => name));
-  for (const [name, note] of ITEMS) {
-    if (!note) continue;
+  for (const [name, set] of ITEMS) {
+    if (!set) continue;
     await page.getByRole('checkbox', { name }).click({ button: 'right' });
-    await page.getByLabel('Note').fill(note);
-    await page.getByLabel('Note').press('Enter');
+    if (set.note) await page.getByLabel('Note').fill(set.note);
+    for (let q = 1; q < (set.quantity ?? 1); q++) await page.getByRole('button', { name: 'More', exact: true }).click();
+    if (set.price) await page.getByLabel('Price').fill(set.price);
+    await page.getByLabel('Price').press('Enter');
   }
   for (const name of CHECKED) await page.getByRole('checkbox', { name }).tap();
   await settle(page, 'Settings for demo');
@@ -144,7 +147,10 @@ try {
   });
   mkdirSync(OUT, { recursive: true });
   await fill(page, password);
+  // prices and notes give most rows a second line: taller, so Done fits above Add or find
+  await page.setViewportSize({ width: 412, height: 860 });
   await shoot(page, 'list');
+  await page.setViewportSize({ width: 412, height: 720 });
   const link = await share(page);
   await shoot(page, 'share-sheet');
 

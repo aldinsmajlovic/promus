@@ -6,12 +6,12 @@ In Latin, a *promus* is the household steward who brings provisions out of the s
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/images/list-dark.png">
-  <img src="docs/images/list-light.png" alt="The list screen: six items, three of them with notes, and two checked items under Done" width="320">
+  <img src="docs/images/list-light.png" alt="The list screen: six items, most with a price and one of them three times, what the list will cost, and two checked items under Done" width="320">
 </picture>
 
 ## Features
 
-- Re-add anything you've bought before with a few letters and a tap. Typos and diacritics are fine: "gradd" finds "grädd". The same item comes back, never a duplicate.
+- Re-add anything you've bought before with a few letters and a tap, typos and diacritics included: "gradd" finds "grädd". The same item comes back, never a duplicate, with its usual quantity and price, and the list adds up what the trip will cost.
 - With the add field empty, your most-bought items that aren't on the list are one tap away.
 - Works fully offline in the store. Changes sync when the server is reachable, with nothing lost or duplicated.
 - Checked items move to a Done section and leave the list after 24 hours.
@@ -22,8 +22,8 @@ In Latin, a *promus* is the household steward who brings provisions out of the s
 
 ## Status
 
-Early: the list, search, offline sync, undo, the setup wizard and household invites are done, and being tried day to day. Sharing a list by link is new.
-Prices come next, then stats, data export and a Home Assistant integration.
+Early: the list, search, offline sync, undo, the setup wizard and household invites are done, and being tried day to day. Sharing a list by link, prices and quantities are new.
+Stats come next, then data export and a Home Assistant integration.
 
 ## Quick start
 

@@ -142,3 +142,31 @@ test('two tabs stay in step', async ({ page, context }) => {
   // the first tab is behind the second: its snackbar still goes
   await expect(page.getByText('Kaffe tillagd')).toBeHidden({ timeout: 8_000 });
 });
+
+test('a price and a quantity, typed once, come back with the item', async ({ page }) => {
+  await login(page, 'e2e-a');
+  await add(page, 'Havregryn');
+  await page.getByRole('checkbox', { name: 'Havregryn' }).click({ button: 'right' });
+  await page.getByRole('button', { name: 'Fler' }).click();
+  await page.getByRole('button', { name: 'Fler' }).click();
+  await page.getByLabel('Pris').fill('14,90');
+  await page.getByLabel('Pris').press('Enter');
+  const row = page.getByRole('checkbox', { name: 'Havregryn', checked: false });
+  await expect(row).toContainText('×3');
+  await expect(row).toContainText('44,70 kr');
+  const total = page.locator('.total');
+  await expect(total).toContainText('≈ 44,70 kr');
+
+  // Done counts: the trip costs the same once it's in the basket
+  await row.click();
+  await expect(page.getByRole('checkbox', { name: 'Havregryn', checked: true })).toBeVisible();
+  await expect(total).toContainText('≈ 44,70 kr');
+
+  await page.getByRole('link', { name: 'Lägg till eller hitta' }).click();
+  await page.getByPlaceholder('Lägg till eller hitta').fill('havregryn');
+  await page.getByPlaceholder('Lägg till eller hitta').press('Enter');
+  await expect(page.getByText('Havregryn tillagd')).toBeVisible();
+  await page.getByRole('button', { name: 'Stäng' }).click();
+  await expect(row).toContainText('×3');
+  await expect(total).toContainText('≈ 44,70 kr');
+});
