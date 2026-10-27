@@ -19,10 +19,12 @@ h1 {
   font: inherit;
 }
 
+// as tall without faces as with them, so the band, and the sheet under it, never moves (see .band.slim)
 .meta {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  min-height: 1.375rem;
   margin: 0.125rem 0 0;
   color: var(--promus-accent);
   font-size: 0.9375rem;
@@ -44,7 +46,7 @@ app-profile-button {
 .sheet {
   display: flex;
   flex-direction: column;
-  padding-top: 0.75rem;
+  padding-top: var(--promus-inset);
 }
 
 // a plain button with an M3 state layer; matRipple adds the press ripple
@@ -96,20 +98,20 @@ li {
   display: flex;
   align-items: center;
   overflow: hidden;
-  padding-inline: 0.5rem 0.25rem;
+  padding-inline: var(--promus-inset);
 }
 
 // behind the row, shown only while it is dragged or swept away: at rest it would fringe the row's rounded corners
 .swipe-bg {
   visibility: hidden;
   position: absolute;
-  inset: 0 0.25rem 0 0.5rem;
+  inset: 0 var(--promus-inset);
   display: flex;
   align-items: center;
   justify-content: flex-end;
   gap: 0.5rem;
   padding-inline-end: 1.25rem;
-  border-radius: 0.75rem;
+  border-radius: var(--promus-row-corner);
   background: var(--promus-swipe);
   color: var(--promus-swipe-text);
   font-weight: 600;
@@ -135,7 +137,7 @@ li:has(.swiping, .swept) .swipe-bg {
 // the keyboard and screen reader path to a row's options, seen only when it or its row is focused
 .opts {
   position: absolute;
-  inset-inline-end: 0.25rem;
+  inset-inline-end: var(--promus-inset);
   opacity: 0;
   pointer-events: none;
 
@@ -157,7 +159,7 @@ li:has(.row:focus-visible) .opts {
   min-width: 0;
   min-height: 3.5rem;
   padding: 0.5rem 0.625rem;
-  border-radius: 0.75rem;
+  border-radius: var(--promus-row-corner);
   background: var(--promus-sheet);
 }
 
@@ -215,19 +217,20 @@ li.arrive {
   }
 }
 
+// highlights sit as far in from the line as from the sheet's edges
 .sheet > mat-divider {
-  margin-top: 0.5rem;
+  margin-block: var(--promus-inset);
 }
 
 .section {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  width: calc(100% - 1rem);
+  width: calc(100% - 2 * var(--promus-inset));
   min-height: 3rem;
-  margin-inline: 0.5rem;
+  margin-inline: var(--promus-inset);
   padding-inline: 0.625rem;
-  border-radius: 0.75rem;
+  border-radius: var(--promus-row-corner);
   color: var(--promus-muted);
   font-size: 0.90625rem;
   font-weight: 600;
@@ -277,7 +280,7 @@ li.arrive {
   position: sticky;
   bottom: 0;
   margin-top: auto;
-  padding: 0.625rem 0.875rem calc(1rem + env(safe-area-inset-bottom));
+  padding: 0.625rem var(--promus-inset) calc(1rem + env(safe-area-inset-bottom));
   background: var(--promus-sheet);
 }
 

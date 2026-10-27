@@ -2,6 +2,9 @@
 
 What changed from the original plan, and why. Newest first, one line each.
 
+- **2026-10-27, text boxes rounded all round.** Every text box is rounded on all four corners and ringed in green when focused, red on an error, as Add or find is, instead of Material's rounded top over a line. They now match the rows and Add or find around them.
+- **2026-10-27, a darker field in light mode.** Text boxes, Add or find and the settings groups are filled `#E1E8D4` instead of `#EDF1E5`, with muted text `#5F6755` so hints on them stay at 4.5:1. The old shade barely showed on white.
+- **2026-10-27, the band holds still.** The settings pages' band ends where the list's does and its title fades through, so going to settings no longer moves the sheet or flies the list's name across. The add view keeps its short band, for room above the keyboard.
 - **2026-10-27, guests never archive.** Undoing a guest's add takes the entry off the list and keeps the item, instead of archiving the item the guest made. A later event can make that item an alias of one of the household's, and an archive stored earlier would then land on theirs.
 - **2026-10-26, sync every 15 seconds.** While the app is on screen it checks for changes every 15 seconds instead of 60, so friends planning a meal see each other's additions. In the background it still doesn't sync.
 - **2026-10-26, guests start from the moment of sharing.** A guest gets the list as it is when shared, and everything after, not its history or the household's other items. The server folds the household's events to work that out; until now it only stored and relayed them.

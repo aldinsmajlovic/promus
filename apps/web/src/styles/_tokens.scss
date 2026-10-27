@@ -8,7 +8,8 @@
   --promus-sheet-edge: light-dark(transparent, rgba(255, 255, 255, 0.08));
 
   --promus-text: light-dark(#1A2014, #E3E7DA);
-  --promus-muted: light-dark(#646D5A, #A3AC97);
+  // #5F6755 is 4.69:1 on the field, the 4.5:1 its hints and labels need
+  --promus-muted: light-dark(#5F6755, #A3AC97);
   // the unchecked circle: #858E79 is 3.42:1 on white, the 3:1 an outline needs
   --promus-circle: light-dark(#858E79, #737D68);
   --promus-check: light-dark(#3F6B21, #A5D46E);
@@ -16,7 +17,8 @@
   // the count and the ▾ on the band
   --promus-accent: #C6EB8E;
 
-  --promus-field: light-dark(#EDF1E5, #333A2D);
+  // a shade off white that still shows against it: 1.26:1
+  --promus-field: light-dark(#E1E8D4, #333A2D);
   --promus-line: light-dark(#E6EADF, #363D30);
   --promus-tint: light-dark(#E6EEDA, #3A4630);
   --promus-tint-ink: light-dark(#2E5418, #C6EB8E);
@@ -27,4 +29,11 @@
   --promus-snack: light-dark(#2B3125, #E3E7DA);
   --promus-snack-text: light-dark(#EEF2E6, #1A2014);
   --promus-snack-action: light-dark(#C3E68C, #3F6B21);
+}
+
+// how far rows sit in from the edges of the sheet or menu they are on, on every side, and their corner: the
+// surface's less that inset, so the two run parallel
+:root {
+  --promus-inset: 0.75rem;
+  --promus-row-corner: calc(var(--mat-sys-corner-extra-large) - var(--promus-inset));
 }

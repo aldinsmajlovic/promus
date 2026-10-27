@@ -42,6 +42,13 @@ html {
       inverse-primary: var(--promus-snack-action),
     )
   );
+  // text boxes are rounded all the way around, so the line under them goes; see .mdc-text-field--filled below
+  @include mat.form-field-overrides(
+    (
+      filled-active-indicator-height: 0,
+      filled-focus-active-indicator-height: 0,
+    )
+  );
 }
 
 body {
@@ -59,6 +66,22 @@ body {
 // M3 bottom sheets keep their rounded top at every width; Material squares it off on phones
 .mat-bottom-sheet-container {
   border-radius: var(--mat-sys-corner-extra-large-top);
+}
+
+// a text box: rounded all the way around, and ringed inside on focus as the add field is, or on an error.
+// The form field is needed to outrank Material's own corners
+.mat-mdc-form-field .mdc-text-field--filled {
+  border-radius: 0.75rem;
+  box-shadow: inset 0 0 0 0 var(--promus-check);
+  transition: box-shadow 200ms;
+}
+
+.mat-mdc-form-field.mat-focused .mdc-text-field--filled {
+  box-shadow: inset 0 0 0 2px var(--promus-check);
+}
+
+.mat-mdc-form-field.mat-form-field-invalid .mdc-text-field--filled {
+  box-shadow: inset 0 0 0 2px var(--mat-sys-error);
 }
 
 // a top snackbar (the add view's, clear of the keyboard) sits in the 64px toolbar, off the rows,

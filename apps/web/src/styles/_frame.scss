@@ -19,12 +19,14 @@
 }
 
 // one row as tall as the old toolbar, so the `.in-toolbar` snackbar still sits in it, past Close.
-// The bottom padding is the part the sheet covers.
+// The bottom padding is the part the sheet covers, and more: the band ends where the list's does, so the sheet stays
+// put on the way to settings. The list's 0.625rem top, 3rem title row, 1.5rem meta line and 2.5rem bottom, less this
+// row's 4rem. The add view, above the keyboard, keeps it short (add.page.scss)
 .band.slim {
   display: flex;
   align-items: center;
   min-height: 4rem;
-  padding-block: env(safe-area-inset-top) 1.5rem;
+  padding-block: env(safe-area-inset-top) 3.625rem;
   padding-inline: 0.25rem 1rem;
 }
 
@@ -157,8 +159,47 @@
   view-transition-name: none;
 }
 
-.band .title {
+// the list's name travels from the list to the add view and back. Other titles are other words: they change in
+// place with the band
+app-list-menu .title,
+app-add-page .title {
   view-transition-name: list-title;
+}
+
+// the band fades through, old out and then new in, so two titles never show at once; the list's name too, when only
+// one side has it. The green stays under them, as wide as the band's, rather than the page showing through
+::view-transition-old(band),
+::view-transition-old(list-title):only-child {
+  animation: 90ms ease-in both fade-out;
+}
+
+::view-transition-new(band),
+::view-transition-new(list-title):only-child {
+  animation: 160ms ease-out 90ms both fade-in;
+}
+
+::view-transition-group(band) {
+  background: var(--promus-band);
+}
+
+@media (min-width: 600px) {
+  ::view-transition-group(band) {
+    border-image-source: conic-gradient(var(--promus-band) 0 0);
+    border-image-slice: 0 fill;
+    border-image-outset: 0 100vmax 6rem;
+  }
+}
+
+@keyframes fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
 }
 
 .dock,
@@ -326,11 +367,11 @@
   color: var(--promus-muted);
 }
 
-// a rounded block of rows on the sheet
+// a rounded block of rows on the sheet, in from its edges as a row is
 .group {
-  margin: 0 0.75rem 0.75rem;
+  margin: 0 var(--promus-inset) var(--promus-inset);
   overflow: hidden;
-  border-radius: 1.375rem;
+  border-radius: var(--promus-row-corner);
   background: var(--promus-field);
 }
 
