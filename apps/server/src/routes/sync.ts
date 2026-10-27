@@ -1,7 +1,8 @@
 import { Hono } from 'hono';
+import type { Context } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
 import { LIMITS, hlcWall, parseEventInput } from '@promus/shared';
-import type { EventInput, PullResponse, PushResponse } from '@promus/shared';
+import type { EventInput, PullResponse, PushResponse, RejectCode } from '@promus/shared';
 import type { AppDeps, AppEnv } from '../app.ts';
 import { insertEvents, listEvents } from '../events-repo.ts';
 import { requireAuth } from '../middleware/auth.ts';
@@ -10,46 +11,79 @@ import { requireAuth } from '../middleware/auth.ts';
 const firstIssue = (pretty: string): string =>
   pretty.split(/\n(?=✖)/)[0]!.replace(/^✖ /, '').replace(/\s*\n\s*→ at /, ' at ').slice(0, 200);
 
-const intParam = (v: string | undefined, def: number, min: number, max: number): number | null => {
+export const intParam = (v: string | undefined, def: number, min: number, max: number): number | null => {
   if (v === undefined) return def;
   const n = /^\d+$/.test(v) ? Number(v) : NaN;
   return Number.isSafeInteger(n) && n >= min && n <= max ? n : null;
 };
 
-export function syncRoutes({ db, now, logger }: Pick<AppDeps, 'db' | 'now' | 'logger'>) {
+type Refusal = { code: RejectCode; message: string };
+
+type Pusher = {
+  /** Whose events these are stored as. */
+  who: { userId: string; sessionId: string };
+  refuse: (e: EventInput) => Refusal | null;
+  /** Sees each accepted event in batch order, before the next one is checked. */
+  onAccepted?: (e: EventInput) => void;
+  /** Ids for the rejection log lines. */
+  logged: Record<string, string>;
+};
+
+export const pushLimit = bodyLimit({ maxSize: LIMITS.pushMaxBytes, onError: (c) => c.json({ error: 'payload_too_large' }, 413) });
+
+/** Stores each event that parses, that `refuse` lets through and that isn't more than an hour ahead. */
+export const pushHandler =
+  ({ db, now, logger }: Pick<AppDeps, 'db' | 'now' | 'logger'>, pusher: (c: Context<AppEnv>) => Pusher) =>
+  async (c: Context<AppEnv>) => {
+    const body = (await c.req.json().catch(() => null)) as { events?: unknown } | null;
+    const raw = body?.events;
+    if (!Array.isArray(raw) || raw.length < 1 || raw.length > LIMITS.pushMaxEvents) {
+      return c.json({ error: 'invalid_request' }, 400);
+    }
+    const { who, refuse, onAccepted, logged } = pusher(c);
+    const t = now();
+    const accepted: string[] = [];
+    const rejected: PushResponse['rejected'] = [];
+    const valid: EventInput[] = [];
+    for (const item of raw) {
+      const parsed = parseEventInput(item);
+      if (!parsed.ok) {
+        rejected.push({ id: parsed.id, code: 'invalid', message: firstIssue(parsed.message) });
+        continue;
+      }
+      const e = parsed.event;
+      const refusal: Refusal | null =
+        refuse(e) ??
+        (hlcWall(e.hlc) > t + LIMITS.maxClockSkewMs ? { code: 'clock_skew', message: 'event is more than one hour in the future' } : null);
+      if (refusal) {
+        rejected.push({ id: e.id, ...refusal });
+        continue;
+      }
+      valid.push(e);
+      onAccepted?.(e);
+      if (!accepted.includes(e.id)) accepted.push(e.id);
+    }
+    for (const r of rejected) logger.warn({ eventId: r.id, code: r.code, ...logged }, 'event rejected');
+    insertEvents(db, valid, who, t);
+    return c.json({ accepted, rejected, serverTime: t } satisfies PushResponse);
+  };
+
+export function syncRoutes(deps: Pick<AppDeps, 'db' | 'now' | 'logger'>) {
+  const { db, now } = deps;
   return new Hono<AppEnv>()
     .post(
       '/sync/push',
       requireAuth('browser'),
-      bodyLimit({ maxSize: LIMITS.pushMaxBytes, onError: (c) => c.json({ error: 'payload_too_large' }, 413) }),
-      async (c) => {
-        const body = (await c.req.json().catch(() => null)) as { events?: unknown } | null;
-        const raw = body?.events;
-        if (!Array.isArray(raw) || raw.length < 1 || raw.length > LIMITS.pushMaxEvents) {
-          return c.json({ error: 'invalid_request' }, 400);
-        }
+      pushLimit,
+      pushHandler(deps, (c) => {
         const auth = c.get('auth');
-        const t = now();
-        const accepted: string[] = [];
-        const rejected: PushResponse['rejected'] = [];
-        const valid: EventInput[] = [];
-        for (const item of raw) {
-          const parsed = parseEventInput(item);
-          if (!parsed.ok) {
-            rejected.push({ id: parsed.id, code: 'invalid', message: firstIssue(parsed.message) });
-          } else if (!auth.householdIds.includes(parsed.event.householdId)) {
-            rejected.push({ id: parsed.event.id, code: 'forbidden_household', message: 'not a member of this household' });
-          } else if (hlcWall(parsed.event.hlc) > t + LIMITS.maxClockSkewMs) {
-            rejected.push({ id: parsed.event.id, code: 'clock_skew', message: 'event is more than one hour in the future' });
-          } else {
-            valid.push(parsed.event);
-            if (!accepted.includes(parsed.event.id)) accepted.push(parsed.event.id);
-          }
-        }
-        for (const r of rejected) logger.warn({ eventId: r.id, code: r.code, userId: auth.userId }, 'event rejected');
-        insertEvents(db, valid, auth, t);
-        return c.json({ accepted, rejected, serverTime: t } satisfies PushResponse);
-      },
+        return {
+          who: auth,
+          refuse: (e) =>
+            auth.householdIds.includes(e.householdId) ? null : { code: 'forbidden_household', message: 'not a member of this household' },
+          logged: { userId: auth.userId },
+        };
+      }),
     )
     .get('/sync/pull', requireAuth('browser'), (c) => {
       const after = intParam(c.req.query('after'), 0, 0, Number.MAX_SAFE_INTEGER);

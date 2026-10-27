@@ -1,20 +1,24 @@
 import { Hono } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
 import { getCookie } from 'hono/cookie';
-import { GUEST_NAME_MAX, cleanGuestName, guestNameSchema, shareJoinSchema, shareTokenSchema } from '@promus/shared';
-import type { GuestMe, ShareCheck, ShareJoined } from '@promus/shared';
+import { GUEST_NAME_MAX, cleanGuestName, guestNameSchema, sharedEvents, shareJoinSchema, shareTokenSchema } from '@promus/shared';
+import type { GuestMe, PullResponse, ShareCheck, ShareJoined } from '@promus/shared';
 import type { AppDeps, AppEnv } from '../app.ts';
-import { listState } from '../events-repo.ts';
-import { addGuest, findGuest, guestCookieName, peopleOnList, renameGuest } from '../guests.ts';
+import { householdEvents, lastSeq, listState } from '../events-repo.ts';
+import {
+  addGuest, findGuest, guestAccepted, guestCookieName, guestPushContext, guestRejection, peopleOnList, renameGuest, shareScope,
+} from '../guests.ts';
 import { requireGuest, setGuestCookie } from '../middleware/guest.ts';
 import { findShareByToken } from '../shares.ts';
+import { intParam, pushHandler, pushLimit } from './sync.ts';
 
 const small = bodyLimit({ maxSize: 4096, onError: (c) => c.json({ error: 'payload_too_large' }, 413) });
 
 const tooLong = (name: string | null): boolean => name !== null && name.length > GUEST_NAME_MAX;
 
 // Tokens travel only in request bodies: the request log records every path. Guest names are never logged.
-export function guestRoutes({ db, logger, now }: Pick<AppDeps, 'db' | 'logger' | 'now'>) {
+export function guestRoutes(deps: Pick<AppDeps, 'db' | 'logger' | 'now'>) {
+  const { db, logger, now } = deps;
   return new Hono<AppEnv>()
     .post('/guest/check', small, async (c) => {
       const body = shareTokenSchema.safeParse(await c.req.json().catch(() => null));
@@ -63,5 +67,36 @@ export function guestRoutes({ db, logger, now }: Pick<AppDeps, 'db' | 'logger' |
       renameGuest(db, guestId, name);
       logger.info({ guestId, shareId: share.id }, 'guest renamed');
       return c.body(null, 204);
-    });
+    })
+    // ponytail: folds the household's whole log on each pull with something new, and on each push: fine while a
+    // household's log is small. Upgrade path: cache the fold by the household's last seq.
+    .get('/guest/:shareId/pull', requireGuest(), (c) => {
+      // ponytail: no paging, so `limit` is ignored: a shared list's scope is small. Upgrade path: page by seq as
+      // /sync/pull does, with the scope's earlier item events on the page where their item enters.
+      const after = intParam(c.req.query('after'), 0, 0, Number.MAX_SAFE_INTEGER);
+      if (after === null) return c.json({ error: 'invalid_request' }, 400);
+      const { share } = c.get('guest');
+      const last = lastSeq(db, share.householdId);
+      const events = after >= last ? [] : sharedEvents(householdEvents(db, share.householdId), shareScope(share), after);
+      return c.json({ events, lastSeq: Math.max(after, last), hasMore: false, serverTime: now() } satisfies PullResponse);
+    })
+    .post(
+      '/guest/:shareId/push',
+      requireGuest(),
+      pushLimit,
+      pushHandler(deps, (c) => {
+        const guest = c.get('guest');
+        const ctx = guestPushContext(db, guest);
+        return {
+          who: { userId: guest.guestId, sessionId: guest.guestId },
+          refuse: (e) => {
+            const code = guestRejection(e, ctx);
+            if (code === null) return null;
+            return { code, message: code === 'out_of_scope' ? 'not on the shared list' : "not the shared list's household" };
+          },
+          onAccepted: (e) => guestAccepted(ctx, e),
+          logged: { guestId: guest.guestId },
+        };
+      }),
+    );
 }

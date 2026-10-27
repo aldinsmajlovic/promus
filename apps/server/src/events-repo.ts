@@ -1,6 +1,5 @@
 import type { DatabaseSync } from 'node:sqlite';
 import type { EventInput, StoredEvent } from '@promus/shared';
-import type { AuthContext } from './auth/sessions.ts';
 import { transaction } from './db.ts';
 
 type Row = {
@@ -8,8 +7,8 @@ type Row = {
   hlc: string; occurred_at: number; received_at: number; undo_of: string | null; payload: string;
 };
 
-/** Idempotent: ids already stored are skipped, so a retried push can't duplicate. All or nothing. */
-export function insertEvents(db: DatabaseSync, events: EventInput[], ctx: AuthContext, now: number): void {
+/** Idempotent: ids already stored are skipped, so a retried push can't duplicate. All or nothing. A guest is both ids. */
+export function insertEvents(db: DatabaseSync, events: EventInput[], ctx: { userId: string; sessionId: string }, now: number): void {
   if (events.length === 0) return;
   const stmt = db.prepare(
     `INSERT INTO events (id, household_id, user_id, session_id, type, v, hlc, occurred_at, received_at, undo_of, payload)

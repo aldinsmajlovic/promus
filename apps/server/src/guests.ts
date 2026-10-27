@@ -1,7 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import type { DatabaseSync } from 'node:sqlite';
-import { SHARE_MAX_GUESTS, newId, sharedEvents } from '@promus/shared';
-import type { Person } from '@promus/shared';
+import { SHARE_MAX_GUESTS, applyEvent, fold, newId, resolveItemId, scopeItems, sharedEvents } from '@promus/shared';
+import type { EventInput, HouseholdState, Person, RejectCode, ShareScope } from '@promus/shared';
 import { hashToken } from './auth/sessions.ts';
 import { transaction } from './db.ts';
 import { householdEvents, listState } from './events-repo.ts';
@@ -10,6 +10,8 @@ import type { ShareRow } from './shares.ts';
 export const guestCookieName = (shareId: string): string => `guest-${shareId}`;
 
 export type GuestContext = { guestId: string; name: string | null; share: ShareRow };
+
+export const shareScope = (share: ShareRow): ShareScope => ({ listId: share.listId, fromSeq: share.fromSeq, madeAt: share.createdAt });
 
 /** Not ended, not expired, and the list not deleted. */
 export function shareIsLive(db: DatabaseSync, share: ShareRow, now: number): boolean {
@@ -44,8 +46,7 @@ export function renameGuest(db: DatabaseSync, guestId: string, name: string | nu
 
 /** The sharer, the other members who authored an event the guests may see, then the link's guests. */
 export function peopleOnList(db: DatabaseSync, share: ShareRow): Person[] {
-  const scope = { listId: share.listId, fromSeq: share.fromSeq, madeAt: share.createdAt };
-  const authors = new Set(sharedEvents(householdEvents(db, share.householdId), scope, 0).map((e) => e.userId));
+  const authors = new Set(sharedEvents(householdEvents(db, share.householdId), shareScope(share), 0).map((e) => e.userId));
   const members = db
     .prepare(
       `SELECT u.id, u.username AS name FROM household_members m JOIN users u ON u.id = m.user_id
@@ -60,4 +61,49 @@ export function peopleOnList(db: DatabaseSync, share: ShareRow): Person[] {
     ...members.filter((m) => authors.has(m.id)).map((m) => ({ ...m, guest: false })),
     ...guests.map((g) => ({ ...g, guest: true })),
   ];
+}
+
+/** `scope` holds the resolved ids of the items the guest may know, `own` the ids of the items this guest created. */
+export type GuestPushContext = { householdId: string; listId: string; state: HouseholdState; scope: Set<string>; own: Set<string> };
+
+const isEntry = (e: EventInput): e is Extract<EventInput, { type: `entry.${string}` }> => e.type.startsWith('entry.');
+
+/** Why a guest may not push `e`, or null when it may. */
+export function guestRejection(e: EventInput, { householdId, listId, state, scope, own }: GuestPushContext): RejectCode | null {
+  if (e.householdId !== householdId) return 'forbidden_household';
+  if (isEntry(e)) return e.payload.listId === listId ? null : 'out_of_scope';
+  switch (e.type) {
+    case 'item.created':
+      return null;
+    case 'item.renamed': {
+      const id = resolveItemId(state, e.payload.itemId);
+      return scope.has(id) || own.has(id) ? null : 'out_of_scope';
+    }
+    // how Undo takes back adding a new item. An alias resolves to the household's item of that name: archiving it
+    // would archive theirs
+    case 'item.archived':
+    case 'item.unarchived':
+      return own.has(e.payload.itemId) && state.items.has(e.payload.itemId) ? null : 'out_of_scope';
+    default:
+      return 'out_of_scope';
+  }
+}
+
+/** The household as the guest's push checks it, before the batch. */
+export function guestPushContext(db: DatabaseSync, { guestId, share }: GuestContext): GuestPushContext {
+  const events = householdEvents(db, share.householdId);
+  return {
+    householdId: share.householdId,
+    listId: share.listId,
+    state: fold(events),
+    scope: scopeItems(events, shareScope(share)),
+    own: new Set(events.flatMap((e) => (e.type === 'item.created' && e.userId === guestId ? [e.payload.itemId] : []))),
+  };
+}
+
+/** Takes in an accepted event, so the batch's next one is checked as the household will fold it. */
+export function guestAccepted(ctx: GuestPushContext, e: EventInput): void {
+  applyEvent(ctx.state, e);
+  if (e.type === 'item.created') ctx.own.add(e.payload.itemId);
+  else if (isEntry(e) && e.payload.listId === ctx.listId) ctx.scope.add(resolveItemId(ctx.state, e.payload.itemId));
 }
