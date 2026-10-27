@@ -138,12 +138,16 @@ const names = (el: HTMLElement, checked = false) => rows(el, checked).map((r) =>
 const doneToggle = (el: HTMLElement) => el.querySelector<HTMLElement>('main [aria-expanded]');
 const noteOf = (store: Store, listId: string, name: string) =>
   store.state().entries.get(entryKey(listId, itemId(store, name)))?.note;
+/** The edit sheet's stepper button: Färre or Fler. */
+const stepper = (label: string) => document.querySelector<HTMLButtonElement>(`.stepper [aria-label="${label}"]`)!;
+/** A row's quantity and second line. */
+const lines = (r: HTMLElement) => [text(r.querySelector('.qty')), text(r.querySelector('.note'))];
 
 /** Opens Mjölk's edit sheet and sets its fields; a refused name keeps it open with the note saved. */
-async function editMjolk(t: Awaited<ReturnType<typeof setup>>, values: { name?: string; note?: string }) {
+async function editMjolk(t: Awaited<ReturnType<typeof setup>>, values: { name?: string; note?: string; price?: string }) {
   t.el.querySelector<HTMLElement>('[aria-label="Alternativ för Mjölk"]')!.click();
   const sheet = await t.loader.getHarness(MatBottomSheetHarness);
-  for (const [label, value] of [['Namn', values.name], ['Anteckning', values.note]] as const) {
+  for (const [label, value] of [['Namn', values.name], ['Anteckning', values.note], ['Pris', values.price]] as const) {
     if (value === undefined) continue;
     const field = await sheet.getHarness(MatFormFieldHarness.with({ floatingLabelText: label }));
     await (await field.getControl(MatInputHarness))!.setValue(value);
@@ -722,6 +726,59 @@ describe('ListPage', () => {
     await fixture.whenStable();
     expect(await loader.getAllHarnesses(MatBottomSheetHarness)).toHaveLength(0);
     expect(store.state().entries.get(entryKey(listId, itemId(store, 'Mjölk')))?.note).toBe('laktosfri');
+  });
+
+  it('edit sheet sets quantity and price, and one undo takes back everything changed there', async () => {
+    const t = await setup([['Mjölk', '2 st']]);
+    const sheet = await editMjolk(t, { note: 'laktosfri', price: '14,90' });
+    expect(document.querySelector('.price input')?.getAttribute('inputmode')).toBe('decimal');
+    expect(stepper('Färre').disabled).toBe(true);
+    stepper('Fler').click();
+    stepper('Fler').click();
+    await t.fixture.whenStable();
+    expect(text(document.querySelector('.stepper output'))).toBe('3');
+    expect(stepper('Färre').disabled).toBe(false);
+
+    await sheet.dismiss();
+    await t.fixture.whenStable();
+    expect(lines(rows(t.el, false)[0]!)).toEqual(['×3', 'laktosfri · 44,70 kr']);
+    await (await t.loader.getHarness(MatSnackBarHarness)).dismissWithAction();
+    await t.fixture.whenStable();
+    expect(lines(rows(t.el, false)[0]!)).toEqual(['', '2 st']);
+    expect(t.store.state().items.get(itemId(t.store, 'Mjölk'))?.price).toBeNull();
+  });
+
+  it('the stepper stops at 99', async () => {
+    const t = await setup([['Mjölk']]);
+    await t.store.setQuantity(t.listId, itemId(t.store, 'Mjölk'), 99);
+    await t.fixture.whenStable();
+    const sheet = await editMjolk(t, {});
+    expect(text(document.querySelector('.stepper output'))).toBe('99');
+    expect(stepper('Fler').disabled).toBe(true);
+    await sheet.dismiss();
+    await t.fixture.whenStable();
+  });
+
+  it('a refused price keeps the sheet open with the reason, and the note is saved', async () => {
+    const t = await setup([['Mjölk']]);
+    const sheet = await editMjolk(t, { note: 'laktosfri', price: 'abc' });
+    await sheet.dismiss();
+    await t.fixture.whenStable();
+    expect(await t.loader.getAllHarnesses(MatBottomSheetHarness)).toHaveLength(1);
+    const field = await sheet.getHarness(MatFormFieldHarness.with({ floatingLabelText: 'Pris' }));
+    expect(await field.getTextErrors()).toEqual(['Skriv ett pris, till exempel 14,90']);
+    expect(noteOf(t.store, t.listId, 'Mjölk')).toBe('laktosfri');
+  });
+
+  it('rows show a quantity above 1 and what they cost, Done rows too', async () => {
+    const t = await setup([['Mjölk'], ['Bröd', 'fullkorn'], ['Ost']]);
+    const [milk, cheese] = [itemId(t.store, 'Mjölk'), itemId(t.store, 'Ost')];
+    await t.store.setQuantity(t.listId, milk, 3);
+    await t.store.setPrices([{ itemId: milk, price: 1490 }, { itemId: cheese, price: 4990 }]);
+    await t.store.check(t.listId, cheese);
+    await t.fixture.whenStable();
+    expect(rows(t.el, false).map(lines)).toEqual([['', 'fullkorn'], ['×3', '44,70 kr']]);
+    expect(rows(t.el, true).map(lines)).toEqual([['', '49,90 kr']]);
   });
 
   it('rows are labelled checkboxes', async () => {

@@ -16,7 +16,8 @@
         }
         <span class="text">
           <span class="name"
-            ><span class="strike">@for (s of r.segments; track $index) {@if (s.hit) {<b>{{ s.text }}</b>} @else {{{ s.text }}}}</span></span
+            ><span class="strike">@for (s of r.segments; track $index) {@if (s.hit) {<b>{{ s.text }}</b>} @else {{{ s.text }}}}</span
+            >@if (r.quantity > 1) {<span class="qty">×{{ r.quantity }}</span>}</span
           >
           @if (r.note) {
             <span class="note">{{ r.note }}</span>

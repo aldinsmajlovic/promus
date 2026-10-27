@@ -26,9 +26,14 @@
   "edit": {
     "addedByYou": "Added by you",
     "archive": "Remove from suggestions",
+    "currency": "SEK",
+    "fewer": "Fewer",
     "guestOnList": "Guest on this list",
+    "more": "More",
     "name": "Name",
     "note": "Note",
+    "price": "Price",
+    "quantity": "Quantity",
     "remove": "Remove from list"
   },
   "errors": {

@@ -2,6 +2,7 @@
 
 What changed from the original plan, and why. Newest first, one line each.
 
+- **2026-10-27, prices and quantities.** An item can have a price and an entry a quantity, typed once and brought back on the next add, as notes are: people don't type specifics if they have to every time. No units: a price is what you usually pay for the item as you buy it, and prices are in kronor. Guests set them too, so a guest's price is the household's.
 - **2026-10-27, a guest's add leaves suggestions alone.** A guest who types the name of an item the household removed from its suggestions puts it on the list, but doesn't bring it back to the suggestions, if the item has been on that list since the link was made: a guest's phone knows only those. Any other name a guest types is a new item, and it stays in the suggestions. Guests never archive or unarchive: the suggestions are the household's.
 - **2026-10-27, a guest's ring in its own ink.** A guest's face is ringed in the dark color of its own initial instead of white. On light mode's white sheet, menus and rows, a white ring vanished.
 - **2026-10-27, text boxes rounded all round.** Every text box is rounded on all four corners and ringed in green when focused, red on an error, as Add or find is, instead of Material's rounded top over a line. They now match the rows and Add or find around them.

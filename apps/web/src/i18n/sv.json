@@ -26,9 +26,14 @@
   "edit": {
     "addedByYou": "Tillagd av dig",
     "archive": "Ta bort från förslag",
+    "currency": "kr",
+    "fewer": "Färre",
     "guestOnList": "Gäst på den här listan",
+    "more": "Fler",
     "name": "Namn",
     "note": "Anteckning",
+    "price": "Pris",
+    "quantity": "Antal",
     "remove": "Ta bort från listan"
   },
   "errors": {

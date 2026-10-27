@@ -22,6 +22,7 @@ import mobileArrowDown from '@material-symbols/svg-400/rounded/mobile_arrow_down
 import moreVert from '@material-symbols/svg-400/rounded/more_vert.svg';
 import personAdd from '@material-symbols/svg-400/rounded/person_add.svg';
 import refresh from '@material-symbols/svg-400/rounded/refresh.svg';
+import remove from '@material-symbols/svg-400/rounded/remove.svg';
 import removeShoppingCart from '@material-symbols/svg-400/rounded/remove_shopping_cart.svg';
 import share from '@material-symbols/svg-400/rounded/share.svg';
 import shoppingBasket from '@material-symbols/svg-400/rounded/shopping_basket.svg';
@@ -32,6 +33,7 @@ import promus from '../../../../../brand/promus-p.svg';
 
 const ICONS: Record<string, string> = {
   add,
+  remove,
   check,
   more_vert: moreVert,
   // The package has no expand_more/expand_less; Material Symbols draws them as keyboard_arrow_down/up.

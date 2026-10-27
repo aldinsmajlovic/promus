@@ -115,6 +115,18 @@ const errors = (t: Setup) => [...t.el.querySelectorAll('.error')].map((e) => e.t
 const focused = (t: Setup) => document.activeElement === t.input;
 
 describe('AddPage', () => {
+  it('an item comes back with its last quantity, shown after its name', async () => {
+    const t = await setup([['Mjölk', 2]]);
+    const id = itemId(t.store, 'Mjölk');
+    await t.store.addItem(t.listId, id);
+    await t.store.setQuantity(t.listId, id, 3);
+    await t.store.remove(t.listId, id);
+    await t.fixture.whenStable();
+    expect(rowEls(t)[0]!.querySelector('.qty')?.textContent?.trim()).toBe('×3');
+    await tap(t, rowEls(t)[0]!);
+    expect(t.store.state().entries.get(entryKey(t.listId, id))?.quantity).toBe(3);
+  });
+
   it('shows usual items when the field is empty', async () => {
     const t = await setup([['Kaffe', 3], ['Mjölk', 8, '2 st'], ['Gurka', 1], ['Ost', 5]], ['Ost']);
     expect(t.el.querySelector('.band .title')?.textContent?.trim()).toBe('Inköpslista');

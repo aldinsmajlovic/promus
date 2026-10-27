@@ -20,14 +20,16 @@ import { MatIconButton } from '@angular/material/button';
 import { MatRipple } from '@angular/material/core';
 import { MatDivider } from '@angular/material/divider';
 import { MatIcon } from '@angular/material/icon';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
-import { TranslocoDirective } from '@jsverse/transloco';
+import { TranslocoDirective, TranslocoService } from '@jsverse/transloco';
 import { type EntryView, type Person, listView } from '@promus/shared';
 import { Actions } from '../../core/actions';
 import { CurrentList } from '../../core/current-list';
 import { GUEST, PromusDb } from '../../core/db';
 import { Household } from '../../core/household';
 import { WIDE } from '../../core/layout';
+import { formatPrice } from '../../core/price';
 import { Shares } from '../../core/shares';
 import { Store, type UndoToken } from '../../core/store';
 import { Face } from '../../shared/face';
@@ -97,6 +99,7 @@ export class ListPage {
   private readonly doc = inject(DOCUMENT);
   private readonly household = inject(Household);
   private readonly shares = inject(Shares);
+  private readonly lang = toSignal(inject(TranslocoService).langChanges$, { requireSync: true });
   /** A guest's list: no list menu, and Add or find in the link's own data. */
   protected readonly guest = inject(GUEST) !== null;
   protected readonly wide = inject(WIDE);
@@ -170,8 +173,15 @@ export class ListPage {
   }
 
   protected edit(listId: string, e: EntryView, row: HTMLElement): void {
-    const data: EditSheetData = { listId, itemId: e.itemId, name: e.name, note: e.note, addedBy: e.addedBy };
+    const { itemId, name, note, addedBy, quantity, price } = e;
+    const data: EditSheetData = { listId, itemId, name, note, addedBy, quantity, price };
     runInInjectionContext(this.injector, () => openItemOptions(data, row));
+  }
+
+  /** A row's second line: its note, and what it costs. */
+  protected noteLine(e: EntryView): string {
+    const cost = e.price === null ? null : formatPrice(e.price * e.quantity, this.lang());
+    return [e.note, cost].filter(Boolean).join(' · ');
   }
 
   protected toggleDone(): void {

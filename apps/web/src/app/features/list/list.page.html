@@ -53,9 +53,12 @@
                 >
                   <span class="circle"><mat-icon svgIcon="check" /></span>
                   <span class="text">
-                    <span class="name"><span class="strike">{{ e.name }}</span></span>
-                    @if (e.note) {
-                      <span class="note">{{ e.note }}</span>
+                    <span class="name"
+                      ><span class="strike">{{ e.name }}</span>@if (e.quantity > 1) {<span class="qty">×{{ e.quantity }}</span>}</span
+                    >
+                    @let line = noteLine(e);
+                    @if (line) {
+                      <span class="note">{{ line }}</span>
                     }
                   </span>
                   @if (by) {
@@ -107,9 +110,12 @@
                     >
                       <span class="circle checked"><mat-icon svgIcon="check" /></span>
                       <span class="text">
-                        <span class="name"><span class="strike">{{ e.name }}</span></span>
-                        @if (e.note) {
-                          <span class="note">{{ e.note }}</span>
+                        <span class="name"
+                          ><span class="strike">{{ e.name }}</span>@if (e.quantity > 1) {<span class="qty">×{{ e.quantity }}</span>}</span
+                        >
+                        @let line = noteLine(e);
+                        @if (line) {
+                          <span class="note">{{ line }}</span>
                         }
                       </span>
                     </button>

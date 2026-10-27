@@ -1,17 +1,20 @@
-import { Component, Injector, computed, inject } from '@angular/core';
+import { Component, Injector, computed, inject, signal } from '@angular/core';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { MAT_BOTTOM_SHEET_DATA, MatBottomSheet, MatBottomSheetRef } from '@angular/material/bottom-sheet';
+import { MatIconButton } from '@angular/material/button';
 import { MAT_DIALOG_DATA, MatDialog, MatDialogRef } from '@angular/material/dialog';
-import { MatError, MatFormField, MatLabel } from '@angular/material/form-field';
+import { MatError, MatFormField, MatLabel, MatSuffix } from '@angular/material/form-field';
 import { MatIcon } from '@angular/material/icon';
 import { MatInput } from '@angular/material/input';
 import { MatActionList, MatListItem, MatListItemIcon } from '@angular/material/list';
-import { TranslocoDirective } from '@jsverse/transloco';
+import { TranslocoDirective, TranslocoService } from '@jsverse/transloco';
+import { LIMITS } from '@promus/shared';
 import { filter, merge } from 'rxjs';
 import { Actions, refuse } from '../../core/actions';
 import { GUEST } from '../../core/db';
 import { Household } from '../../core/household';
 import { WIDE } from '../../core/layout';
+import { parsePrice, priceText } from '../../core/price';
 import { Store, type UndoToken, ValidationError } from '../../core/store';
 import { Face } from '../../shared/face';
 
@@ -25,6 +28,9 @@ export type EditSheetData = {
   name: string;
   note: string | null;
   addedBy: string | null;
+  quantity: number;
+  /** The item's, in öre. */
+  price: number | null;
 };
 
 /** The row's options: a dialog beside it on a computer, a bottom sheet otherwise. Call in an injection context. */
@@ -58,7 +64,7 @@ export function openItemOptions(data: EditSheetData, row: HTMLElement): void {
   });
 }
 
-/** Name and note save when the sheet closes; a refused value keeps it open with the reason. */
+/** Name, note, quantity and price save when the sheet closes; a refused value keeps it open with the reason. */
 @Component({
   selector: 'app-edit-sheet',
   host: { '[class.in-dialog]': '!!dialog' },
@@ -67,8 +73,10 @@ export function openItemOptions(data: EditSheetData, row: HTMLElement): void {
     MatFormField,
     MatLabel,
     MatError,
+    MatSuffix,
     MatInput,
     MatIcon,
+    MatIconButton,
     MatActionList,
     MatListItem,
     MatListItemIcon,
@@ -102,6 +110,32 @@ export function openItemOptions(data: EditSheetData, row: HTMLElement): void {
           <mat-error>{{ refused && t(refused.key, refused.params) }}</mat-error>
         </mat-form-field>
       }
+      <div class="amounts">
+        <div class="stepper" role="group" [attr.aria-label]="t('edit.quantity')">
+          <button matIconButton [disabled]="quantity() <= 1" [attr.aria-label]="t('edit.fewer')" (click)="step(-1)">
+            <mat-icon svgIcon="remove" />
+          </button>
+          <span class="count">
+            <span class="label" aria-hidden="true">{{ t('edit.quantity') }}</span>
+            <output aria-live="polite">{{ quantity() }}</output>
+          </span>
+          <button
+            matIconButton
+            [disabled]="quantity() >= quantityMax"
+            [attr.aria-label]="t('edit.more')"
+            (click)="step(1)"
+          >
+            <mat-icon svgIcon="add" />
+          </button>
+        </div>
+        <mat-form-field class="price" subscriptSizing="dynamic">
+          <mat-label>{{ t('edit.price') }}</mat-label>
+          <input matInput [formControl]="price" inputmode="decimal" enterkeyhint="done" (keydown.enter)="close()" />
+          <span matTextSuffix>{{ t('edit.currency') }}</span>
+          @let priceRefused = price.getError('refused');
+          <mat-error>{{ priceRefused && t(priceRefused.key, priceRefused.params) }}</mat-error>
+        </mat-form-field>
+      </div>
       <mat-action-list>
         <button mat-list-item (click)="remove()">
           <mat-icon matListItemIcon svgIcon="remove_shopping_cart" />{{ t('edit.remove') }}
@@ -119,7 +153,10 @@ export function openItemOptions(data: EditSheetData, row: HTMLElement): void {
     :host {
       display: block;
     }
+    // Material makes a dialog's host display: contents, as weighty as :host above, so which won hung on which
+    // stylesheet came last: after a bottom sheet, the dialog lost its padding. This one outweighs both.
     :host(.in-dialog) {
+      display: block;
       padding: 1.5rem 1.5rem 0.5rem;
     }
     .by {
@@ -154,6 +191,43 @@ export function openItemOptions(data: EditSheetData, row: HTMLElement): void {
     mat-form-field {
       display: block;
       margin-block-end: 1rem;
+    }
+    .amounts {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.75rem;
+      margin-block-end: 1rem;
+    }
+    .amounts mat-form-field {
+      flex: 1;
+      min-width: 0;
+      margin-block-end: 0;
+    }
+    // as tall and as round as the text box beside it
+    .stepper {
+      display: flex;
+      align-items: center;
+      height: 3.5rem;
+      padding-inline: 0.25rem;
+      border-radius: 0.75rem;
+      background: var(--promus-field);
+    }
+    .count {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-width: 2.75rem;
+    }
+    .count .label {
+      color: var(--promus-muted);
+      font-size: 0.75rem;
+      line-height: 1rem;
+    }
+    output {
+      color: var(--promus-text);
+      font-size: 1rem;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
     }
     mat-action-list {
       margin-inline: -1rem;
@@ -191,6 +265,11 @@ export class EditSheet {
   });
   private readonly name = new FormControl(this.data.name, { nonNullable: true });
   private readonly note = new FormControl(this.data.note ?? '', { nonNullable: true });
+  protected readonly price = new FormControl(priceText(this.data.price, inject(TranslocoService).getActiveLang()), {
+    nonNullable: true,
+  });
+  protected readonly quantity = signal(this.data.quantity);
+  protected readonly quantityMax = LIMITS.quantityMax;
   protected readonly fields = [
     { label: 'edit.name', control: this.name },
     { label: 'edit.note', control: this.note },
@@ -219,11 +298,15 @@ export class EditSheet {
       await this.actions.run(this.save().then(() => this.takeUndo()));
     } catch (err) {
       if (!(err instanceof ValidationError)) throw err;
-      refuse(err.code === 'note_too_long' ? this.note : this.name, err);
+      refuse(err.code === 'note_too_long' ? this.note : err.code === 'price_invalid' ? this.price : this.name, err);
       return;
     }
     this.settled = true;
     this.ref.dismiss();
+  }
+
+  protected step(by: number): void {
+    this.quantity.update((q) => q + by);
   }
 
   protected remove(): void {
@@ -241,12 +324,14 @@ export class EditSheet {
     void this.actions.run(action.then((token) => this.takeUndo(token)));
   }
 
-  /** Writes each field on its own; rejects with the first refusal once both were tried. */
+  /** Writes each field on its own; rejects with the first refusal once all were tried. */
   private async save(): Promise<void> {
     const { listId, itemId } = this.data;
     let refused: ValidationError | null = null;
     for (const write of [
       () => this.store.setNote(listId, itemId, this.note.value),
+      () => this.store.setQuantity(listId, itemId, this.quantity()),
+      () => this.store.setPrices([{ itemId, price: parsePrice(this.price.value) }]),
       () => this.store.renameItem(itemId, this.name.value),
     ]) {
       try {
