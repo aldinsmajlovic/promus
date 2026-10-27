@@ -6,6 +6,7 @@ import { MatInput } from '@angular/material/input';
 import { ActivatedRoute, Router } from '@angular/router';
 import { TranslocoDirective } from '@jsverse/transloco';
 import { ApiError, AuthError, GUEST_NAME_MAX, NetworkError, type ShareCheck } from '@promus/shared';
+import Dexie from 'dexie';
 import { ApiClient } from '../../core/api';
 import { PromusDb } from '../../core/db';
 import { SessionService } from '../../core/session';
@@ -114,7 +115,12 @@ export class SharePage {
 
   private async start(): Promise<void> {
     try {
-      const check = await this.api.checkShare(this.token);
+      const check = await this.api.checkShare(this.token).catch(async (err: unknown) => {
+        // offline in the store: a link this phone has joined opens from its own data, as its page does
+        const shareId = err instanceof NetworkError ? await this.joinedHere() : null;
+        if (shareId === null) throw err;
+        return { shareId, joined: true as const };
+      });
       if (check.joined) return await this.open(check.shareId, false);
       const listId = await this.householdList(check.shareId);
       if (listId) {
@@ -126,6 +132,21 @@ export class SharePage {
     } catch (err) {
       this.failed(err, null);
     }
+  }
+
+  /** The link this browser has joined with this token, from the links' own databases; looking makes none. */
+  private async joinedHere(): Promise<string | null> {
+    for (const name of await Dexie.getDatabaseNames()) {
+      const shareId = /^promus-guest-(.+)$/.exec(name)?.[1];
+      if (!shareId) continue;
+      const db = new PromusDb(name);
+      try {
+        if ((await db.getMeta('guest'))?.token === this.token) return shareId;
+      } finally {
+        db.close();
+      }
+    }
+    return null;
   }
 
   /** The list, when this browser's household is the link's: its links say so. Anyone else gets the name step. */
@@ -182,11 +203,14 @@ export class SharePage {
 
   private failed(err: unknown, sharedBy: string | null): void {
     const code = err instanceof ApiError ? err.code : null;
-    if (code === 'share_invalid') void this.ended(sharedBy);
+    if (code === 'share_invalid' || code === 'share_ended') void this.ended(sharedBy);
     else if (code === 'share_full') void this.ended(sharedBy, true);
     else if (code === 'name_too_long') {
       this.name.setErrors(TOO_LONG);
       this.name.markAsTouched();
+    } else if (code === 'unauthenticated') {
+      // joined, and the browser dropped the cookie at once: plain HTTP, or Safari on localhost
+      this.error.set('guest.cookie');
     } else if (err instanceof NetworkError) this.error.set('login.offline');
     else {
       console.error('opening the link failed', err);

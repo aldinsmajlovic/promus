@@ -1,4 +1,4 @@
-import { Injectable, PendingTasks, inject } from '@angular/core';
+import { DestroyRef, Injectable, PendingTasks, inject } from '@angular/core';
 import type { FormControl } from '@angular/forms';
 import { MatSnackBar, type MatSnackBarConfig } from '@angular/material/snack-bar';
 import { TranslocoService } from '@jsverse/transloco';
@@ -12,6 +12,7 @@ const REFUSALS: Record<ValidationError['code'], { key: string; params: Record<st
   name_too_long: { key: 'errors.nameTooLong', params: { max: LIMITS.nameMax } },
   name_taken: { key: 'errors.nameTaken', params: {} },
   note_too_long: { key: 'errors.noteTooLong', params: { max: LIMITS.noteMax } },
+  already_on_list: { key: 'add.alreadyOnList', params: {} },
 };
 
 /** Marks the field with the Store's refusal; its `<mat-error>` shows `getError('refused')`. */
@@ -27,6 +28,12 @@ export class Actions {
   private readonly snackBar = inject(MatSnackBar);
   private readonly transloco = inject(TranslocoService);
   private readonly tasks = inject(PendingTasks);
+  private readonly destroyRef = inject(DestroyRef);
+
+  constructor() {
+    // a guest's page takes its Undo with it: what it would undo is in the page's own database, closed by then
+    this.destroyRef.onDestroy(() => this.snackBar.dismiss());
+  }
 
   /**
    * Rejects with a ValidationError, for the field that caused it; any other failure is shown and resolves null.
@@ -38,7 +45,8 @@ export class Actions {
     const done = this.tasks.add();
     try {
       const token = await action;
-      if (token) this.offerUndo(token, snack);
+      // a guest's page left meanwhile: its data is closed, so an Undo would fail over the next page
+      if (token && !this.destroyRef.destroyed) this.offerUndo(token, snack);
       return token;
     } catch (err) {
       if (err instanceof ValidationError) throw err;

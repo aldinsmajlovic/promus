@@ -121,14 +121,6 @@ export function openItemOptions(data: EditSheetData, row: HTMLElement): void {
     :host(.in-dialog) {
       padding: 1.5rem 1.5rem 0.5rem;
     }
-    .handle {
-      width: 2rem;
-      height: 0.25rem;
-      margin: 0.5rem auto 1rem;
-      border-radius: var(--mat-sys-corner-full);
-      background: var(--mat-sys-on-surface-variant);
-      opacity: 0.4;
-    }
     .by {
       --face-size: 2.25rem;
       display: flex;

@@ -48,14 +48,6 @@ export const untilDay = (at: number, lang: string): string =>
       padding-block-end: 0.5rem;
       font: var(--mat-sys-body-medium);
     }
-    .handle {
-      width: 2rem;
-      height: 0.25rem;
-      margin: 0.5rem auto 1rem;
-      border-radius: var(--mat-sys-corner-full);
-      background: var(--mat-sys-on-surface-variant);
-      opacity: 0.4;
-    }
     // no font shorthand or family: the global .brand sets the face
     h2 {
       margin: 0 0 0.375rem;

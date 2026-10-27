@@ -68,6 +68,16 @@ body {
   border-radius: var(--mat-sys-corner-extra-large-top);
 }
 
+// the grip at the top of a bottom sheet
+.handle {
+  width: 2rem;
+  height: 0.25rem;
+  margin: 0.5rem auto 1rem;
+  border-radius: var(--mat-sys-corner-full);
+  background: var(--mat-sys-on-surface-variant);
+  opacity: 0.4;
+}
+
 // a text box: rounded all the way around, and ringed inside on focus as the add field is, or on an error.
 // The form field is needed to outrank Material's own corners
 .mat-mdc-form-field .mdc-text-field--filled {

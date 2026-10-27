@@ -41,6 +41,7 @@
   "guest": {
     "ask": "Ask the person who shared it for a new one.",
     "askName": "Ask {{name}} for a new one.",
+    "cookie": "Joined, but this browser didn't keep it. Shared lists only work over HTTPS.",
     "ended": "This link has ended",
     "endedWhy": "Shared lists stop working after {{days}} days, or when the person who shared them ends the link.",
     "failed": "Couldn't open the list",

@@ -35,7 +35,7 @@ export class SessionError extends Error {
 }
 
 export class ValidationError extends Error {
-  readonly code: 'name_empty' | 'name_too_long' | 'name_taken' | 'note_too_long';
+  readonly code: 'name_empty' | 'name_too_long' | 'name_taken' | 'note_too_long' | 'already_on_list';
 
   constructor(code: ValidationError['code']) {
     super(code);
@@ -105,6 +105,8 @@ export class Store {
   private readonly guest = inject(GUEST) !== null;
   // SyncService injects the Store, so it is looked up on first use
   private readonly injector = inject(Injector);
+  // a guest's page can be left while a sheet closing over it still saves
+  private readonly destroyRef = inject(DestroyRef);
   private readonly current = signal<HouseholdState>(emptyState(), { equal: () => false });
   private readonly pending = signal(0);
   readonly state = this.current.asReadonly();
@@ -140,7 +142,7 @@ export class Store {
       },
       error: (err: unknown) => console.error('store query failed', err),
     });
-    inject(DestroyRef).onDestroy(() => sub.unsubscribe());
+    this.destroyRef.onDestroy(() => sub.unsubscribe());
   }
 
   /** The clock that state times use: the device's clock corrected by the server offset. */
@@ -155,7 +157,8 @@ export class Store {
 
   /**
    * Throws ValidationError; resolves to null when the item is already on the list. An archived item of
-   * that name comes back, with its history and last note, rather than a new one beside it.
+   * that name comes back, with its history and last note, rather than a new one beside it; for a guest, when it's
+   * already on the list, that's `already_on_list`.
    */
   addByName(listId: string, name: string): Promise<UndoToken | null> {
     return this.act((s) => {
@@ -166,8 +169,10 @@ export class Store {
       // byName holds live items only
       const archived = [...s.items.values()].find((i) => i.archived && i.normalized === normalized);
       if (archived) {
-        const unarchive: Draft = { type: 'item.unarchived', payload: { itemId: archived.id } };
         const readd = this.readd(s, listId, archived.id)?.drafts ?? [];
+        // a guest never unarchives, so on the list already there is nothing left to do
+        if (this.guest && !readd.length) throw new ValidationError('already_on_list');
+        const unarchive: Draft = { type: 'item.unarchived', payload: { itemId: archived.id } };
         return { messageKey: 'snack.added', name: archived.name, drafts: [unarchive, ...readd] };
       }
       const itemId = newId();
@@ -332,7 +337,8 @@ export class Store {
       console.error('persistent storage request failed', err);
       return false;
     });
-    this.injector.get(SyncService).soon();
+    // its sync went with its page: the next page's sends what's in the outbox
+    if (!this.destroyRef.destroyed) this.injector.get(SyncService).soon();
     return inverse;
   }
 

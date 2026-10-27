@@ -60,20 +60,11 @@ export const TOO_LONG = { refused: { key: 'errors.nameTooLong', params: { max: G
     :host {
       display: flex;
       flex-direction: column;
-      gap: 1rem;
       padding-block-end: 0.5rem;
-    }
-    .handle {
-      width: 2rem;
-      height: 0.25rem;
-      margin: 0.5rem auto 0;
-      border-radius: var(--mat-sys-corner-full);
-      background: var(--mat-sys-on-surface-variant);
-      opacity: 0.4;
     }
     // no font shorthand or family: the global .brand sets the face
     h2 {
-      margin: 0;
+      margin: 0 0 1rem;
       color: var(--promus-text);
       font-size: 1.5rem;
       font-weight: 600;
@@ -82,6 +73,7 @@ export const TOO_LONG = { refused: { key: 'errors.nameTooLong', params: { max: G
       display: flex;
       flex-direction: column;
       gap: 1.25rem;
+      margin-block-end: 1rem;
     }
   `,
 })
@@ -104,6 +96,11 @@ export class GuestSheet {
 
   protected async save(): Promise<void> {
     if (this.busy()) return;
+    // nothing to change, and nothing to undo
+    if (cleanGuestName(this.name.value) === cleanGuestName(this.before)) {
+      this.ref.dismiss();
+      return;
+    }
     this.busy.set(true);
     try {
       await this.rename(this.name.value);

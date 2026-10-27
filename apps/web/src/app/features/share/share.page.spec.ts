@@ -21,7 +21,9 @@ import { WIDE } from '../../core/layout';
 import { SessionService } from '../../core/session';
 
 const error = (code: string, status: number) => Response.json({ error: code }, { status });
-const TOKEN = 'the-token';
+const offline = () => {
+  throw new TypeError('Failed to fetch');
+};
 const checked = (shareId: string) => ({ shareId, listName: 'Tacokväll', sharedBy: 'anna', expiresAt: 1, joined: false });
 
 /** Each answers first; undefined leaves it to the link's usual answer. */
@@ -32,11 +34,13 @@ type Answers = {
   shares?: (shareId: string) => Response;
 };
 
-/** `/share#the-token` for a link to anna's "Tacokväll"; `session` is a household signed in on this browser. */
+/** `/share#<token>` for a link to anna's "Tacokväll"; `session` is a household signed in on this browser. */
 async function setup(answers: Answers = {}, session?: Session) {
   const household = new PromusDb(`household-${newId()}`);
   if (session) await household.setMeta('session', session);
   const shareId = newId();
+  // its own per test: the page looks through every link's data on this browser
+  const token = `token-${shareId}`;
   const listId = newId();
   const householdId = newId();
   const guestId = newId();
@@ -97,14 +101,22 @@ async function setup(answers: Answers = {}, session?: Session) {
   const guestDb = () => new PromusDb(`promus-guest-${shareId}`);
   /** Opens the link, and waits for the name step. */
   const open = async () => {
-    await harness.navigateByUrl(`/share#${TOKEN}`);
+    await harness.navigateByUrl(`/share#${token}`);
     await vi.waitFor(() => expect(el().querySelector('input')).not.toBeNull());
   };
   const typeName = async (value: string) => (await loader.getHarness(MatInputHarness)).setValue(value);
   const openList = async () =>
     (await loader.getHarness(MatButtonHarness.with({ text: sv.guest.open }))).click();
   const urls = () => asked.map((a) => a.url);
-  const ids = { shareId, listId, householdId, guestId };
+  /** This browser joined the link before: its data is here. */
+  const joinedHere = async () => {
+    const db = guestDb();
+    const expiresAt = Date.now() + SHARE_TTL_MS;
+    await db.setMeta('guest', { shareId, token, listId, householdId, sharedBy: 'anna', expiresAt });
+    await db.setMeta('session', { userId: guestId, username: 'Jonas', householdId });
+    db.close();
+  };
+  const ids = { shareId, token, listId, householdId, guestId, joinedHere };
   return { ...ids, household, harness, router, el, loader, guestDb, asked, urls, open, typeName, openList };
 }
 
@@ -117,7 +129,7 @@ describe('SharePage', () => {
     await vi.waitFor(() => expect(t.el().querySelector('h1')?.textContent).toContain('anna delade Tacokväll'));
     await t.harness.fixture.whenStable();
     expect(document.activeElement).toBe(t.el().querySelector('input'));
-    expect(t.asked[0]).toEqual({ url: '/api/guest/check', body: { token: TOKEN } });
+    expect(t.asked[0]).toEqual({ url: '/api/guest/check', body: { token: t.token } });
   });
 
   it('an empty name joins as Guest, and the list opens from its own data', async () => {
@@ -125,11 +137,11 @@ describe('SharePage', () => {
     await t.open();
     await t.openList();
     await vi.waitFor(() => expect(t.router.url).toBe(`/s/${t.shareId}`));
-    expect(t.asked.find((a) => a.url === '/api/guest/join')?.body).toEqual({ token: TOKEN, name: '' });
+    expect(t.asked.find((a) => a.url === '/api/guest/join')?.body).toEqual({ token: t.token, name: '' });
     const db = t.guestDb();
     expect(await db.getMeta('guest')).toEqual({
       shareId: t.shareId,
-      token: TOKEN,
+      token: t.token,
       listId: t.listId,
       householdId: t.householdId,
       sharedBy: 'anna',
@@ -138,7 +150,7 @@ describe('SharePage', () => {
     expect(await db.getMeta('session')).toEqual({ userId: t.guestId, username: '', householdId: t.householdId });
     expect(await db.getMeta('currentListId')).toBe(t.listId);
     // the token travels in bodies only
-    expect(t.urls().some((url) => url.includes(TOKEN))).toBe(false);
+    expect(t.urls().some((url) => url.includes(t.token))).toBe(false);
     // the household's data is never touched
     expect(await t.household.getMeta('session')).toBeUndefined();
   });
@@ -173,7 +185,7 @@ describe('SharePage', () => {
     await t.typeName('Jonas');
     await t.openList();
     await vi.waitFor(() => expect(t.el().querySelector('mat-error')?.textContent).toContain('Högst 40 tecken'));
-    expect(t.router.url).toBe(`/share#${TOKEN}`);
+    expect(t.router.url).toBe(`/share#${t.token}`);
     expect(await Dexie.exists(`promus-guest-${t.shareId}`)).toBe(false);
   });
 
@@ -210,22 +222,62 @@ describe('SharePage', () => {
     expect(t.urls().filter((url) => url === '/api/guest/join')).toHaveLength(1);
   });
 
+  it('joined, but the link ended before the list opened: the ended page names who shared it', async () => {
+    const t = await setup({ me: () => error('share_ended', 401) });
+    await t.open();
+    await t.openList();
+    await vi.waitFor(() => expect(t.router.url).toBe('/share/ended'));
+    await t.harness.fixture.whenStable();
+    expect(t.el().textContent).toContain('Be anna om en ny.');
+  });
+
+  it("joined, but this browser didn't keep the link's cookie: it says so, and a retry joins no second time", async () => {
+    const t = await setup({ me: () => error('unauthenticated', 401) });
+    await t.open();
+    await t.openList();
+    await vi.waitFor(() => expect(t.el().querySelector('[role="alert"]')?.textContent).toContain(sv.guest.cookie));
+    await t.openList();
+    await t.harness.fixture.whenStable();
+    expect(t.urls().filter((url) => url === `/api/guest/${t.shareId}/me`)).toHaveLength(2);
+    expect(t.urls().filter((url) => url === '/api/guest/join')).toHaveLength(1);
+    expect(t.el().querySelector('[role="alert"]')?.textContent).toContain(sv.guest.cookie);
+  });
+
+  it('offline, a link this phone already joined opens from its own data', async () => {
+    const t = await setup({ check: offline });
+    await t.joinedHere();
+    await t.harness.navigateByUrl(`/share#${t.token}`);
+    await vi.waitFor(() => expect(t.router.url).toBe(`/s/${t.shareId}`));
+    expect(t.urls()).not.toContain('/api/guest/join');
+  });
+
+  it("offline, a link this phone hasn't joined says so, and looking makes no database", async () => {
+    const t = await setup({ check: offline });
+    // another link this phone joined
+    const shareId = newId();
+    const other = new PromusDb(`promus-guest-${shareId}`);
+    await other.setMeta('guest', {
+      shareId,
+      token: `token-${shareId}`,
+      listId: newId(),
+      householdId: newId(),
+      sharedBy: 'bo',
+      expiresAt: Date.now() + SHARE_TTL_MS,
+    });
+    other.close();
+    const before = (await Dexie.getDatabaseNames()).sort();
+    await t.harness.navigateByUrl(`/share#${t.token}`);
+    await vi.waitFor(() => expect(t.el().querySelector('[role="alert"]')?.textContent).toContain(sv.login.offline));
+    expect(t.router.url).toBe(`/share#${t.token}`);
+    expect((await Dexie.getDatabaseNames()).sort()).toEqual(before);
+  });
+
   it('a phone that already joined skips the name step, and joins no second time', async () => {
     const t = await setup({
       check: (shareId) => Response.json({ ...checked(shareId), joined: true }),
     });
-    const db = t.guestDb();
-    await db.setMeta('guest', {
-      shareId: t.shareId,
-      token: TOKEN,
-      listId: t.listId,
-      householdId: t.householdId,
-      sharedBy: 'anna',
-      expiresAt: Date.now() + SHARE_TTL_MS,
-    });
-    await db.setMeta('session', { userId: t.guestId, username: 'Jonas', householdId: t.householdId });
-    db.close();
-    await t.harness.navigateByUrl(`/share#${TOKEN}`);
+    await t.joinedHere();
+    await t.harness.navigateByUrl(`/share#${t.token}`);
     await vi.waitFor(() => expect(t.router.url).toBe(`/s/${t.shareId}`));
     expect(t.urls()).not.toContain('/api/guest/join');
     expect((await t.guestDb().getMeta('session'))?.username).toBe('Jonas');
@@ -235,11 +287,11 @@ describe('SharePage', () => {
     const t = await setup({
       check: (shareId) => Response.json({ ...checked(shareId), joined: true }),
     });
-    await t.harness.navigateByUrl(`/share#${TOKEN}`);
+    await t.harness.navigateByUrl(`/share#${t.token}`);
     await vi.waitFor(() => expect(t.router.url).toBe(`/s/${t.shareId}`));
     expect(t.urls()).not.toContain('/api/guest/join');
     const db = t.guestDb();
-    expect((await db.getMeta('guest'))?.token).toBe(TOKEN);
+    expect((await db.getMeta('guest'))?.token).toBe(t.token);
     expect(await db.getMeta('session')).toEqual({ userId: t.guestId, username: '', householdId: t.householdId });
     expect(await db.getMeta('currentListId')).toBe(t.listId);
   });
@@ -249,13 +301,13 @@ describe('SharePage', () => {
       {
         shares: (shareId) =>
           Response.json({
-            shares: [{ id: shareId, listId: t.listId, token: TOKEN, expiresAt: 1, createdBy: anna.userId }],
+            shares: [{ id: shareId, listId: t.listId, token: t.token, expiresAt: 1, createdBy: anna.userId }],
             guests: [],
           }),
       },
       anna,
     );
-    await t.harness.navigateByUrl(`/share#${TOKEN}`);
+    await t.harness.navigateByUrl(`/share#${t.token}`);
     await vi.waitFor(() => expect(t.router.url).toBe('/'));
     expect(await t.household.getMeta('currentListId')).toBe(t.listId);
     expect(t.urls()).not.toContain('/api/guest/join');
@@ -282,7 +334,7 @@ describe('SharePage', () => {
 
   it('a link that has ended shows the ended page, naming no one', async () => {
     const t = await setup({ check: () => error('share_invalid', 404) });
-    await t.harness.navigateByUrl(`/share#${TOKEN}`);
+    await t.harness.navigateByUrl(`/share#${t.token}`);
     await vi.waitFor(() => expect(t.router.url).toBe('/share/ended'));
     await t.harness.fixture.whenStable();
     expect(t.el().querySelector('h1')?.textContent).toContain(sv.guest.ended);

@@ -284,6 +284,34 @@ describe('guest mode', () => {
     expect(await Dexie.exists(taco.name)).toBe(true);
   });
 
+  it.each([false, true])(
+    'without its cookie, a note typed in the open options is kept, and nothing says otherwise (computer: %s)',
+    async (wide) => {
+      const t = await setup(wide);
+      const taco = await joined(['Tortillas']);
+      await t.open(taco.url);
+      t.harness.routeNativeElement!.querySelector<HTMLElement>('[aria-label="Alternativ för Tortillas"]')!.click();
+      const options = await (wide ? t.loader.getHarness(MatDialogHarness) : t.loader.getHarness(MatBottomSheetHarness));
+      const note = await options.getHarness(MatFormFieldHarness.with({ floatingLabelText: 'Anteckning' }));
+      await (await note.getControl(MatInputHarness))!.setValue('majs');
+      const log = vi.spyOn(console, 'error');
+      onTestFinished(() => log.mockRestore());
+      t.server.answer = (url) =>
+        url === '/api/guest/check'
+          ? live(taco.shareId)
+          : url.startsWith('/api/guest/')
+            ? error('unauthenticated', 401)
+            : undefined;
+      await t.guestOf(SyncService).syncNow();
+      await vi.waitFor(() => expect(t.router.url).toBe(`/share#${taco.token}`));
+      await t.harness.fixture.whenStable();
+      const outbox = await new PromusDb(taco.name).outbox.toArray();
+      expect(outbox.map((r) => r.event)).toContainEqual(expect.objectContaining({ type: 'entry.noteSet' }));
+      expect(log).not.toHaveBeenCalled();
+      expect(await t.loader.getAllHarnesses(MatSnackBarHarness)).toHaveLength(0);
+    },
+  );
+
   it('without its cookie and offline, it stays on the list', async () => {
     const t = await setup();
     const taco = await joined(['Tortillas']);
@@ -360,6 +388,16 @@ describe('guest mode', () => {
     },
   );
 
+  it("a left page's Undo goes with it", async () => {
+    const t = await setup();
+    const taco = await joined(['Tortillas']);
+    await t.open(taco.url);
+    await t.guestOf(Actions).run(t.guestOf(Store).addByName(taco.listId, 'Chorizo'));
+    expect(await t.loader.getAllHarnesses(MatSnackBarHarness)).toHaveLength(1);
+    await t.harness.navigateByUrl('/share/ended');
+    expect(await t.loader.getAllHarnesses(MatSnackBarHarness)).toHaveLength(0);
+  });
+
   it("a left page's database closes, so nothing late makes it again", async () => {
     const t = await setup();
     const taco = await joined(['Tortillas']);
@@ -406,12 +444,17 @@ describe('guest mode', () => {
     expect(t.harness.routeNativeElement?.textContent).toContain('Gräddfil');
   });
 
-  it("a guest typing the name of an archived item already on the list adds nothing, and offers no Undo", async () => {
-    const t = await setup();
+  it("a guest typing the name of an archived item already on the list is told so, and nothing is written", async () => {
+    const t = await setup(true);
     const taco = await joined(['Gräddfil'], ['Gräddfil']);
     await t.open(taco.url);
-    expect(await t.guestOf(Actions).run(t.guestOf(Store).addByName(taco.listId, 'gräddfil'))).toBeNull();
+    const field = t.harness.routeNativeElement!.querySelector<HTMLInputElement>('.add-field input')!;
+    field.value = 'gräddfil';
+    field.dispatchEvent(new Event('input'));
+    field.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
     await t.harness.fixture.whenStable();
+    const alert = t.harness.routeNativeElement!.querySelector('app-add-or-find [role="alert"]');
+    expect(alert?.textContent).toContain(sv.add.alreadyOnList);
     expect(await t.loader.getAllHarnesses(MatSnackBarHarness)).toHaveLength(0);
     await t.guestOf(SyncService).syncNow();
     expect(t.pushed[taco.shareId]).toBeUndefined();
@@ -604,6 +647,20 @@ describe("the guest's screens", () => {
     await vi.waitFor(() => expect(profile().textContent?.trim()).toBe('J'));
     expect(t.renamed.at(-1)).toEqual([taco.shareId, 'Jonas']);
     expect(household(t)).toEqual([]);
+  });
+
+  it('a name saved unchanged closes the sheet, and changes nothing', async () => {
+    const t = await setup();
+    const taco = await joined(['Tortillas']);
+    await t.open(taco.url);
+    page(t).querySelector<HTMLElement>('app-profile-button button')!.click();
+    const sheet = await t.loader.getHarness(MatBottomSheetHarness);
+    await (await sheet.getHarness(MatInputHarness)).setValue(' Jonas ');
+    await (await sheet.getHarness(MatButtonHarness.with({ text: sv.guest.save }))).click();
+    await t.harness.fixture.whenStable();
+    expect(await t.loader.getAllHarnesses(MatBottomSheetHarness)).toHaveLength(0);
+    expect(await t.loader.getAllHarnesses(MatSnackBarHarness)).toHaveLength(0);
+    expect(t.renamed).toEqual([]);
   });
 
   it('a name of only spaces makes the guest Guest, with a G', async () => {
