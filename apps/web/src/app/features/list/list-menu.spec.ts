@@ -310,12 +310,16 @@ describe('ListMenu', () => {
   it('sharing syncs first while changes are waiting, so the server knows the list', async () => {
     const t = await setup();
     t.status.set({ kind: 'idle', pending: 2, rejected: 0 });
+    // the server knows the list only once the sync has finished, not merely started
+    t.live.fail = 'not_found';
+    t.syncNow.mockImplementation(async () => {
+      await Promise.resolve();
+      t.live.fail = undefined;
+    });
     await t.menu.open();
     item(t, /^Dela/).click();
     await vi.waitFor(() => expect(sheet()).not.toBeNull());
-    const post = t.fetch.mock.calls.findIndex(([url, init]) => url === '/api/shares' && init?.method === 'POST');
     expect(t.syncNow).toHaveBeenCalledOnce();
-    expect(t.syncNow.mock.invocationCallOrder[0]).toBeLessThan(t.fetch.mock.invocationCallOrder[post]!);
   });
 
   it('with nothing waiting, sharing doesn\'t sync first', async () => {
