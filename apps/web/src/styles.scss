@@ -73,7 +73,18 @@ body {
   pointer-events: none;
 }
 
-// a bottom snackbar on the list sits above Add or find (the dock, or the panel's field on a computer), as in the mockups
-body:has(.dock, .sheet.panel) .mat-mdc-snack-bar-container:not(.in-toolbar) {
+// a bottom snackbar on the list sits above the dock, as in the mockups
+body:has(.dock) .mat-mdc-snack-bar-container:not(.in-toolbar) {
   margin-bottom: calc(5.5rem + env(safe-area-inset-bottom));
+}
+
+// on a computer it sits over the list, clear of Add or find beside it: centered on the list's column, which is
+// half the panel and the gap (380px + 1.5rem) left of the window's center
+body:has(.sheet.panel) .mat-mdc-snack-bar-container:not(.in-toolbar) {
+  translate: calc((380px + 1.5rem) / -2);
+
+  // and no wider than the column: the frame less its padding, the gap and the panel, less the snackbar's margins
+  .mat-mdc-snackbar-surface {
+    max-width: calc(min(1060px, 100vw) - 380px - 5.5rem);
+  }
 }

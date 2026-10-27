@@ -116,8 +116,30 @@
     position: sticky;
     // the sheet's negative margin would carry its rounded top off-screen once stuck
     top: 1.5rem;
-    // the band is 6rem tall at the top of the page, so the field is in view there too
+    box-sizing: border-box;
+    // in a browser that can't follow the scroll (below): it fits under the band, 7.5rem tall, at the top of the page
     max-height: calc(100dvh - 6rem);
+  }
+
+  // from wherever its top is down to the window's bottom: under the band at first, then taller as the page scrolls,
+  // until it sticks. It follows the scroll and moves nothing by itself, so it outranks reduced motion's `none`.
+  @supports (animation-timeline: view()) {
+    .frame.split > .panel {
+      animation: reach linear both !important;
+      animation-timeline: view() !important;
+      // from its top at the window's bottom to its top where it sticks
+      animation-range: cover 0% cover calc(100dvh - 1.5rem) !important;
+    }
+  }
+}
+
+@keyframes reach {
+  from {
+    max-height: 0;
+  }
+
+  to {
+    max-height: calc(100dvh - 1.5rem);
   }
 }
 
