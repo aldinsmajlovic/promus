@@ -2,6 +2,7 @@
 
 What changed from the original plan, and why. Newest first, one line each.
 
+- **2026-10-27, a guest's add leaves suggestions alone.** A guest who types the name of an item the household removed from its suggestions puts it on the list, but doesn't bring it back to the suggestions. Guests never archive or unarchive: the suggestions are the household's.
 - **2026-10-27, a guest's ring in its own ink.** A guest's face is ringed in the dark color of its own initial instead of white. On light mode's white sheet, menus and rows, a white ring vanished.
 - **2026-10-27, text boxes rounded all round.** Every text box is rounded on all four corners and ringed in green when focused, red on an error, as Add or find is, instead of Material's rounded top over a line. They now match the rows and Add or find around them.
 - **2026-10-27, a darker field in light mode.** Text boxes, Add or find and the settings groups are filled `#E1E8D4` instead of `#EDF1E5`, with muted text `#5F6755` so hints on them stay at 4.5:1. The old shade barely showed on white.

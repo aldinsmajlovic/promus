@@ -16,7 +16,7 @@ In Latin, a *promus* is the household steward who brings provisions out of the s
 - Works fully offline in the store. Changes sync when the server is reachable, with nothing lost or duplicated.
 - Checked items move to a Done section and leave the list after 24 hours.
 - Every action can be undone from the snackbar. There are no confirmation dialogs.
-- Share several lists and one item history with your household. Invite someone with a link or a QR code, and each person gets their own account. Friends without one can use a single list from a link, until it expires.
+- Share several lists and one item history with your household: invite each person with a link or a QR code to an account of their own. Friends without one can use a single list from a link, until it expires.
 - Installs on Android and iPhone. Swedish and English, with light and dark themes.
 - Runs on your own server, with no public sign-up. Every change is kept with when it happened and who made it.
 
