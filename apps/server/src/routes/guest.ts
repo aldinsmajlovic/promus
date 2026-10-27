@@ -75,8 +75,8 @@ export function guestRoutes(deps: Pick<AppDeps, 'db' | 'logger' | 'now'>) {
       logger.info({ guestId, shareId: share.id }, 'guest renamed');
       return c.body(null, 204);
     })
-    // ponytail: folds the household's whole log on each pull with something new, and on each push: fine while a
-    // household's log is small. Upgrade path: cache the fold by the household's last seq.
+    // ponytail: folds the household's whole log on each pull with something new, and on each push with a rename:
+    // fine while a household's log is small. Upgrade path: cache the fold by the household's last seq.
     .get('/guest/:shareId/pull', requireGuest(), (c) => {
       // ponytail: no paging, so `limit` is ignored: a shared list's scope is small. Upgrade path: page by seq as
       // /sync/pull does, with the scope's earlier item events on the page where their item enters.

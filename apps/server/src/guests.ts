@@ -1,10 +1,10 @@
 import { randomBytes } from 'node:crypto';
 import type { DatabaseSync } from 'node:sqlite';
-import { SHARE_MAX_GUESTS, emptyState, fold, isKind, newId, resolveItemId, scopeItems, sharedEvents } from '@promus/shared';
-import type { EventInput, HouseholdState, Person, RejectCode, ShareScope, StoredEvent } from '@promus/shared';
+import { SHARE_MAX_GUESTS, fold, isKind, newId, resolveItemId, scopeItems, sharedEvents } from '@promus/shared';
+import type { EventInput, Person, RejectCode, ShareScope, StoredEvent } from '@promus/shared';
 import { hashToken } from './auth/sessions.ts';
 import { transaction } from './db.ts';
-import { householdEvents, listState } from './events-repo.ts';
+import { createdItemIds, householdEvents, listState, storedEventIds } from './events-repo.ts';
 import type { ShareRow } from './shares.ts';
 
 export const guestCookieName = (shareId: string): string => `guest-${shareId}`;
@@ -72,92 +72,58 @@ export function peopleOnList(db: DatabaseSync, share: ShareRow): Person[] {
 }
 
 /**
- * `scope` holds the resolved ids of the items on the list, `own` the ids of the items this guest created, `created`
- * the ids of every item.created stored. `state` is the fold an item change lands in, and `aliased` the ids in it that
- * an id outside `own` is an alias of.
+ * Why a guest may not push `e`, judged on its own, or null. `created` holds the item ids that already exist. A rename
+ * is judged again in `guestRefusals`, on the fold.
  */
-export type GuestPushContext = {
-  householdId: string; listId: string; state: HouseholdState; scope: Set<string>; own: Set<string>; created: Set<string>;
-  aliased: Set<string>;
-};
-
-type ItemChange = Extract<EventInput, { type: 'item.renamed' | 'item.archived' | 'item.unarchived' }>;
-const isItemChange = (e: EventInput): e is ItemChange =>
-  e.type === 'item.renamed' || e.type === 'item.archived' || e.type === 'item.unarchived';
-
-/** Why a guest may not push `e`, or null when it may. Only item changes read `state`, `scope` and `aliased`. */
-export function guestRejection(e: EventInput, ctx: GuestPushContext): RejectCode | null {
-  const { householdId, listId, state, scope, own, created, aliased } = ctx;
+export function guestRejection(
+  e: EventInput,
+  { householdId, listId, created }: { householdId: string; listId: string; created: Set<string> },
+): RejectCode | null {
   if (e.householdId !== householdId) return 'forbidden_household';
   if (isKind(e, 'entry')) return e.payload.listId === listId ? null : 'out_of_scope';
-  // a real item the guest created, that no one else's id is an alias of. One with such an alias is the household's
-  // too: they named one the same later, or the guest backdated its item.created to sort before theirs
-  const ownItem = (id: string): boolean => own.has(id) && state.items.has(id) && !aliased.has(id);
-  switch (e.type) {
-    // an id the household already has stays theirs: the fold would skip this, but `own` would take it in. Its own
-    // ids again are a retried push. Not judged on the fold, where a backdated create of that id would win
-    case 'item.created': {
-      const id = e.payload.itemId;
-      return created.has(id) && !own.has(id) ? 'out_of_scope' : null;
-    }
-    case 'item.renamed': {
-      const id = resolveItemId(state, e.payload.itemId);
-      return scope.has(id) || ownItem(id) ? null : 'out_of_scope';
-    }
-    // how Undo takes back adding a new item. Not an alias: that resolves to the household's item of that name, and
-    // archiving it would archive theirs
-    case 'item.archived':
-    case 'item.unarchived':
-      return ownItem(e.payload.itemId) ? null : 'out_of_scope';
-    default:
-      return 'out_of_scope';
-  }
+  // an item id that exists stays its creator's: the fold skips a second create, but it would still be stored, and
+  // dated earlier it would win and make that id an alias of whatever had its name
+  if (e.type === 'item.created') return created.has(e.payload.itemId) ? 'out_of_scope' : null;
+  // A guest never archives or unarchives, not even its own item: a later event can make that item an alias of the
+  // household's, and the stored archive would then land on theirs. Undoing a guest's add takes back the entry only.
+  return e.type === 'item.renamed' ? null : 'out_of_scope';
 }
+
+type Rename = Extract<EventInput, { type: 'item.renamed' }>;
 
 /** The guest's refusals among a push's events that passed every other check, by event id. */
 export function guestRefusals(db: DatabaseSync, { guestId, share }: GuestContext, events: EventInput[]): Map<string, RejectCode> {
-  const stored = householdEvents(db, share.householdId);
-  // judged as it will be stored: the first event of each id, and none already stored. Those others are answered as
-  // /sync/push answers them, accepted and not stored again
-  const seen = new Set(stored.map((e) => e.id));
+  // judged as it will be stored: the first event of each id, and none whose id is already stored. Those others are
+  // answered as /sync/push answers them, accepted and not stored again
+  const seen = storedEventIds(db, events.map((e) => e.id));
   const batch: EventInput[] = [];
   for (const e of events) {
     if (seen.has(e.id)) continue;
     seen.add(e.id);
     batch.push(e);
   }
-  const creates = stored.flatMap((e) => (e.type === 'item.created' ? [e] : []));
-  const ctx: GuestPushContext = {
-    householdId: share.householdId,
-    listId: share.listId,
-    // set below, before the item changes are judged
-    state: emptyState(),
-    scope: new Set(),
-    aliased: new Set(),
-    own: new Set(creates.flatMap((e) => (e.userId === guestId ? [e.payload.itemId] : []))),
-    created: new Set(creates.map((e) => e.payload.itemId)),
-  };
+  const creates = batch.flatMap((e) => (e.type === 'item.created' ? [e.payload.itemId] : []));
+  const ctx = { householdId: share.householdId, listId: share.listId, created: createdItemIds(db, creates) };
   const refused = new Map<string, RejectCode>();
-  // in batch order, so `own` takes in the batch's creates
+  // in batch order, so `created` takes in the batch's own creates
   for (const e of batch) {
-    if (isItemChange(e)) continue;
     const code = guestRejection(e, ctx);
     if (code) refused.set(e.id, code);
-    else if (e.type === 'item.created') ctx.own.add(e.payload.itemId);
+    else if (e.type === 'item.created') ctx.created.add(e.payload.itemId);
   }
-  // The household folds in hlc order, not in the order a batch arrives: a backdated item.created sorts before
-  // theirs, and their item becomes an alias of the guest's. So item changes are judged on the fold of the stored
-  // events and the batch together. Refusing one would leave the others judged on a fold that won't be stored, so
-  // one refusal refuses them all.
+  const renames = batch.filter((e): e is Rename => e.type === 'item.renamed' && !refused.has(e.id));
+  if (renames.length === 0) return refused;
+  // A rename must land on an item on the list. The household folds in hlc order, not in the order a batch arrives:
+  // a create dated earlier sorts before theirs and changes which item an id is. So renames are judged on the fold
+  // of the stored events and the batch together, and one refused rename refuses them all.
+  const stored = householdEvents(db, share.householdId);
   const last = stored.at(-1)?.seq ?? 0;
   const all: StoredEvent[] = [
     ...stored,
     ...batch.filter((e) => !refused.has(e.id)).map((e, i) => ({ ...e, seq: last + 1 + i, userId: guestId, receivedAt: 0 })),
   ];
-  ctx.state = fold(all);
-  ctx.scope = scopeItems(all, shareScope(share), ctx.state);
-  ctx.aliased = new Set([...ctx.state.aliases].flatMap(([alias, real]) => (ctx.own.has(alias) ? [] : [real])));
-  const changes = batch.filter((e) => isItemChange(e) && !refused.has(e.id));
-  if (changes.some((e) => guestRejection(e, ctx))) for (const e of changes) refused.set(e.id, 'out_of_scope');
+  const state = fold(all);
+  const scope = scopeItems(all, shareScope(share), state);
+  if (renames.some((e) => !scope.has(resolveItemId(state, e.payload.itemId)))) for (const e of renames) refused.set(e.id, 'out_of_scope');
   return refused;
 }

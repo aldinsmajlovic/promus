@@ -43,6 +43,24 @@ export function lastSeq(db: DatabaseSync, householdId: string): number {
   return row.s ?? 0;
 }
 
+/** The ids among `ids` that are stored, in any household: `events.id` is unique across them all. */
+export function storedEventIds(db: DatabaseSync, ids: string[]): Set<string> {
+  const rows = db.prepare(`SELECT id FROM events WHERE id IN (${ids.map(() => '?').join(',')})`).all(...ids) as { id: string }[];
+  return new Set(rows.map((r) => r.id));
+}
+
+/** The item ids among `itemIds` that a stored item.created made, in any household. */
+export function createdItemIds(db: DatabaseSync, itemIds: string[]): Set<string> {
+  // ponytail: scans every household's item.created; an index on the created item id if the table grows large
+  const rows = db
+    .prepare(
+      `SELECT json_extract(payload, '$.itemId') AS itemId FROM events
+       WHERE type = 'item.created' AND json_extract(payload, '$.itemId') IN (${itemIds.map(() => '?').join(',')})`,
+    )
+    .all(...itemIds) as { itemId: string }[];
+  return new Set(rows.map((r) => r.itemId));
+}
+
 export function householdEvents(db: DatabaseSync, householdId: string): StoredEvent[] {
   const rows = db.prepare(`SELECT ${COLUMNS} FROM events WHERE household_id = ? ORDER BY seq`).all(householdId) as Row[];
   return rows.map(toStored);

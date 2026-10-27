@@ -6,7 +6,8 @@ import { createUser } from '../src/users.ts';
 import { DAY, SAME_ORIGIN, T0, cookieOf, login, makeTestApp } from './helpers.ts';
 
 const PW = 'correct horse';
-const HOUR = 3_600_000;
+const MIN = 60_000;
+const HOUR = 60 * MIN;
 
 async function setup() {
   const lines: string[] = [];
@@ -138,15 +139,21 @@ describe('guest sync', { timeout: 30_000 }, () => {
     expect(await g.verdicts(t.ev('item.renamed', { itemId: screws, name: 'Nails' }))).toEqual(['out_of_scope']);
     const fresh = newId();
     expect(
-      await g.verdicts(t.ev('item.created', { itemId: fresh, name: 'Tofu' }), t.ev('item.renamed', { itemId: fresh, name: 'Smoked tofu' })),
-    ).toEqual(['accepted', 'accepted']);
+      await g.verdicts(
+        t.ev('item.created', { itemId: fresh, name: 'Tofu' }),
+        t.ev('entry.added', { listId: list, itemId: fresh }),
+        t.ev('item.renamed', { itemId: fresh, name: 'Smoked tofu' }),
+      ),
+    ).toEqual(['accepted', 'accepted', 'accepted']);
+    const twice = newId();
+    expect(
+      await g.verdicts(t.ev('item.created', { itemId: twice, name: 'Ham' }), t.ev('item.created', { itemId: twice, name: 'Spam' })),
+    ).toEqual(['accepted', 'out_of_scope']);
     expect(
       await g.verdicts(t.ev('entry.added', { listId: list, itemId: eggs }), t.ev('item.renamed', { itemId: eggs, name: 'Free-range eggs' })),
     ).toEqual(['accepted', 'accepted']);
-    expect(await g.verdicts(t.ev('item.archived', { itemId: own }))).toEqual(['accepted']);
-    expect(await g.verdicts(t.ev('item.archived', { itemId: screws }))).toEqual(['out_of_scope']);
-    expect(await g.verdicts(t.ev('item.unarchived', { itemId: own }))).toEqual(['accepted']);
-    expect(await g.verdicts(t.ev('item.unarchived', { itemId: screws }))).toEqual(['out_of_scope']);
+    for (const type of ['item.archived', 'item.unarchived'] as const)
+      for (const itemId of [own, milk, screws]) expect(await g.verdicts(t.ev(type, { itemId }))).toEqual(['out_of_scope']);
     expect(await g.verdicts(t.ev('item.created', { itemId: newId(), name: 'Ham' }, { householdId: newId() }))).toEqual(['forbidden_household']);
     expect(await g.verdicts(t.ev('item.created', { itemId: newId(), name: 'Jam' }, { wall: T0 + 2 * HOUR }))).toEqual(['clock_skew']);
     const state = await t.annaFold();
@@ -169,49 +176,21 @@ describe('guest sync', { timeout: 30_000 }, () => {
     const verdicts = oneBatch
       ? await g.verdicts(created, added, removed, archived)
       : [...(await g.verdicts(created, added)), ...(await g.verdicts(removed, archived))];
-    // the household's Milk: the guest's item is an alias of it
-    const theirs = name.toLowerCase() === 'milk';
-    expect(verdicts).toEqual(['accepted', 'accepted', 'accepted', theirs ? 'out_of_scope' : 'accepted']);
+    expect(verdicts).toEqual(['accepted', 'accepted', 'accepted', 'out_of_scope']);
     const state = await t.annaFold();
+    const id = resolveItemId(state, item);
+    expect(state.items.get(id)).toMatchObject({ name: name === 'milk' ? 'Milk' : name, archived: false });
+    expect(state.entries.has(entryKey(t.anna.listId, id))).toBe(false);
     expect(state.items.get(milk)?.archived).toBe(false);
-    if (!theirs) expect(state.items.get(item)?.archived).toBe(true);
   };
 
   it("undoing a guest's add of a name the household has never archives the household's item", undoAdd('milk', false));
 
-  it("undoing a guest's add of a new item works", undoAdd('Oat milk', false));
+  it("undoing a guest's add of a new item takes it off the list and keeps the item", undoAdd('Oat milk', false));
 
   it('an add and its undo in one batch, as an offline phone sends them', async () => {
     await undoAdd('Oat milk', true)();
     await undoAdd('milk', true)();
-  });
-
-  it("a backdated name doesn't hand a guest the household's item", async () => {
-    const t = await setup();
-    const milk = newId();
-    const theirs = t.ev('item.created', { itemId: milk, name: 'Milk' });
-    await t.push(theirs);
-    const g = await t.shared();
-    const mine = newId();
-    expect(await g.verdicts(t.ev('item.created', { itemId: mine, name: 'Milk' }, { wall: hlcWall(theirs.hlc) - HOUR / 2 }))).toEqual(['accepted']);
-    expect(await g.verdicts(t.ev('item.archived', { itemId: mine }), t.ev('item.renamed', { itemId: mine, name: 'Mine' }))).toEqual([
-      'out_of_scope',
-      'out_of_scope',
-    ]);
-    const state = await t.annaFold();
-    expect(state.items.get(resolveItemId(state, milk))).toMatchObject({ name: 'Milk', archived: false });
-  });
-
-  it("a guest's new item the household made later stays the household's", async () => {
-    const t = await setup();
-    const g = await t.shared();
-    const mine = newId();
-    expect(await g.verdicts(t.ev('item.created', { itemId: mine, name: 'Bread' }))).toEqual(['accepted']);
-    const bread = newId();
-    await t.push(t.ev('item.created', { itemId: bread, name: 'Bread' }));
-    expect((await t.annaFold()).aliases.get(bread)).toBe(mine);
-    expect(await g.verdicts(t.ev('item.archived', { itemId: mine }))).toEqual(['out_of_scope']);
-    expect((await t.annaFold()).items.get(mine)?.archived).toBe(false);
   });
 
   it("a guest can't claim a household item by its id", async () => {
@@ -265,64 +244,71 @@ describe('guest sync', { timeout: 30_000 }, () => {
     expect(state.entries.get(entryKey(bakery, bread))?.state).toBe('active');
   });
 
-  it('a refused item change refuses every item change in the batch', async () => {
+  it('a refused rename refuses every rename in the batch', async () => {
     const t = await setup();
     const [bread, milk] = [newId(), newId()];
     await t.push(
-      t.ev('item.created', { itemId: bread, name: 'Bread' }, { wall: T0 - 100 }),
+      t.ev('item.created', { itemId: bread, name: 'Bread' }),
+      t.ev('item.created', { itemId: milk, name: 'Milk' }),
+      t.ev('entry.added', { listId: t.anna.listId, itemId: milk }),
+    );
+    const g = await t.shared();
+    expect(
+      await g.verdicts(t.ev('item.renamed', { itemId: bread, name: 'Rye' }), t.ev('item.renamed', { itemId: milk, name: 'Oat milk' })),
+    ).toEqual(['out_of_scope', 'out_of_scope']);
+    const state = await t.annaFold();
+    expect([state.items.get(bread)?.name, state.items.get(milk)?.name]).toEqual(['Bread', 'Milk']);
+  });
+
+  it('one event id twice in a batch is judged as it will be stored', async () => {
+    const t = await setup();
+    const [bakery, bread, milk] = [newId(), newId(), newId()];
+    await t.push(
+      t.ev('list.created', { listId: bakery, name: 'Bakery' }),
+      t.ev('item.created', { itemId: bread, name: 'Bread' }),
+      t.ev('entry.added', { listId: bakery, itemId: bread }),
       t.ev('item.created', { itemId: milk, name: 'Milk' }),
       t.ev('entry.added', { listId: t.anna.listId, itemId: milk }),
     );
     const g = await t.shared();
     const mine = newId();
-    // the judged fold holds the refused rename, which frees "Bread" before the guest's create: without it, the guest's
-    // "Bread" is an alias of the household's, so nothing judged beside it stands
-    expect(
-      await g.verdicts(
-        t.ev('item.renamed', { itemId: bread, name: 'Rye' }, { wall: T0 - 60 }),
-        t.ev('item.created', { itemId: mine, name: 'Bread' }, { wall: T0 - 50 }),
-        t.ev('item.archived', { itemId: mine }),
-        t.ev('item.renamed', { itemId: milk, name: 'Oat milk' }),
-      ),
-    ).toEqual(['out_of_scope', 'accepted', 'out_of_scope', 'out_of_scope']);
+    // stored: the first copy, an alias of the off-list Bread. The earlier-dated second would fold as Milk's
+    const first = t.ev('item.created', { itemId: mine, name: 'Bread' }, { wall: T0 + 100 });
+    const again = { ...t.ev('item.created', { itemId: mine, name: 'Milk' }, { wall: T0 + 50 }), id: first.id };
+    expect(await g.verdicts(first, again, t.ev('item.renamed', { itemId: mine, name: 'Junk' }, { wall: T0 + 200 }))).toEqual([
+      'accepted',
+      'accepted',
+      'out_of_scope',
+    ]);
     const state = await t.annaFold();
     expect(state.items.get(bread)).toMatchObject({ name: 'Bread', archived: false });
+    expect(state.entries.get(entryKey(bakery, bread))?.state).toBe('active');
     expect(state.items.get(milk)?.name).toBe('Milk');
-  });
-
-  it('one event id twice in a batch is judged as it will be stored', async () => {
-    const t = await setup();
-    const [bakery, bread] = [newId(), newId()];
-    await t.push(
-      t.ev('list.created', { listId: bakery, name: 'Bakery' }),
-      t.ev('item.created', { itemId: bread, name: 'Bread' }),
-      t.ev('entry.added', { listId: bakery, itemId: bread }),
-    );
-    const g = await t.shared();
-    const mine = newId();
-    const first = t.ev('item.created', { itemId: mine, name: 'Bread' }, { wall: T0 - HOUR / 2 });
-    const again = { ...t.ev('item.created', { itemId: mine, name: 'Zzz unique' }, { wall: T0 - HOUR / 2 - 10 }), id: first.id };
-    expect(
-      await g.verdicts(first, again, t.ev('item.renamed', { itemId: mine, name: 'Junk' }), t.ev('item.archived', { itemId: mine })),
-    ).toEqual(['accepted', 'accepted', 'out_of_scope', 'out_of_scope']);
-    const state = await t.annaFold();
-    const id = resolveItemId(state, bread);
-    expect(state.items.get(id)).toMatchObject({ name: 'Bread', archived: false });
-    expect(state.entries.get(entryKey(bakery, id))?.state).toBe('active');
   });
 
   it("a household event's id sent again is judged as stored, not as sent", async () => {
     const t = await setup();
+    const [bread, milk] = [newId(), newId()];
+    const renamed = t.ev('item.renamed', { itemId: bread, name: 'Brioche' }, { wall: T0 + 30 });
+    await t.push(
+      t.ev('item.created', { itemId: bread, name: 'Bread' }, { wall: T0 + 10 }),
+      t.ev('item.created', { itemId: milk, name: 'Milk' }, { wall: T0 + 20 }),
+      t.ev('entry.added', { listId: t.anna.listId, itemId: milk }, { wall: T0 + 21 }),
+      renamed,
+    );
     const g = await t.shared();
-    const bread = newId();
-    const theirs = t.ev('item.created', { itemId: bread, name: 'Bread' });
-    await t.push(theirs);
-    const resent = { ...t.ev('item.created', { itemId: newId(), name: 'Zzz unique' }, { wall: hlcWall(theirs.hlc) - 10 }), id: theirs.id };
+    // sent as itself, the household's rename stands, and "Brioche" is the off-list Bread
+    const resent = { ...t.ev('item.renamed', { itemId: milk, name: 'Brioche' }, { wall: T0 + 25 }), id: renamed.id };
     const mine = newId();
     expect(
-      await g.verdicts(resent, t.ev('item.created', { itemId: mine, name: 'Bread' }), t.ev('item.archived', { itemId: mine })),
+      await g.verdicts(
+        resent,
+        t.ev('item.created', { itemId: mine, name: 'Brioche' }, { wall: T0 + 40 }),
+        t.ev('item.renamed', { itemId: mine, name: 'Junk' }, { wall: T0 + 50 }),
+      ),
     ).toEqual(['accepted', 'accepted', 'out_of_scope']);
-    expect((await t.annaFold()).items.get(bread)).toMatchObject({ name: 'Bread', archived: false });
+    const state = await t.annaFold();
+    expect([state.items.get(bread)?.name, state.items.get(milk)?.name]).toEqual(['Brioche', 'Milk']);
   });
 
   it('a rename judged beside a refused unarchive is refused too', async () => {
@@ -371,6 +357,81 @@ describe('guest sync', { timeout: 30_000 }, () => {
     const g = await t.shared();
     expect(await g.verdicts(t.ev('item.created', { itemId: newId(), name: 'Bread' }, { wall: T0 - 2 * HOUR }))).toEqual(['clock_skew']);
     expect(await g.verdicts(t.ev('item.created', { itemId: newId(), name: 'Rye' }, { wall: T0 - HOUR / 2 }))).toEqual(['accepted']);
+  });
+
+  it("a guest's item can't be created again under a household name", async () => {
+    const t = await setup();
+    const [bakery, bread] = [newId(), newId()];
+    await t.push(
+      t.ev('list.created', { listId: bakery, name: 'Bakery' }, { wall: T0 - DAY }),
+      t.ev('item.created', { itemId: bread, name: 'Bread' }, { wall: T0 - DAY + 1 }),
+      t.ev('entry.added', { listId: bakery, itemId: bread }, { wall: T0 - DAY + 2 }),
+    );
+    const g = await t.shared();
+    const mine = newId();
+    expect(
+      await g.verdicts(
+        t.ev('item.created', { itemId: mine, name: 'Foo' }, { wall: T0 + 10 * MIN }),
+        t.ev('entry.added', { listId: t.anna.listId, itemId: mine }, { wall: T0 + 11 * MIN }),
+        t.ev('item.renamed', { itemId: mine, name: 'Junk' }, { wall: T0 + 12 * MIN }),
+      ),
+    ).toEqual(['accepted', 'accepted', 'accepted']);
+    expect(await g.verdicts(t.ev('item.created', { itemId: mine, name: 'Bread' }, { wall: T0 - 50 * MIN }))).toEqual(['out_of_scope']);
+    const state = await t.annaFold();
+    expect(state.items.get(bread)).toMatchObject({ name: 'Bread', archived: false });
+    expect(state.entries.get(entryKey(bakery, bread))?.state).toBe('active');
+    expect(state.entries.has(entryKey(t.anna.listId, bread))).toBe(false);
+    expect(state.items.get(mine)?.name).toBe('Junk');
+  });
+
+  it("a later rename can't turn a guest's archive onto a household item", async () => {
+    const t = await setup();
+    const milk = newId();
+    await t.push(
+      t.ev('item.created', { itemId: milk, name: 'Milk' }, { wall: T0 - DAY }),
+      t.ev('entry.added', { listId: t.anna.listId, itemId: milk }),
+    );
+    const g = await t.shared();
+    const mine = newId();
+    expect(
+      await g.verdicts(
+        t.ev('item.created', { itemId: mine, name: 'Foo' }, { wall: T0 + 10 * MIN }),
+        t.ev('item.archived', { itemId: mine }, { wall: T0 + 12 * MIN }),
+      ),
+    ).toEqual(['accepted', 'out_of_scope']);
+    // Milk is on the list, so renaming it is the guest's to do; its name before Foo's create makes Foo an alias of it
+    expect(await g.verdicts(t.ev('item.renamed', { itemId: milk, name: 'Foo' }, { wall: T0 + 5 * MIN }))).toEqual(['accepted']);
+    const state = await t.annaFold();
+    expect(state.items.get(milk)).toMatchObject({ name: 'Foo', archived: false });
+    expect(state.entries.get(entryKey(t.anna.listId, milk))?.state).toBe('active');
+  });
+
+  it("an event id stored in another household is judged as stored, and an item id there can't be created", async () => {
+    const t = await setup();
+    const bob = await createUser(t.db, { username: 'Bob', password: PW, locale: 'en', now: T0 });
+    const cookieB = cookieOf(await login(t.app, 'bob', PW));
+    const theirs = newId();
+    const k = makeEvent('item.created', { itemId: theirs, name: 'Nails' }, { householdId: bob.householdId, hlc: formatHlc(T0, 0, 'bob'), occurredAt: T0 });
+    expect((await t.send('POST', '/api/sync/push', { events: [k] }, cookieB)).status).toBe(200);
+    const [bread, milk] = [newId(), newId()];
+    await t.push(
+      t.ev('item.created', { itemId: bread, name: 'Bread' }),
+      t.ev('item.created', { itemId: milk, name: 'Milk' }),
+      t.ev('entry.added', { listId: t.anna.listId, itemId: milk }),
+    );
+    const g = await t.shared();
+    const mine = newId();
+    // judged as sent, the id-k create would fold as Milk's, on the list; it is never stored
+    const sent = { ...t.ev('item.created', { itemId: mine, name: 'Milk' }, { wall: T0 + 10 * MIN }), id: k.id };
+    expect(await g.verdicts(sent, t.ev('item.renamed', { itemId: mine, name: 'Junk' }, { wall: T0 + 30 * MIN }))).toEqual([
+      'accepted',
+      'out_of_scope',
+    ]);
+    expect(await g.verdicts(t.ev('item.created', { itemId: mine, name: 'Bread' }, { wall: T0 + 20 * MIN }))).toEqual(['accepted']);
+    expect(await g.verdicts(t.ev('item.created', { itemId: theirs, name: 'Nails' }))).toEqual(['out_of_scope']);
+    const state = await t.annaFold();
+    expect(state.items.get(bread)).toMatchObject({ name: 'Bread', archived: false });
+    expect(state.items.get(milk)?.name).toBe('Milk');
   });
 
   it('an ended link refuses pull and push', async () => {

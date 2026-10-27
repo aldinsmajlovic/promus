@@ -2,6 +2,7 @@
 
 What changed from the original plan, and why. Newest first, one line each.
 
+- **2026-10-27, guests never archive.** Undoing a guest's add takes the entry off the list and keeps the item, instead of archiving the item the guest made. A later event can make that item an alias of one of the household's, and an archive stored earlier would then land on theirs.
 - **2026-10-26, guests start from the moment of sharing.** A guest gets the list as it is when shared, and everything after, not its history or the household's other items. The server folds the household's events to work that out; until now it only stored and relayed them.
 - **2026-10-26, guests.** A guest is a name, or "Guest", tied to one link and one phone, not an account. A link takes at most 50 guests instead of a rate limit on tries: its 256 random bits can't be guessed anyway, and a limit on tries would let anyone block new guests.
 - **2026-10-26, sharing a list.** Any household member can share one list by a link that works for 14 days, for people without an account. The server keeps the link itself, not only its hash, so any member can show it again: anyone who can read the database already has the lists.
