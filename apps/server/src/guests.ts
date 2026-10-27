@@ -1,7 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import type { DatabaseSync } from 'node:sqlite';
-import { SHARE_MAX_GUESTS, applyEvent, fold, newId, resolveItemId, scopeItems, sharedEvents } from '@promus/shared';
-import type { EventInput, HouseholdState, Person, RejectCode, ShareScope } from '@promus/shared';
+import { SHARE_MAX_GUESTS, emptyState, fold, newId, resolveItemId, scopeItems, sharedEvents } from '@promus/shared';
+import type { EventInput, HouseholdState, Person, RejectCode, ShareScope, StoredEvent } from '@promus/shared';
 import { hashToken } from './auth/sessions.ts';
 import { transaction } from './db.ts';
 import { householdEvents, listState } from './events-repo.ts';
@@ -63,13 +63,22 @@ export function peopleOnList(db: DatabaseSync, share: ShareRow): Person[] {
   ];
 }
 
-/** `scope` holds the resolved ids of the items the guest may know, `own` the ids of the items this guest created. */
-export type GuestPushContext = { householdId: string; listId: string; state: HouseholdState; scope: Set<string>; own: Set<string> };
+/**
+ * `scope` holds the resolved ids of the items on the list, `own` the ids of the items this guest created, `created`
+ * the ids of every item.created stored. `state` is the fold an item change lands in.
+ */
+export type GuestPushContext = {
+  householdId: string; listId: string; state: HouseholdState; scope: Set<string>; own: Set<string>; created: Set<string>;
+};
 
 const isEntry = (e: EventInput): e is Extract<EventInput, { type: `entry.${string}` }> => e.type.startsWith('entry.');
 
-/** Why a guest may not push `e`, or null when it may. */
-export function guestRejection(e: EventInput, { householdId, listId, state, scope, own }: GuestPushContext): RejectCode | null {
+type ItemChange = Extract<EventInput, { type: 'item.renamed' | 'item.archived' | 'item.unarchived' }>;
+const isItemChange = (e: EventInput): e is ItemChange =>
+  e.type === 'item.renamed' || e.type === 'item.archived' || e.type === 'item.unarchived';
+
+/** Why a guest may not push `e`, or null when it may. Only item changes read `state` and `scope`. */
+export function guestRejection(e: EventInput, { householdId, listId, state, scope, own, created }: GuestPushContext): RejectCode | null {
   if (e.householdId !== householdId) return 'forbidden_household';
   if (isEntry(e)) return e.payload.listId === listId ? null : 'out_of_scope';
   // a real item the guest created, that no one else's id is an alias of. One with such an alias is the household's
@@ -78,10 +87,10 @@ export function guestRejection(e: EventInput, { householdId, listId, state, scop
     own.has(id) && state.items.has(id) && ![...state.aliases].some(([alias, real]) => real === id && !own.has(alias));
   switch (e.type) {
     // an id the household already has stays theirs: the fold would skip this, but `own` would take it in. Its own
-    // ids again are a retried push
+    // ids again are a retried push. Not judged on the fold, where a backdated create of that id would win
     case 'item.created': {
       const id = e.payload.itemId;
-      return own.has(id) || !(state.items.has(id) || state.aliases.has(id)) ? null : 'out_of_scope';
+      return created.has(id) && !own.has(id) ? 'out_of_scope' : null;
     }
     case 'item.renamed': {
       const id = resolveItemId(state, e.payload.itemId);
@@ -97,21 +106,53 @@ export function guestRejection(e: EventInput, { householdId, listId, state, scop
   }
 }
 
-/** The household as the guest's push checks it, before the batch. */
-export function guestPushContext(db: DatabaseSync, { guestId, share }: GuestContext): GuestPushContext {
-  const events = householdEvents(db, share.householdId);
-  return {
+/** The guest's refusals among a push's events that passed every other check, by event id. */
+export function guestRefusals(db: DatabaseSync, { guestId, share }: GuestContext, events: EventInput[]): Map<string, RejectCode> {
+  const stored = householdEvents(db, share.householdId);
+  const creates = stored.flatMap((e) => (e.type === 'item.created' ? [e] : []));
+  const ctx: GuestPushContext = {
     householdId: share.householdId,
     listId: share.listId,
-    state: fold(events),
-    scope: scopeItems(events, shareScope(share)),
-    own: new Set(events.flatMap((e) => (e.type === 'item.created' && e.userId === guestId ? [e.payload.itemId] : []))),
+    // set below, before the item changes are judged
+    state: emptyState(),
+    scope: new Set(),
+    own: new Set(creates.flatMap((e) => (e.userId === guestId ? [e.payload.itemId] : []))),
+    created: new Set(creates.map((e) => e.payload.itemId)),
   };
-}
-
-/** Takes in an accepted event, so the batch's next one is checked as the household will fold it. */
-export function guestAccepted(ctx: GuestPushContext, e: EventInput): void {
-  applyEvent(ctx.state, e);
-  if (e.type === 'item.created') ctx.own.add(e.payload.itemId);
-  else if (isEntry(e) && e.payload.listId === ctx.listId) ctx.scope.add(resolveItemId(ctx.state, e.payload.itemId));
+  const refused = new Map<string, RejectCode>();
+  // in batch order, so `own` takes in the batch's creates
+  for (const e of events) {
+    if (isItemChange(e)) continue;
+    const code = guestRejection(e, ctx);
+    if (code) refused.set(e.id, code);
+    else if (e.type === 'item.created') ctx.own.add(e.payload.itemId);
+  }
+  const last = stored.at(-1)?.seq ?? 0;
+  const withBatch = (): StoredEvent[] => [
+    ...stored,
+    ...events.filter((e) => !refused.has(e.id)).map((e, i) => ({ ...e, seq: last + 1 + i, userId: guestId, receivedAt: 0 })),
+  ];
+  const judgeChanges = (): number => {
+    let n = 0;
+    for (const e of events) {
+      const code = isItemChange(e) && !refused.has(e.id) ? guestRejection(e, ctx) : null;
+      if (code) {
+        refused.set(e.id, code);
+        n++;
+      }
+    }
+    return n;
+  };
+  // The household folds in hlc order, not in the order a batch arrives: a backdated item.created sorts before
+  // theirs, and their item becomes an alias of the guest's. So item changes are judged on the fold of the stored
+  // events and the batch together. A refusal changes that fold, so they are judged once more without the refused;
+  // if that refuses more too, no item change in the batch is trusted.
+  const all = withBatch();
+  ctx.state = fold(all);
+  ctx.scope = scopeItems(all, shareScope(share));
+  if (judgeChanges() > 0) {
+    ctx.state = fold(withBatch());
+    if (judgeChanges() > 0) for (const e of events) if (isItemChange(e) && !refused.has(e.id)) refused.set(e.id, 'out_of_scope');
+  }
+  return refused;
 }

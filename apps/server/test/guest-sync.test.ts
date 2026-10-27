@@ -223,6 +223,70 @@ describe('guest sync', { timeout: 30_000 }, () => {
     expect((await t.annaFold()).items.get(milk)).toMatchObject({ name: 'Milk', archived: false });
   });
 
+  it("a backdated name in one batch can't rename or unarchive a household item", async () => {
+    const t = await setup();
+    const bread = newId();
+    await t.push(t.ev('item.created', { itemId: bread, name: 'Bread' }), t.ev('item.archived', { itemId: bread }));
+    const g = await t.shared();
+    const mine = newId();
+    expect(
+      await g.verdicts(
+        t.ev('item.created', { itemId: mine, name: 'Bread' }, { wall: T0 - DAY }),
+        t.ev('item.renamed', { itemId: mine, name: 'Junk' }),
+        t.ev('item.unarchived', { itemId: mine }),
+      ),
+    ).toEqual(['accepted', 'out_of_scope', 'out_of_scope']);
+    const state = await t.annaFold();
+    expect(state.items.get(resolveItemId(state, bread))).toMatchObject({ name: 'Bread', archived: true });
+  });
+
+  it("a backdated name in one batch can't rename or archive a household item on another list", async () => {
+    const t = await setup();
+    const [bakery, bread] = [newId(), newId()];
+    await t.push(
+      t.ev('list.created', { listId: bakery, name: 'Bakery' }, { wall: T0 - 100 }),
+      t.ev('item.created', { itemId: bread, name: 'Bread' }, { wall: T0 - 90 }),
+      t.ev('entry.added', { listId: bakery, itemId: bread }, { wall: T0 - 80 }),
+      t.ev('item.renamed', { itemId: bread, name: 'Sourdough' }, { wall: T0 - 50 }),
+    );
+    const g = await t.shared();
+    const mine = newId();
+    expect(
+      await g.verdicts(
+        t.ev('item.created', { itemId: mine, name: 'Bread' }, { wall: T0 - 70 }),
+        t.ev('item.renamed', { itemId: mine, name: 'Junk' }),
+        t.ev('item.archived', { itemId: mine }),
+      ),
+    ).toEqual(['accepted', 'out_of_scope', 'out_of_scope']);
+    const state = await t.annaFold();
+    expect(state.items.get(bread)).toMatchObject({ name: 'Sourdough', archived: false });
+    expect(state.entries.get(entryKey(bakery, bread))?.state).toBe('active');
+  });
+
+  it('a change judged fine only beside a refused one is refused, with every item change left', async () => {
+    const t = await setup();
+    const [bread, milk] = [newId(), newId()];
+    await t.push(
+      t.ev('item.created', { itemId: bread, name: 'Bread' }, { wall: T0 - 100 }),
+      t.ev('item.created', { itemId: milk, name: 'Milk' }),
+      t.ev('entry.added', { listId: t.anna.listId, itemId: milk }),
+    );
+    const g = await t.shared();
+    const mine = newId();
+    // the refused rename frees "Bread" before the guest's create, so only beside it is the guest's "Bread" its own
+    expect(
+      await g.verdicts(
+        t.ev('item.renamed', { itemId: bread, name: 'Rye' }, { wall: T0 - 60 }),
+        t.ev('item.created', { itemId: mine, name: 'Bread' }, { wall: T0 - 50 }),
+        t.ev('item.archived', { itemId: mine }),
+        t.ev('item.renamed', { itemId: milk, name: 'Oat milk' }),
+      ),
+    ).toEqual(['out_of_scope', 'accepted', 'out_of_scope', 'out_of_scope']);
+    const state = await t.annaFold();
+    expect(state.items.get(bread)).toMatchObject({ name: 'Bread', archived: false });
+    expect(state.items.get(milk)?.name).toBe('Milk');
+  });
+
   it('an ended link refuses pull and push', async () => {
     const t = await setup();
     const g = await t.shared();

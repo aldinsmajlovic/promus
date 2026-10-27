@@ -22,16 +22,17 @@ type Refusal = { code: RejectCode; message: string };
 type Pusher = {
   /** Whose events these are stored as. */
   who: { userId: string; sessionId: string };
-  refuse: (e: EventInput) => Refusal | null;
-  /** Sees each accepted event in batch order, before the next one is checked. */
-  onAccepted?: (e: EventInput) => void;
+  /** Refuses an event on its own, before the clock check. */
+  refuse?: (e: EventInput) => Refusal | null;
+  /** Refuses among the events that passed every other check, judged together, by event id. */
+  judge?: (events: EventInput[]) => Map<string, Refusal>;
   /** Ids for the rejection log lines. */
   logged: Record<string, string>;
 };
 
 export const pushLimit = bodyLimit({ maxSize: LIMITS.pushMaxBytes, onError: (c) => c.json({ error: 'payload_too_large' }, 413) });
 
-/** Stores each event that parses, that `refuse` lets through and that isn't more than an hour ahead. */
+/** Stores each event that parses, that `refuse` lets through, that isn't more than an hour ahead and that `judge` lets through. */
 export const pushHandler =
   ({ db, now, logger }: Pick<AppDeps, 'db' | 'now' | 'logger'>, pusher: (c: Context<AppEnv>) => Pusher) =>
   async (c: Context<AppEnv>) => {
@@ -40,11 +41,10 @@ export const pushHandler =
     if (!Array.isArray(raw) || raw.length < 1 || raw.length > LIMITS.pushMaxEvents) {
       return c.json({ error: 'invalid_request' }, 400);
     }
-    const { who, refuse, onAccepted, logged } = pusher(c);
+    const { who, refuse, judge, logged } = pusher(c);
     const t = now();
-    const accepted: string[] = [];
     const rejected: PushResponse['rejected'] = [];
-    const valid: EventInput[] = [];
+    const passed: EventInput[] = [];
     for (const item of raw) {
       const parsed = parseEventInput(item);
       if (!parsed.ok) {
@@ -53,14 +53,24 @@ export const pushHandler =
       }
       const e = parsed.event;
       const refusal: Refusal | null =
-        refuse(e) ??
+        refuse?.(e) ??
         (hlcWall(e.hlc) > t + LIMITS.maxClockSkewMs ? { code: 'clock_skew', message: 'event is more than one hour in the future' } : null);
       if (refusal) {
         rejected.push({ id: e.id, ...refusal });
         continue;
       }
+      passed.push(e);
+    }
+    const judged = judge?.(passed);
+    const accepted: string[] = [];
+    const valid: EventInput[] = [];
+    for (const e of passed) {
+      const refusal = judged?.get(e.id);
+      if (refusal) {
+        rejected.push({ id: e.id, ...refusal });
+        continue;
+      }
       valid.push(e);
-      onAccepted?.(e);
       if (!accepted.includes(e.id)) accepted.push(e.id);
     }
     for (const r of rejected) logger.warn({ eventId: r.id, code: r.code, ...logged }, 'event rejected');

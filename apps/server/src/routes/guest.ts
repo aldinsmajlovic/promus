@@ -2,11 +2,11 @@ import { Hono } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
 import { getCookie } from 'hono/cookie';
 import { GUEST_NAME_MAX, cleanGuestName, guestNameSchema, sharedEvents, shareJoinSchema, shareTokenSchema } from '@promus/shared';
-import type { GuestMe, PullResponse, ShareCheck, ShareJoined } from '@promus/shared';
+import type { GuestMe, PullResponse, RejectCode, ShareCheck, ShareJoined } from '@promus/shared';
 import type { AppDeps, AppEnv } from '../app.ts';
 import { householdEvents, lastSeq, listState } from '../events-repo.ts';
 import {
-  addGuest, findGuest, guestAccepted, guestCookieName, guestPushContext, guestRejection, peopleOnList, renameGuest, shareScope,
+  addGuest, findGuest, guestCookieName, guestRefusals, peopleOnList, renameGuest, shareScope,
 } from '../guests.ts';
 import { requireGuest, setGuestCookie } from '../middleware/guest.ts';
 import { findShareByToken } from '../shares.ts';
@@ -86,15 +86,10 @@ export function guestRoutes(deps: Pick<AppDeps, 'db' | 'logger' | 'now'>) {
       pushLimit,
       pushHandler(deps, (c) => {
         const guest = c.get('guest');
-        const ctx = guestPushContext(db, guest);
+        const message = (code: RejectCode) => (code === 'out_of_scope' ? 'not on the shared list' : "not the shared list's household");
         return {
           who: { userId: guest.guestId, sessionId: guest.guestId },
-          refuse: (e) => {
-            const code = guestRejection(e, ctx);
-            if (code === null) return null;
-            return { code, message: code === 'out_of_scope' ? 'not on the shared list' : "not the shared list's household" };
-          },
-          onAccepted: (e) => guestAccepted(ctx, e),
+          judge: (events) => new Map([...guestRefusals(db, guest, events)].map(([id, code]) => [id, { code, message: message(code) }])),
           logged: { guestId: guest.guestId },
         };
       }),
