@@ -15,6 +15,7 @@ import { ApiClient } from '../../core/api';
 import { CurrentList } from '../../core/current-list';
 import { Shares } from '../../core/shares';
 import { Store, ValidationError } from '../../core/store';
+import { SyncService } from '../../core/sync.service';
 import { RowGestures } from './row-gestures';
 import { ShareSheet, type ShareSheetData } from './share-sheet';
 
@@ -50,6 +51,7 @@ export class ListMenu {
   private readonly actions = inject(Actions);
   private readonly api = inject(ApiClient);
   private readonly sheet = inject(MatBottomSheet);
+  private readonly sync = inject(SyncService);
   private readonly snackBar = inject(MatSnackBar);
   private readonly transloco = inject(TranslocoService);
   protected readonly current = inject(CurrentList);
@@ -94,21 +96,24 @@ export class ListMenu {
   protected async share(list: ListSummary): Promise<void> {
     let made: Awaited<ReturnType<ApiClient['createShare']>>;
     try {
+      // a list the server hasn't seen yet can't be shared; syncNow never rejects
+      if (this.sync.status().pending > 0) await this.sync.syncNow();
       made = await this.api.createShare(list.id);
     } catch (err) {
       this.actions.failed(err);
       return;
     }
+    const t = this.transloco;
     const data: ShareSheetData = { listName: list.name, share: made.share };
-    const ref = this.sheet.open(ShareSheet, { data });
+    this.sheet.open(ShareSheet, { data, ariaLabel: t.translate('share.title', { list: list.name }) });
     if (!made.created) return;
     void this.shares.refresh();
-    const t = this.transloco;
     this.snackBar
       .open(t.translate('snack.shareMade'), t.translate('snack.undo'), SNACK)
       .onAction()
       .subscribe(() => {
-        ref.dismiss();
+        // whichever sheet is open now: this one may be closed, and the link opened again
+        this.sheet.dismiss();
         this.api.endShare(made.share.id).then(
           () => this.shares.refresh(),
           (err: unknown) => this.actions.failed(err, SNACK),

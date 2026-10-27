@@ -1,6 +1,7 @@
 import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed';
 import { importProvidersFrom, provideAppInitializer, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { MatBottomSheet } from '@angular/material/bottom-sheet';
 import { MATERIAL_ANIMATIONS } from '@angular/material/core';
 import { MatFormFieldHarness } from '@angular/material/form-field/testing';
 import { MatInputHarness } from '@angular/material/input/testing';
@@ -9,7 +10,7 @@ import { MatSnackBarHarness } from '@angular/material/snack-bar/testing';
 import { provideRouter } from '@angular/router';
 import { TranslocoTestingModule } from '@jsverse/transloco';
 import { type Share, newId } from '@promus/shared';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, onTestFinished, vi } from 'vitest';
 import sv from '../../../i18n/sv.json';
 import { FETCH } from '../../core/api';
 import { CurrentList } from '../../core/current-list';
@@ -25,12 +26,14 @@ const link = (listId: string): Share => ({ id: 's1', listId, token: 'tok', expir
 
 async function setup(second = true) {
   const db = new PromusDb(`menu-${newId()}`);
-  // the list's live link, once made or set by a test
-  const live: { share: Share | null } = { share: null };
+  // the list's live link, once made or set by a test; `fail` refuses to make one
+  const live: { share: Share | null; fail?: 'offline' | 'not_found' } = { share: null };
   const fetch = vi.fn<typeof globalThis.fetch>(async (url, init) => {
     if (url === '/api/shares' && init?.method === 'GET')
       return Response.json({ shares: live.share ? [live.share] : [], guests: [] });
     if (url === '/api/shares' && init?.method === 'POST') {
+      if (live.fail === 'offline') throw new TypeError('Failed to fetch');
+      if (live.fail === 'not_found') return Response.json({ error: 'not_found' }, { status: 404 });
       const made = live.share === null;
       live.share ??= link(JSON.parse(init.body as string).listId);
       return Response.json(live.share, { status: made ? 201 : 200 });
@@ -47,6 +50,7 @@ async function setup(second = true) {
     householdId: newId(),
   });
   const status = signal<SyncStatus>({ kind: 'idle', pending: 0, rejected: 0 });
+  const syncNow = vi.fn(async () => undefined);
   TestBed.configureTestingModule({
     providers: [
       { provide: PromusDb, useValue: db },
@@ -56,7 +60,7 @@ async function setup(second = true) {
         provide: SyncService,
         useValue: {
           status,
-          syncNow: vi.fn(async () => undefined),
+          syncNow,
           soon: () => undefined,
         },
       },
@@ -84,7 +88,7 @@ async function setup(second = true) {
   const el: HTMLElement = fixture.nativeElement;
   const loader = TestbedHarnessEnvironment.documentRootLoader(fixture);
   const menu = await loader.getHarness(MatMenuHarness);
-  return { db, store, current, listId, fixture, el, loader, menu, fetch, live };
+  return { db, store, current, listId, fixture, el, loader, menu, fetch, live, status, syncNow };
 }
 
 type T = Awaited<ReturnType<typeof setup>>;
@@ -270,6 +274,7 @@ describe('ListMenu', () => {
     await t.menu.open();
     item(t, /^Dela/).click();
     await vi.waitFor(() => expect(sheet()?.textContent).toContain('https://promus.example/share#tok'));
+    expect(sheet()?.getAttribute('aria-label')).toBe('Dela Inköpslista');
     const body = JSON.stringify({ listId: t.listId });
     expect(t.fetch).toHaveBeenCalledWith('/api/shares', expect.objectContaining({ method: 'POST', body }));
     const snackBar = await t.loader.getHarness(MatSnackBarHarness);
@@ -286,5 +291,52 @@ describe('ListMenu', () => {
     item(t, /^Dela/).click();
     await vi.waitFor(() => expect(sheet()?.textContent).toContain('https://promus.example/share#tok'));
     expect(await t.loader.getAllHarnesses(MatSnackBarHarness)).toEqual([]);
+  });
+
+  it('Undo closes the link\'s sheet, also one opened again', async () => {
+    const t = await setup();
+    await t.menu.open();
+    item(t, /^Dela/).click();
+    await vi.waitFor(() => expect(sheet()).not.toBeNull());
+    TestBed.inject(MatBottomSheet).dismiss();
+    await vi.waitFor(() => expect(sheet()).toBeNull());
+    await t.menu.open();
+    item(t, /^Dela/).click();
+    await vi.waitFor(() => expect(sheet()).not.toBeNull());
+    await (await t.loader.getHarness(MatSnackBarHarness)).dismissWithAction();
+    await vi.waitFor(() => expect(sheet()).toBeNull());
+  });
+
+  it('sharing syncs first while changes are waiting, so the server knows the list', async () => {
+    const t = await setup();
+    t.status.set({ kind: 'idle', pending: 2, rejected: 0 });
+    await t.menu.open();
+    item(t, /^Dela/).click();
+    await vi.waitFor(() => expect(sheet()).not.toBeNull());
+    const post = t.fetch.mock.calls.findIndex(([url, init]) => url === '/api/shares' && init?.method === 'POST');
+    expect(t.syncNow).toHaveBeenCalledOnce();
+    expect(t.syncNow.mock.invocationCallOrder[0]).toBeLessThan(t.fetch.mock.invocationCallOrder[post]!);
+  });
+
+  it('with nothing waiting, sharing doesn\'t sync first', async () => {
+    const t = await setup();
+    await t.menu.open();
+    item(t, /^Dela/).click();
+    await vi.waitFor(() => expect(sheet()).not.toBeNull());
+    expect(t.syncNow).not.toHaveBeenCalled();
+  });
+
+  it.each(['offline', 'not_found'] as const)('a link that can\'t be made (%s) fails, and opens no sheet', async (fail) => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    onTestFinished(() => log.mockRestore());
+    const t = await setup();
+    t.live.fail = fail;
+    await t.menu.open();
+    item(t, /^Dela/).click();
+    await vi.waitFor(async () =>
+      expect(await (await t.loader.getHarness(MatSnackBarHarness)).getMessage()).toBe(sv.errors.actionFailed),
+    );
+    expect(sheet()).toBeNull();
+    expect(log).toHaveBeenCalled();
   });
 });
