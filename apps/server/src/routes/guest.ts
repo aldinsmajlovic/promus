@@ -19,16 +19,22 @@ const tooLong = (name: string | null): boolean => name !== null && name.length >
 // Tokens travel only in request bodies: the request log records every path. Guest names are never logged.
 export function guestRoutes(deps: Pick<AppDeps, 'db' | 'logger' | 'now'>) {
   const { db, logger, now } = deps;
+  /** The live link of `token` and its list's name, or null: unknown, ended, expired, or its list deleted. */
+  const liveShare = (token: string, t: number) => {
+    const share = findShareByToken(db, token, t);
+    const state = share && listState(db, share.householdId, share.listId);
+    return share && state && !state.deleted ? { share, listName: state.name } : null;
+  };
   return new Hono<AppEnv>()
     .post('/guest/check', small, async (c) => {
       const body = shareTokenSchema.safeParse(await c.req.json().catch(() => null));
       if (!body.success) return c.json({ error: 'invalid_request' }, 400);
-      const share = findShareByToken(db, body.data.token, now());
-      const state = share && listState(db, share.householdId, share.listId);
-      if (!share || !state || state.deleted) return c.json({ error: 'share_invalid' }, 404);
+      const live = liveShare(body.data.token, now());
+      if (!live) return c.json({ error: 'share_invalid' }, 404);
+      const { share, listName } = live;
       const cookie = getCookie(c, guestCookieName(share.id), 'host');
       const check: ShareCheck = {
-        shareId: share.id, listName: state.name, sharedBy: share.sharedBy, expiresAt: share.expiresAt,
+        shareId: share.id, listName, sharedBy: share.sharedBy, expiresAt: share.expiresAt,
         joined: cookie !== undefined && findGuest(db, share.id, cookie) !== undefined,
       };
       return c.json(check);
@@ -37,9 +43,8 @@ export function guestRoutes(deps: Pick<AppDeps, 'db' | 'logger' | 'now'>) {
       const body = shareJoinSchema.safeParse(await c.req.json().catch(() => null));
       if (!body.success) return c.json({ error: 'invalid_request' }, 400);
       const t = now();
-      const share = findShareByToken(db, body.data.token, t);
-      const state = share && listState(db, share.householdId, share.listId);
-      if (!share || !state || state.deleted) return c.json({ error: 'share_invalid' }, 404);
+      const share = liveShare(body.data.token, t)?.share;
+      if (!share) return c.json({ error: 'share_invalid' }, 404);
       const name = cleanGuestName(body.data.name);
       if (tooLong(name)) return c.json({ error: 'name_too_long' }, 400);
       const guest = addGuest(db, { shareId: share.id, name, now: t });

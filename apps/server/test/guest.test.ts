@@ -127,7 +127,8 @@ describe('guests', { timeout: 30_000 }, () => {
     const t = await setup();
     const cookieBo = await t.member('Bo');
     const cookieCy = await t.member('Cy');
-    const [boItem, cyItem, cyList] = [newId(), newId(), newId()];
+    const cookieDee = await t.member('Dee');
+    const [boItem, cyItem, cyList, deeItem] = [newId(), newId(), newId(), newId()];
     await t.push(cookieBo, [
       ['item.created', { itemId: boItem, name: 'Tortillas' }],
       ['entry.added', { listId: t.anna.listId, itemId: boItem }],
@@ -137,6 +138,8 @@ describe('guests', { timeout: 30_000 }, () => {
       ['item.created', { itemId: cyItem, name: 'Screws' }],
       ['entry.added', { listId: cyList, itemId: cyItem }],
     ]);
+    await t.push(cookieDee, [['item.created', { itemId: deeItem, name: 'Salsa' }]]);
+    await t.push(t.cookieA, [['entry.added', { listId: t.anna.listId, itemId: deeItem }]]);
     const { cookie, joined } = await t.joinAs('Jonas');
     const res = await t.me(cookie);
     expect(res.status).toBe(200);
@@ -147,6 +150,30 @@ describe('guests', { timeout: 30_000 }, () => {
       share: { id: t.share.id, householdId: t.anna.householdId, listId: t.anna.listId, expiresAt: T0 + 14 * DAY, sharedBy: 'Anna' },
       people: [anna, { id: bo, name: 'Bo', guest: false }, { id: joined.guest.id, name: 'Jonas', guest: true }],
     });
+  });
+
+  it("me lists a guest of the list's earlier link whose change is still on it", async () => {
+    const t = await setup();
+    const { cookie: jonas, joined } = await t.joinAs('Jonas');
+    await t.joinAs('Pia');
+    const bread = newId();
+    const events = (['item.created', 'entry.added'] as const).map((type, i) =>
+      makeEvent(type, type === 'item.created' ? { itemId: bread, name: 'Bread' } : { listId: t.anna.listId, itemId: bread }, {
+        householdId: t.anna.householdId, hlc: formatHlc(T0 + 100 + i, 0, 'guest'), occurredAt: T0 + 100 + i,
+      }),
+    );
+    expect((await t.send('POST', `/api/guest/${t.share.id}/push`, { events }, jonas)).status).toBe(200);
+    expect((await t.send('DELETE', `/api/shares/${t.share.id}`)).status).toBe(204);
+    const next = (await (await t.send('POST', '/api/shares', { listId: t.anna.listId })).json()) as Share;
+    const res = await t.join(next.token, 'Mia');
+    const mia = t.guestCookieOf(res);
+    const { guest } = (await res.json()) as ShareJoined;
+    const me = (await (await t.send('GET', `/api/guest/${next.id}/me`, undefined, mia)).json()) as GuestMe;
+    expect(me.people).toEqual([
+      { id: t.anna.userId, name: 'Anna', guest: false },
+      { id: joined.guest.id, name: 'Jonas', guest: true },
+      { id: guest.id, name: 'Mia', guest: true },
+    ]);
   });
 
   it('a guest can rename themselves', async () => {

@@ -1,5 +1,6 @@
 // a namespace import, so bundlers keep only the zod parts used (`{ z }` pulls in every locale)
 import * as z from 'zod';
+import { isKind } from './events.ts';
 import type { StoredEvent } from './events.ts';
 import { compareEvents, fold, resolveItemId } from './fold.ts';
 import { cleanName } from './normalize.ts';
@@ -32,10 +33,6 @@ export type GuestMe = {
 /** `fromSeq` is the household's last `seq` when the link was made, `madeAt` its `created_at`. */
 export type ShareScope = { listId: string; fromSeq: number; madeAt: number };
 
-type Kind = 'list' | 'item' | 'entry';
-const is = <K extends Kind>(e: StoredEvent, kind: K): e is Extract<StoredEvent, { type: `${K}.${string}` }> =>
-  e.type.startsWith(`${kind}.`);
-
 function scopeOf(events: StoredEvent[], { listId, fromSeq, madeAt }: ShareScope) {
   const now = fold(events);
   const before = fold(events.filter((e) => e.seq <= fromSeq));
@@ -48,7 +45,7 @@ function scopeOf(events: StoredEvent[], { listId, fromSeq, madeAt }: ShareScope)
   // the other items put on the list after the moment -> the seq of their first entry event since
   const entered = new Map<string, number>();
   for (const e of events) {
-    if (!is(e, 'entry') || e.payload.listId !== listId) continue;
+    if (!isKind(e, 'entry') || e.payload.listId !== listId) continue;
     const item = itemOf(e);
     if (e.seq > fromSeq) {
       if (!starts.has(item)) entered.set(item, Math.min(e.seq, entered.get(item) ?? Infinity));
@@ -71,9 +68,9 @@ export const scopeItems = (events: StoredEvent[], scope: ShareScope): Set<string
 export function sharedEvents(events: StoredEvent[], scope: ShareScope, after: number): StoredEvent[] {
   const { itemOf, starts, entered, items } = scopeOf(events, scope);
   const kept = (e: StoredEvent): boolean => {
-    if (is(e, 'list')) return e.payload.listId === scope.listId;
-    if (is(e, 'item')) return items.has(itemOf(e));
-    if (!is(e, 'entry') || e.payload.listId !== scope.listId) return false;
+    if (isKind(e, 'list')) return e.payload.listId === scope.listId;
+    if (isKind(e, 'item')) return items.has(itemOf(e));
+    if (!isKind(e, 'entry') || e.payload.listId !== scope.listId) return false;
     // ponytail: an entry that wasn't on the list at the moment gets only its events after the link, so it can look
     // different on the guest's phone: when checked or unchecked with no entry.added since (the app re-adds instead),
     // or when a late entry.added or entry.unchecked, pushed after the link, is stamped before a check stored before
@@ -85,6 +82,6 @@ export function sharedEvents(events: StoredEvent[], scope: ShareScope, after: nu
     const start = starts.get(item);
     return starts.has(item) && (!start || compareEvents(e, start) >= 0);
   };
-  const entersLater = (e: StoredEvent): boolean => is(e, 'item') && (entered.get(itemOf(e)) ?? 0) > after;
+  const entersLater = (e: StoredEvent): boolean => isKind(e, 'item') && (entered.get(itemOf(e)) ?? 0) > after;
   return events.filter((e) => kept(e) && (e.seq > after || entersLater(e))).sort((a, b) => a.seq - b.seq);
 }

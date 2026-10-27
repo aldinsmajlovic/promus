@@ -145,6 +145,8 @@ describe('guest sync', { timeout: 30_000 }, () => {
     ).toEqual(['accepted', 'accepted']);
     expect(await g.verdicts(t.ev('item.archived', { itemId: own }))).toEqual(['accepted']);
     expect(await g.verdicts(t.ev('item.archived', { itemId: screws }))).toEqual(['out_of_scope']);
+    expect(await g.verdicts(t.ev('item.unarchived', { itemId: own }))).toEqual(['accepted']);
+    expect(await g.verdicts(t.ev('item.unarchived', { itemId: screws }))).toEqual(['out_of_scope']);
     expect(await g.verdicts(t.ev('item.created', { itemId: newId(), name: 'Ham' }, { householdId: newId() }))).toEqual(['forbidden_household']);
     expect(await g.verdicts(t.ev('item.created', { itemId: newId(), name: 'Jam' }, { wall: T0 + 2 * HOUR }))).toEqual(['clock_skew']);
     const state = await t.annaFold();

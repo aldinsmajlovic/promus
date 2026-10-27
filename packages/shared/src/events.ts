@@ -58,6 +58,12 @@ export const eventInputSchema = z.discriminatedUnion('type', [
 ]);
 
 export type EventInput = z.infer<typeof eventInputSchema>;
+
+type Kind = 'list' | 'item' | 'entry';
+/** Whether `e` is one of the `list.*`, `item.*` or `entry.*` events. */
+export const isKind = <E extends { type: string }, K extends Kind>(e: E, kind: K): e is Extract<E, { type: `${K}.${string}` }> =>
+  e.type.startsWith(`${kind}.`);
+
 export type PayloadOf<T extends EventType> = Extract<EventInput, { type: T }>['payload'];
 export type StoredEvent = EventInput & { seq: number; userId: string; receivedAt: number };
 type FoldKeys = 'id' | 'type' | 'v' | 'hlc' | 'occurredAt' | 'undoOf' | 'payload';

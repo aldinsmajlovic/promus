@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import type { DatabaseSync } from 'node:sqlite';
-import { SHARE_MAX_GUESTS, emptyState, fold, newId, resolveItemId, scopeItems, sharedEvents } from '@promus/shared';
+import { SHARE_MAX_GUESTS, emptyState, fold, isKind, newId, resolveItemId, scopeItems, sharedEvents } from '@promus/shared';
 import type { EventInput, HouseholdState, Person, RejectCode, ShareScope, StoredEvent } from '@promus/shared';
 import { hashToken } from './auth/sessions.ts';
 import { transaction } from './db.ts';
@@ -44,9 +44,14 @@ export function renameGuest(db: DatabaseSync, guestId: string, name: string | nu
   db.prepare('UPDATE guests SET name = ? WHERE id = ?').run(name, guestId);
 }
 
-/** The sharer, the other members who authored an event the guests may see, then the link's guests. */
+/**
+ * The sharer, the other members who changed the list in what the guests may see, then the link's guests and the
+ * guests of the list's earlier links who did.
+ */
 export function peopleOnList(db: DatabaseSync, share: ShareRow): Person[] {
-  const authors = new Set(sharedEvents(householdEvents(db, share.householdId), shareScope(share), 0).map((e) => e.userId));
+  const shared = sharedEvents(householdEvents(db, share.householdId), shareScope(share), 0);
+  // an item's events say who made or named it, not who changed the list
+  const authors = new Set(shared.flatMap((e) => (isKind(e, 'item') ? [] : [e.userId])));
   const members = db
     .prepare(
       `SELECT u.id, u.username AS name FROM household_members m JOIN users u ON u.id = m.user_id
@@ -54,12 +59,15 @@ export function peopleOnList(db: DatabaseSync, share: ShareRow): Person[] {
     )
     .all(share.householdId, share.createdBy) as { id: string; name: string }[];
   const guests = db
-    .prepare('SELECT id, name FROM guests WHERE share_id = ? ORDER BY created_at, rowid')
-    .all(share.id) as { id: string; name: string | null }[];
+    .prepare(
+      `SELECT g.id, g.name, g.share_id AS shareId FROM guests g JOIN shares s ON s.id = g.share_id
+       WHERE s.household_id = ? AND s.list_id = ? ORDER BY g.created_at, g.rowid`,
+    )
+    .all(share.householdId, share.listId) as { id: string; name: string | null; shareId: string }[];
   return [
     { id: share.createdBy, name: share.sharedBy, guest: false },
     ...members.filter((m) => authors.has(m.id)).map((m) => ({ ...m, guest: false })),
-    ...guests.map((g) => ({ ...g, guest: true })),
+    ...guests.filter((g) => g.shareId === share.id || authors.has(g.id)).map(({ id, name }) => ({ id, name, guest: true })),
   ];
 }
 
@@ -71,8 +79,6 @@ export type GuestPushContext = {
   householdId: string; listId: string; state: HouseholdState; scope: Set<string>; own: Set<string>; created: Set<string>;
 };
 
-const isEntry = (e: EventInput): e is Extract<EventInput, { type: `entry.${string}` }> => e.type.startsWith('entry.');
-
 type ItemChange = Extract<EventInput, { type: 'item.renamed' | 'item.archived' | 'item.unarchived' }>;
 const isItemChange = (e: EventInput): e is ItemChange =>
   e.type === 'item.renamed' || e.type === 'item.archived' || e.type === 'item.unarchived';
@@ -80,7 +86,7 @@ const isItemChange = (e: EventInput): e is ItemChange =>
 /** Why a guest may not push `e`, or null when it may. Only item changes read `state` and `scope`. */
 export function guestRejection(e: EventInput, { householdId, listId, state, scope, own, created }: GuestPushContext): RejectCode | null {
   if (e.householdId !== householdId) return 'forbidden_household';
-  if (isEntry(e)) return e.payload.listId === listId ? null : 'out_of_scope';
+  if (isKind(e, 'entry')) return e.payload.listId === listId ? null : 'out_of_scope';
   // a real item the guest created, that no one else's id is an alias of. One with such an alias is the household's
   // too: they named one the same later, or the guest backdated its item.created to sort before theirs
   const ownItem = (id: string): boolean =>

@@ -58,7 +58,7 @@ export function listState(
     db
       .prepare(
         `SELECT type, json_extract(payload, '$.name') AS name FROM events
-         WHERE household_id = ? AND json_extract(payload, '$.listId') = ? AND type IN (${types})
+         WHERE household_id = ? AND type IN (${types}) AND json_extract(payload, '$.listId') = ?
          ORDER BY hlc DESC, id DESC LIMIT 1`,
       )
       .get(householdId, listId) as { type: string; name: string | null } | undefined;

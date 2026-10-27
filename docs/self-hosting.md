@@ -101,7 +101,7 @@ docker start promus
 
 Removing the `-wal` and `-shm` files matters: they belong to the old database, and SQLite would apply them to the restored one.
 
-**A restore loses every change made after the backup.** That covers list changes, and also accounts, passwords, invites and sessions, which all return to their state in the backup.
+**A restore loses every change made after the backup.** That covers list changes, and also accounts, passwords, invites, sessions, shared links and their guests, which all return to their state in the backup.
 
 **Then reset every device.** Each device remembers how far it has synced by its position in the server's log. A restored server hands out those positions again.
 - A device that had synced past the backup would never receive new changes.
