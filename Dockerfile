@@ -8,6 +8,7 @@ COPY apps/web/package.json apps/web/
 RUN npm ci
 COPY packages/shared packages/shared
 COPY apps/web apps/web
+COPY brand brand
 RUN npm run build -w apps/web
 
 FROM node:26-trixie-slim
