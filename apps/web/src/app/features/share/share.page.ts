@@ -116,8 +116,9 @@ export class SharePage {
   private async start(): Promise<void> {
     try {
       const check = await this.api.checkShare(this.token).catch(async (err: unknown) => {
-        // offline in the store: a link this phone has joined opens from its own data, as its page does
-        const shareId = err instanceof NetworkError ? await this.joinedHere() : null;
+        // offline in the store, or the server down: a link this phone has joined opens from its own data, as its page does
+        const down = err instanceof NetworkError || (err instanceof ApiError && err.status >= 500);
+        const shareId = down ? await this.joinedHere() : null;
         if (shareId === null) throw err;
         return { shareId, joined: true as const };
       });

@@ -243,8 +243,11 @@ describe('SharePage', () => {
     expect(t.el().querySelector('[role="alert"]')?.textContent).toContain(sv.guest.cookie);
   });
 
-  it('offline, a link this phone already joined opens from its own data', async () => {
-    const t = await setup({ check: offline });
+  it.each([
+    ['offline', offline],
+    ['the server down', () => error('internal', 502)],
+  ])('%s, a link this phone already joined opens from its own data', async (_, check) => {
+    const t = await setup({ check });
     await t.joinedHere();
     await t.harness.navigateByUrl(`/share#${t.token}`);
     await vi.waitFor(() => expect(t.router.url).toBe(`/s/${t.shareId}`));
