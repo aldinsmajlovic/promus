@@ -1,5 +1,8 @@
-import { EnvironmentInjector, Injector, type Provider, inject } from '@angular/core';
-import { type CanActivateFn, RedirectCommand, Router } from '@angular/router';
+import { DestroyRef, EnvironmentInjector, Injector, type Provider, inject } from '@angular/core';
+import { MatBottomSheet } from '@angular/material/bottom-sheet';
+import { MatDialog } from '@angular/material/dialog';
+import { MatSnackBar } from '@angular/material/snack-bar';
+import { type CanActivateFn, RedirectCommand, Router, type Routes } from '@angular/router';
 import { ApiError, type AuthError } from '@promus/shared';
 import Dexie from 'dexie';
 import { Actions } from './actions';
@@ -16,15 +19,33 @@ import { SYNC_API, SYNC_AUTH_FAILED, SyncService } from './sync.service';
 // the person goes in the navigation's state, never the URL: the server logs paths
 const ENDED = '/share/ended';
 
-/** Whether the link says it's over (`share_invalid`); any other answer is for the name step. Offline, it throws. */
+/**
+ * Whether the link says it's over (`share_invalid`); a live link, or any other 4xx, is for the name step. Offline or
+ * on a server error it throws, and the next sync asks again.
+ */
 const linkEnded = (api: ApiClient, token: string): Promise<boolean> =>
   api.checkShare(token).then(
     () => false,
     (err: unknown) => {
-      if (!(err instanceof ApiError)) throw err;
+      if (!(err instanceof ApiError) || err.status >= 500) throw err;
       return err.code === 'share_invalid';
     },
   );
+
+/**
+ * The link's own database. Closed for good when its page is left or another tab deletes it, so a late read can't make
+ * it again.
+ */
+function guestDb(): PromusDb {
+  const db = new PromusDb(`promus-guest-${inject(GUEST)?.shareId}`);
+  // false: Dexie's own handler would close it to reopen on the next read
+  db.on('versionchange', () => {
+    db.close();
+    return false;
+  });
+  inject(DestroyRef).onDestroy(() => db.close());
+  return db;
+}
 
 /**
  * A 401 on a guest's sync. `share_ended` deletes the link's data and shows the ended page; so does an expired
@@ -35,18 +56,25 @@ function authFailed(): (err: AuthError) => Promise<void> {
   const db = inject(PromusDb);
   const api = inject(ApiClient);
   const router = inject(Router);
+  const sheet = inject(MatBottomSheet);
+  const dialog = inject(MatDialog);
+  const snackBar = inject(MatSnackBar);
   // SyncService injects this, so it's looked up when called
   const injector = inject(Injector);
   return async (err) => {
     const guest = await db.getMeta('guest');
     const live = guest !== undefined && err.code !== 'share_ended' && !(await linkEnded(api, guest.token));
     injector.get(SyncService).stop();
+    // nothing of the list stays on screen over the page that follows
+    sheet.dismiss();
+    dialog.closeAll();
+    snackBar.dismiss();
     if (guest && live) {
       await router.navigate(['/share'], { fragment: guest.token, replaceUrl: true });
       return;
     }
-    // what never reached the server goes too: the link that would take it is over
-    await db.delete();
+    // what never reached the server goes too: the link that would take it is over. Without its meta nothing says so
+    if (guest) await db.delete();
     await router.navigate([ENDED], { state: { sharedBy: guest?.sharedBy ?? null }, replaceUrl: true });
   };
 }
@@ -55,10 +83,10 @@ function authFailed(): (err: AuthError) => Promise<void> {
  * The route `s/:shareId`: the link's own database, `promus-guest-<shareId>`, and fresh instances of every service
  * that holds events, the session, members or links. The device's language, theme and Done fold stay the root's.
  */
-export function guestProviders(): Provider[] {
+function guestProviders(): Provider[] {
   return [
     { provide: GUEST, useFactory: () => ({ shareId: '' }) },
-    { provide: PromusDb, useFactory: () => new PromusDb(`promus-guest-${inject(GUEST)?.shareId}`) },
+    { provide: PromusDb, useFactory: guestDb },
     { provide: DexieSyncStorage, useFactory: () => new DexieSyncStorage(inject(PromusDb)) },
     { provide: SYNC_API, useFactory: () => inject(ApiClient).guestSync(inject(GUEST)?.shareId ?? '') },
     { provide: SYNC_AUTH_FAILED, useFactory: authFailed },
@@ -73,7 +101,7 @@ export function guestProviders(): Provider[] {
 }
 
 /** Opens the link from its database alone, so offline too; a link this browser has no data for has ended. */
-export const guestGuard: CanActivateFn = async (route) => {
+const guestGuard: CanActivateFn = async (route) => {
   // the route's injector: injecting after an await isn't allowed, and SyncService would open the database early
   const injector = inject(EnvironmentInjector);
   const link = injector.get(GUEST);
@@ -89,3 +117,13 @@ export const guestGuard: CanActivateFn = async (route) => {
   injector.get(SyncService).start();
   return true;
 };
+
+/** Under `s/:shareId`. */
+export const GUEST_ROUTES: Routes = [
+  {
+    path: '',
+    providers: guestProviders(),
+    canActivate: [guestGuard],
+    loadComponent: () => import('../features/list/list.page').then((m) => m.ListPage),
+  },
+];

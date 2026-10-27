@@ -1,6 +1,5 @@
 import type { Routes } from '@angular/router';
 import { authGuard, loginGuard, setupGuard, setupNeededGuard } from './core/auth.guard';
-import { guestGuard, guestProviders } from './core/guest';
 
 export const routes: Routes = [
   {
@@ -38,12 +37,10 @@ export const routes: Routes = [
     canActivate: [loginGuard, setupGuard],
     loadComponent: () => import('./features/setup/setup.page').then((m) => m.SetupPage),
   },
-  // a guest of a link: the list page over the link's own data
+  // a guest of a link: the list page over the link's own data, loaded only for a guest
   {
     path: 's/:shareId',
-    providers: guestProviders(),
-    canActivate: [guestGuard],
-    loadComponent: () => import('./features/list/list.page').then((m) => m.ListPage),
+    loadChildren: () => import('./core/guest').then((m) => m.GUEST_ROUTES),
   },
   // no loginGuard: an invite also turns someone who shared another's login into their own user
   {

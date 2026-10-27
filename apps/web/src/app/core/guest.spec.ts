@@ -3,16 +3,21 @@ import { Component, type ProviderToken, importProvidersFrom, provideAppInitializ
 import { TestBed } from '@angular/core/testing';
 import { MatBottomSheetHarness } from '@angular/material/bottom-sheet/testing';
 import { MATERIAL_ANIMATIONS } from '@angular/material/core';
+import { MatDialogHarness } from '@angular/material/dialog/testing';
 import { MatFormFieldHarness } from '@angular/material/form-field/testing';
 import { MatInputHarness } from '@angular/material/input/testing';
-import { Router, provideRouter, withAutoCleanupInjectors } from '@angular/router';
+import { MatSnackBarHarness } from '@angular/material/snack-bar/testing';
+import { Router, provideRouter } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
 import { TranslocoTestingModule } from '@jsverse/transloco';
-import { SHARE_TTL_MS, type EventInput, type StoredEvent, formatHlc, makeEvent, newId } from '@promus/shared';
+import { ApiError, SHARE_TTL_MS, formatHlc, makeEvent, newId } from '@promus/shared';
+import type { EventInput, EventType, PayloadOf, StoredEvent } from '@promus/shared';
 import Dexie from 'dexie';
 import { describe, expect, it, vi } from 'vitest';
 import sv from '../../i18n/sv.json';
+import { ROUTER_FEATURES } from '../app.config';
 import { routes } from '../app.routes';
+import { Actions } from './actions';
 import { FETCH } from './api';
 import { PromusDb } from './db';
 import { Household } from './household';
@@ -31,8 +36,11 @@ const offline = () => {
   throw new TypeError('Failed to fetch');
 };
 
-/** `answer` answers a request first; the guest endpoints otherwise accept every push and have nothing to pull. */
-async function setup() {
+/**
+ * `answer` answers a request first. The guest endpoints otherwise have nothing to pull and accept every push but an
+ * archive or unarchive, which they refuse as the server does.
+ */
+async function setup(wide = false) {
   const household = new PromusDb(`household-${newId()}`);
   const householdId = newId();
   await household.setMeta('session', { userId: newId(), username: 'anna', householdId });
@@ -48,7 +56,12 @@ async function setup() {
     if (push) {
       const { events } = JSON.parse(String(init?.body)) as { events: EventInput[] };
       (pushed[push[1]!] ??= []).push(...events);
-      return Response.json({ accepted: events.map((e) => e.id), rejected: [], serverTime: Date.now() });
+      const archives = (e: EventInput) => e.type === 'item.archived' || e.type === 'item.unarchived';
+      return Response.json({
+        accepted: events.filter((e) => !archives(e)).map((e) => e.id),
+        rejected: events.filter(archives).map((e) => ({ id: e.id, code: 'out_of_scope', message: 'never by guests' })),
+        serverTime: Date.now(),
+      });
     }
     const pull = /^\/api\/guest\/[^/]+\/pull\?after=(\d+)/.exec(url);
     if (pull) return Response.json({ events: [], lastSeq: Number(pull[1]), hasMore: false, serverTime: Date.now() });
@@ -58,12 +71,11 @@ async function setup() {
     providers: [
       { provide: PromusDb, useValue: household },
       { provide: FETCH, useValue: fetch },
-      { provide: WIDE, useValue: signal(false) },
+      { provide: WIDE, useValue: signal(wide) },
       { provide: MATERIAL_ANIMATIONS, useValue: { animationsDisabled: true } },
-      // as app.config has it
       provideRouter(
         [...routes, { path: 'share/ended', component: Elsewhere }, { path: 'share', component: Elsewhere }],
-        withAutoCleanupInjectors(),
+        ...ROUTER_FEATURES,
       ),
       provideAppInitializer(registerIcons),
       importProvidersFrom(
@@ -90,25 +102,39 @@ async function setup() {
     await guestOf(Store).load();
     await harness.fixture.whenStable();
   };
-  return { household, harness, router, server, asked, pushed, guestOf, open };
+  const loader = TestbedHarnessEnvironment.documentRootLoader(harness.fixture);
+  return { household, harness, router, server, asked, pushed, guestOf, open, loader };
 }
 
 let seq = 0;
 
-/** A guest of a link to "Tacokväll", as Task 8 leaves it after joining: meta in place, the list pulled. */
-async function joined(items: string[] = [], addedBy = newId()) {
+/**
+ * A guest of a link to "Tacokväll", as Task 8 leaves it after joining: meta in place, the list pulled. `items` are on
+ * the list, `archived` items the household has archived.
+ */
+async function joined(items: string[] = [], archived: string[] = []) {
   const shareId = newId();
   const listId = newId();
   const householdId = newId();
+  const anna = newId();
   const at = Date.now() - 60_000;
-  const event = (e: EventInput, userId: string): StoredEvent => ({ ...e, seq: ++seq, userId, receivedAt: at });
-  const meta = (counter: number) => ({ householdId, occurredAt: at, hlc: formatHlc(at, counter, 'anna') });
-  const events = [event(makeEvent('list.created', { listId, name: 'Tacokväll' }, meta(0)), newId())];
-  items.forEach((name, i) => {
+  let counter = 0;
+  const events: StoredEvent[] = [];
+  const add = <T extends EventType>(type: T, payload: PayloadOf<T>) => {
+    const made = makeEvent(type, payload, { householdId, occurredAt: at, hlc: formatHlc(at, counter++, 'anna') });
+    events.push({ ...made, seq: ++seq, userId: anna, receivedAt: at });
+  };
+  add('list.created', { listId, name: 'Tacokväll' });
+  for (const name of items) {
     const itemId = newId();
-    events.push(event(makeEvent('item.created', { itemId, name }, meta(2 * i + 1)), addedBy));
-    events.push(event(makeEvent('entry.added', { listId, itemId }, meta(2 * i + 2)), addedBy));
-  });
+    add('item.created', { itemId, name });
+    add('entry.added', { listId, itemId });
+  }
+  for (const name of archived) {
+    const itemId = newId();
+    add('item.created', { itemId, name });
+    add('item.archived', { itemId });
+  }
   const name = `promus-guest-${shareId}`;
   const db = new PromusDb(name);
   const token = `token-${shareId}`;
@@ -143,13 +169,16 @@ describe('guest mode', () => {
   it('two links and the household never share an event', async () => {
     const t = await setup();
     const taco = await joined(['Tortillas']);
-    const bbq = await joined();
+    const bbq = await joined(['Korv']);
 
     await t.open(taco.url);
     await t.guestOf(Store).addByName(taco.listId, 'Chorizo');
     await t.guestOf(SyncService).syncNow();
     await t.harness.navigateByUrl('/share');
     await t.open(bbq.url);
+    // the page left behind took its services with it: this one is the second link's
+    expect(t.harness.routeNativeElement?.textContent).toContain('Korv');
+    expect(t.harness.routeNativeElement?.textContent).not.toContain('Tortillas');
     await t.guestOf(Store).addByName(bbq.listId, 'Majskolvar');
     await t.guestOf(SyncService).syncNow();
     // the page left behind syncs no more
@@ -161,7 +190,7 @@ describe('guest mode', () => {
     expect(created(t.pushed[taco.shareId])).toEqual(['Chorizo']);
     expect(created(t.pushed[bbq.shareId])).toEqual(['Majskolvar']);
     expect(await namesIn(new PromusDb(taco.name))).toEqual(['Tortillas', 'Chorizo']);
-    expect(await namesIn(new PromusDb(bbq.name))).toEqual(['Majskolvar']);
+    expect(await namesIn(new PromusDb(bbq.name))).toEqual(['Korv', 'Majskolvar']);
     expect(await namesIn(t.household)).toEqual(['Mjölk']);
   });
 
@@ -203,13 +232,17 @@ describe('guest mode', () => {
     expect(await Dexie.exists(taco.name)).toBe(false);
   });
 
-  it('without its cookie, a live link asks for the name again and keeps the data', async () => {
+  const live = (shareId: string) =>
+    Response.json({ shareId, listName: 'Tacokväll', sharedBy: 'anna', expiresAt: 1, joined: false });
+  it.each([
+    ['works', live],
+    ['is full', () => error('share_full', 409)],
+  ])('without its cookie, a link that %s asks for the name again and keeps the data', async (_case, check) => {
     const t = await setup();
     const taco = await joined(['Tortillas']);
-    const check = { shareId: taco.shareId, listName: 'Tacokväll', sharedBy: 'anna', expiresAt: 1, joined: false };
     t.server.answer = (url) =>
       url === '/api/guest/check'
-        ? Response.json(check)
+        ? check(taco.shareId)
         : url.startsWith('/api/guest/')
           ? error('unauthenticated', 401)
           : undefined;
@@ -235,6 +268,118 @@ describe('guest mode', () => {
     expect(await Dexie.exists(taco.name)).toBe(true);
   });
 
+  it('without its cookie, a server error from the link check keeps the page and the data, and asks again', async () => {
+    const t = await setup();
+    const taco = await joined(['Tortillas']);
+    t.server.answer = (url) =>
+      url === '/api/guest/check'
+        ? error('internal', 503)
+        : url.startsWith('/api/guest/')
+          ? error('unauthenticated', 401)
+          : undefined;
+    const log = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    await t.harness.navigateByUrl(taco.url);
+    const sync = t.guestOf(SyncService);
+    await sync.syncNow();
+    await sync.syncNow();
+    expect(sync.status()).toMatchObject({ kind: 'error', messageKey: 'sync.serverError' });
+    expect(log).toHaveBeenCalledWith('sync failed', expect.any(ApiError));
+    log.mockRestore();
+    expect(t.asked.filter((url) => url === '/api/guest/check').length).toBeGreaterThan(1);
+    expect(t.router.url).toBe(taco.url);
+    expect(await Dexie.exists(taco.name)).toBe(true);
+  });
+
+  it('without its meta, a 401 shows the ended page and keeps the data', async () => {
+    const t = await setup();
+    const taco = await joined(['Tortillas']);
+    await t.open(taco.url);
+    const sync = t.guestOf(SyncService);
+    await t.guestOf(PromusDb).meta.delete('guest');
+    t.server.answer = (url) => (url.startsWith('/api/guest/') ? error('share_ended', 401) : undefined);
+    await sync.syncNow();
+    expect(t.router.url).toBe('/share/ended');
+    expect(ended(t.router)).toEqual({ sharedBy: null });
+    expect(await Dexie.exists(taco.name)).toBe(true);
+  });
+
+  it.each([false, true])(
+    'an ended link closes the open options and the snackbar before the ended page (computer: %s)',
+    async (wide) => {
+      const t = await setup(wide);
+      const taco = await joined(['Tortillas']);
+      await t.open(taco.url);
+      const sync = t.guestOf(SyncService);
+      await t.guestOf(Actions).run(t.guestOf(Store).addByName(taco.listId, 'Chorizo'));
+      t.harness.routeNativeElement!.querySelector<HTMLElement>('[aria-label="Alternativ för Tortillas"]')!.click();
+      await (wide ? t.loader.getHarness(MatDialogHarness) : t.loader.getHarness(MatBottomSheetHarness));
+      expect(await t.loader.getAllHarnesses(MatSnackBarHarness)).toHaveLength(1);
+      const log = vi.spyOn(console, 'error');
+      t.server.answer = (url) => (url.startsWith('/api/guest/') ? error('share_ended', 401) : undefined);
+      await sync.syncNow();
+      await t.harness.fixture.whenStable();
+      expect(t.router.url).toBe('/share/ended');
+      expect(await t.loader.getAllHarnesses(MatBottomSheetHarness)).toHaveLength(0);
+      expect(await t.loader.getAllHarnesses(MatDialogHarness)).toHaveLength(0);
+      expect(await t.loader.getAllHarnesses(MatSnackBarHarness)).toHaveLength(0);
+      expect(log).not.toHaveBeenCalled();
+    },
+  );
+
+  it("a left page's database closes, so nothing late makes it again", async () => {
+    const t = await setup();
+    const taco = await joined(['Tortillas']);
+    await t.open(taco.url);
+    const db = t.guestOf(PromusDb);
+    await t.harness.navigateByUrl('/share');
+    expect(db.isOpen()).toBe(false);
+    await expect(db.getMeta('guest')).rejects.toThrow();
+  });
+
+  it("once another tab deletes a link's data, this tab's instance can't make it again", async () => {
+    const t = await setup();
+    const taco = await joined(['Tortillas']);
+    await t.open(taco.url);
+    const db = t.guestOf(PromusDb);
+    await new PromusDb(taco.name).delete();
+    await expect(db.getMeta('guest')).rejects.toThrow();
+    expect(await Dexie.exists(taco.name)).toBe(false);
+  });
+
+  it("a guest's Undo in the snackbar takes back the guest's own change", async () => {
+    const t = await setup();
+    const taco = await joined(['Tortillas']);
+    await t.open(taco.url);
+    t.harness.routeNativeElement!.querySelector<HTMLElement>('[role="checkbox"][aria-checked="false"]')!.click();
+    await t.harness.fixture.whenStable();
+    await (await t.loader.getHarness(MatSnackBarHarness)).dismissWithAction();
+    await t.harness.fixture.whenStable();
+    await t.guestOf(SyncService).syncNow();
+    expect(t.pushed[taco.shareId]?.map((e) => e.type)).toEqual(['entry.checked', 'entry.unchecked']);
+    const household = (await t.household.outbox.toArray()).map((r) => r.event.type);
+    expect(household).toEqual(['list.created', 'item.created', 'entry.added']);
+  });
+
+  it("the profile button is the guest's, not the household's", async () => {
+    const t = await setup();
+    const taco = await joined(['Tortillas']);
+    await t.open(taco.url);
+    const profile = t.harness.routeNativeElement!.querySelector('app-profile-button a');
+    expect(profile?.getAttribute('aria-label')).toBe('Inställningar för Jonas');
+  });
+
+  it("a guest typing an archived item's name puts it back on the list, and only that", async () => {
+    const t = await setup();
+    const taco = await joined([], ['Gräddfil']);
+    await t.open(taco.url);
+    await t.guestOf(Actions).run(t.guestOf(Store).addByName(taco.listId, 'gräddfil'));
+    await t.guestOf(SyncService).syncNow();
+    await t.harness.fixture.whenStable();
+    expect(t.pushed[taco.shareId]?.map((e) => e.type)).toEqual(['entry.added']);
+    expect(t.guestOf(SyncService).status().kind).toBe('idle');
+    expect(t.harness.routeNativeElement?.textContent).toContain('Gräddfil');
+  });
+
   it("a guest's undo of a new item takes only the entry back", async () => {
     const t = await setup();
     const taco = await joined();
@@ -245,16 +390,17 @@ describe('guest mode', () => {
     expect(t.pushed[taco.shareId]?.map((e) => e.type)).toEqual(['item.created', 'entry.added', 'entry.removed']);
   });
 
-  it("item options on a guest's list change the guest's data", async () => {
-    const t = await setup();
+  it.each([false, true])("item options on a guest's list change the guest's data (computer: %s)", async (wide) => {
+    const t = await setup(wide);
     const taco = await joined(['Tortillas']);
     await t.open(taco.url);
     t.harness.routeNativeElement!.querySelector<HTMLElement>('[aria-label="Alternativ för Tortillas"]')!.click();
-    const loader = TestbedHarnessEnvironment.documentRootLoader(t.harness.fixture);
-    const sheet = await loader.getHarness(MatBottomSheetHarness);
-    const note = await sheet.getHarness(MatFormFieldHarness.with({ floatingLabelText: 'Anteckning' }));
+    const options = wide
+      ? await t.loader.getHarness(MatDialogHarness)
+      : await t.loader.getHarness(MatBottomSheetHarness);
+    const note = await options.getHarness(MatFormFieldHarness.with({ floatingLabelText: 'Anteckning' }));
     await (await note.getControl(MatInputHarness))!.setValue('majs');
-    await sheet.dismiss();
+    await (options instanceof MatDialogHarness ? options.close() : options.dismiss());
     await t.harness.fixture.whenStable();
     const noted = async (db: PromusDb) => (await db.outbox.toArray()).filter((r) => r.event.type === 'entry.noteSet');
     expect(await noted(new PromusDb(taco.name))).toHaveLength(1);

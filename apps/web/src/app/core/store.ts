@@ -72,7 +72,8 @@ const valid = (event: EventInput): EventInput => {
   throw result.error;
 };
 
-// guests never archive or unarchive: their undo of a new item takes it off the list, and the item stays
+// guests never archive or unarchive: an archived name goes back on the list as it is, and undoing a new item takes it
+// off the list and keeps it
 const guestMay = (d: Draft): boolean => d.type !== 'item.archived' && d.type !== 'item.unarchived';
 
 const one = (messageKey: string, name: string, draft: Draft): Plan => ({ messageKey, name, drafts: [draft] });
@@ -293,8 +294,12 @@ export class Store {
     return { messageKey, params: { name }, householdId, inverse: await this.commit(drafts) };
   }
 
-  /** Writes the drafts as events, then applies them; resolves to the drafts that undo them. */
-  private async commit(drafts: Draft[]): Promise<Draft[]> {
+  /**
+   * Writes the drafts as events, then applies them; resolves to the drafts that undo them. A guest's archives and
+   * unarchives are left out.
+   */
+  private async commit(all: Draft[]): Promise<Draft[]> {
+    const drafts = this.guest ? all.filter(guestMay) : all;
     const householdId = this.householdId;
     if (householdId === null) throw new SessionError('not signed in');
     const db = this.db;
@@ -315,8 +320,7 @@ export class Store {
     const state = this.current();
     const inverse: Draft[] = [];
     for (const e of events) {
-      const undo = inverseOf(e, state);
-      inverse.unshift(...(this.guest ? undo.filter(guestMay) : undo));
+      inverse.unshift(...inverseOf(e, state));
       applyEvent(state, e);
     }
     this.current.set(state);

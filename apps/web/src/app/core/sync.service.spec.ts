@@ -178,6 +178,20 @@ describe('SyncService', () => {
     expect(sync.status()).toEqual({ kind: 'error', messageKey: 'sync.rejected', pending: 0, rejected: 1 });
   });
 
+  it('reports an undo refused for any other reason', async () => {
+    const { api, store, sync } = await setup(async (events) => accepted(events));
+    const token = await store.createList('Grillkväll');
+    await sync.syncNow();
+    api.push.mockImplementation(async (events) => ({
+      accepted: [],
+      rejected: events.map((e) => ({ id: e.id, code: 'invalid' as const, message: 'name must be clean' })),
+      serverTime: Date.now(),
+    }));
+    await store.undo(token);
+    await sync.syncNow();
+    expect(sync.status()).toEqual({ kind: 'error', messageKey: 'sync.rejected', pending: 0, rejected: 1 });
+  });
+
   it('reports a refusal even when the pull then fails', async () => {
     const { api, sync } = await setup(async (events) => ({
       accepted: [],
