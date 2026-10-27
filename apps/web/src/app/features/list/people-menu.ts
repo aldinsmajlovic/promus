@@ -61,7 +61,7 @@ import { untilDay } from './share-sheet';
       align-items: center;
       gap: 0.375rem;
       margin: -0.125rem 0 -0.125rem -0.25rem;
-      padding: 0.125rem 0.375rem 0.125rem 0.25rem;
+      padding: 0.125rem 0.375rem 0.125rem 0.625rem;
       border: 0;
       border-radius: var(--mat-sys-corner-full);
       background: none;
