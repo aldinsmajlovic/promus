@@ -57,6 +57,16 @@ describe('searchItems', () => {
     expect(results[1]!.state).toBe('none');
   });
 
+  it('a result has the quantity on the list, or the one an add would bring back', () => {
+    const s = groceries();
+    const [cream, milk] = [idOf(s, 'Vispgrädde'), idOf(s, 'Mjölk')];
+    applyEvent(s, ev('entry.added', { listId, itemId: cream, quantity: 2 }));
+    applyEvent(s, ev('entry.added', { listId, itemId: milk, quantity: 3 }));
+    applyEvent(s, ev('entry.removed', { listId, itemId: milk }));
+    const quantity = (q: string) => searchItems(s, q, listId, NOW).results[0]!.quantity;
+    expect([quantity('vispgrädde'), quantity('mjölk'), quantity('gurka')]).toEqual([2, 3, 1]);
+  });
+
   it('a checked item is "checked" only inside the Done window', () => {
     const s = groceries();
     const itemId = idOf(s, 'Gurka');

@@ -35,7 +35,7 @@ export class SessionError extends Error {
 }
 
 export class ValidationError extends Error {
-  readonly code: 'name_empty' | 'name_too_long' | 'name_taken' | 'note_too_long' | 'already_on_list';
+  readonly code: 'name_empty' | 'name_too_long' | 'name_taken' | 'note_too_long' | 'already_on_list' | 'price_invalid';
 
   constructor(code: ValidationError['code']) {
     super(code);
@@ -224,6 +224,30 @@ export class Store {
     });
   }
 
+  setQuantity(listId: string, itemId: string, quantity: number): Promise<UndoToken | null> {
+    return this.act((s) => {
+      const found = entryOf(s, listId, itemId);
+      if (!found || found.entry.quantity === quantity) return null;
+      const payload = { listId, itemId: found.item.id, quantity };
+      return one('snack.quantitySet', found.item.name, { type: 'entry.quantitySet', payload });
+    });
+  }
+
+  /** Prices in öre, null for none. One action however many, so pricing several items at once is one undo. */
+  setPrices(changes: { itemId: string; price: number | null }[]): Promise<UndoToken | null> {
+    return this.act((s) => {
+      const drafts: Draft[] = [];
+      let name = '';
+      for (const { itemId, price } of changes) {
+        const item = itemOf(s, itemId);
+        if (!item || item.price === price) continue;
+        drafts.push({ type: 'item.priceSet', payload: { itemId: item.id, price } });
+        name = item.name;
+      }
+      return { messageKey: drafts.length > 1 ? 'snack.pricesSet' : 'snack.priceSet', name, drafts };
+    });
+  }
+
   /** Throws ValidationError, `name_taken` too when another live item has that name in any case. */
   renameItem(itemId: string, name: string): Promise<UndoToken | null> {
     return this.act((s) => {
@@ -282,7 +306,12 @@ export class Store {
   private readd(s: HouseholdState, listId: string, itemId: string): Plan | null {
     const item = itemOf(s, itemId);
     if (!item || s.entries.get(entryKey(listId, item.id))?.state === 'active') return null;
-    const payload = { listId, itemId: item.id, ...(item.lastNote ? { note: item.lastNote } : {}) };
+    const payload = {
+      listId,
+      itemId: item.id,
+      ...(item.lastNote ? { note: item.lastNote } : {}),
+      ...(item.lastQuantity > 1 ? { quantity: item.lastQuantity } : {}),
+    };
     return one('snack.added', item.name, { type: 'entry.added', payload });
   }
 

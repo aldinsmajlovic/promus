@@ -59,6 +59,50 @@ describe('Store', () => {
     expect(store.state().entries.get(entryKey(listId, id))?.note).toBe('laktosfri');
   });
 
+  it('an item added again comes back with its last quantity', async () => {
+    const { store, listId } = await setup();
+    await store.addByName(listId, 'Mjölk');
+    const { id } = itemNamed(store, 'Mjölk');
+    await store.setQuantity(listId, id, 3);
+    await store.check(listId, id);
+    await store.addByName(listId, 'mjölk');
+    expect(store.state().entries.get(entryKey(listId, id))).toMatchObject({ state: 'active', quantity: 3 });
+    await store.remove(listId, id);
+    await store.addItem(listId, id);
+    expect(store.state().entries.get(entryKey(listId, id))?.quantity).toBe(3);
+  });
+
+  it('setQuantity and setPrices undo to what was there', async () => {
+    const { store, listId } = await setup();
+    await store.addByName(listId, 'Mjölk');
+    const { id } = itemNamed(store, 'Mjölk');
+    expect(await store.setQuantity(listId, id, 1)).toBeNull();
+    const quantity = await store.setQuantity(listId, id, 3);
+    expect(quantity).toMatchObject({ messageKey: 'snack.quantitySet' });
+    const first = await store.setPrices([{ itemId: id, price: 1490 }]);
+    expect(first).toMatchObject({ messageKey: 'snack.priceSet' });
+    const second = await store.setPrices([{ itemId: id, price: 1690 }]);
+    expect(await store.setPrices([{ itemId: id, price: 1690 }])).toBeNull();
+    await store.undo(second!);
+    expect(store.state().items.get(id)?.price).toBe(1490);
+    await store.undo(first!);
+    expect(store.state().items.get(id)?.price).toBeNull();
+    await store.undo(quantity!);
+    expect(store.state().entries.get(entryKey(listId, id))?.quantity).toBe(1);
+  });
+
+  it('setPrices of several items is one action with one undo', async () => {
+    const { store, listId } = await setup();
+    for (const name of ['Mjölk', 'Bröd', 'Ost']) await store.addByName(listId, name);
+    const ids = ['Mjölk', 'Bröd', 'Ost'].map((n) => itemNamed(store, n).id);
+    const token = await store.setPrices(ids.map((itemId, i) => ({ itemId, price: 1000 * (i + 1) })));
+    expect(token).toMatchObject({ messageKey: 'snack.pricesSet' });
+    expect(token!.inverse).toHaveLength(3);
+    expect(ids.map((id) => store.state().items.get(id)?.price)).toEqual([1000, 2000, 3000]);
+    await store.undo(token!);
+    expect(ids.map((id) => store.state().items.get(id)?.price)).toEqual([null, null, null]);
+  });
+
   it('addByName returns null when the item is already on the list', async () => {
     const { db, store, listId } = await setup();
     await store.addByName(listId, 'Mjölk');

@@ -13,6 +13,7 @@ const REFUSALS: Record<ValidationError['code'], { key: string; params: Record<st
   name_taken: { key: 'errors.nameTaken', params: {} },
   note_too_long: { key: 'errors.noteTooLong', params: { max: LIMITS.noteMax } },
   already_on_list: { key: 'add.alreadyOnList', params: {} },
+  price_invalid: { key: 'errors.priceInvalid', params: {} },
 };
 
 /** Marks the field with the Store's refusal; its `<mat-error>` shows `getError('refused')`. */

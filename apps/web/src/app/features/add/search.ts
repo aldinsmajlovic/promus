@@ -7,6 +7,7 @@ export type SearchResult = {
   itemId: string;
   name: string;
   note: string | null;
+  quantity: number;
   /** On the list, checked off inside the Done window (also on the list's Done), or neither. */
   state: 'none' | 'active' | 'checked';
   ranges: number[];
@@ -17,7 +18,7 @@ const LIMIT = 20;
 // one typo per word; its defaults already let 'mjlk' find Mjölk
 const fuzzy = new uFuzzy({ intraMode: 1 });
 
-/** The note it has on the list, or the one adding it would bring back. */
+/** The note and quantity it has on the list, or the ones adding it would bring back. */
 export function resultOf(
   state: HouseholdState,
   item: ItemState,
@@ -31,6 +32,7 @@ export function resultOf(
     itemId: item.id,
     name: item.name,
     note: shown ? shown.note : item.lastNote,
+    quantity: shown ? shown.quantity : item.lastQuantity,
     state: shown?.state ?? 'none',
     ranges,
   };

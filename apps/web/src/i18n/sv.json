@@ -36,7 +36,8 @@
     "nameEmpty": "Ange ett namn",
     "nameTaken": "Det namnet finns redan",
     "nameTooLong": "Högst {{max}} tecken",
-    "noteTooLong": "Högst {{max}} tecken"
+    "noteTooLong": "Högst {{max}} tecken",
+    "priceInvalid": "Skriv ett pris, till exempel 14,90"
   },
   "guest": {
     "ask": "Be den som delade den om en ny.",
@@ -176,6 +177,9 @@
     "listDeleted": "Listan borttagen",
     "listRenamed": "Listan omdöpt",
     "noteSet": "Anteckning sparad",
+    "priceSet": "Pris sparat",
+    "pricesSet": "Priser sparade",
+    "quantitySet": "Antal sparat",
     "removed": "{{name}} borttagen",
     "renamed": "Bytt namn till {{name}}",
     "shareEnded": "Länken avslutad",

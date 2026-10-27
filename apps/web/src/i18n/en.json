@@ -36,7 +36,8 @@
     "nameEmpty": "Enter a name",
     "nameTaken": "That name already exists",
     "nameTooLong": "At most {{max}} characters",
-    "noteTooLong": "At most {{max}} characters"
+    "noteTooLong": "At most {{max}} characters",
+    "priceInvalid": "Type a price, for example 14.90"
   },
   "guest": {
     "ask": "Ask the person who shared it for a new one.",
@@ -176,6 +177,9 @@
     "listDeleted": "List deleted",
     "listRenamed": "List renamed",
     "noteSet": "Note saved",
+    "priceSet": "Price saved",
+    "pricesSet": "Prices saved",
+    "quantitySet": "Quantity saved",
     "removed": "{{name}} removed",
     "renamed": "Renamed to {{name}}",
     "shareEnded": "Link ended",
