@@ -58,7 +58,7 @@ The package takes the repository's visibility. To check that anyone can pull it,
 ## Icons and screenshots
 
 - `npm run icons` regenerates `brand/promus-p.svg` and the app icons in `apps/web/public/icons` from the Fraunces font.
-- `npm run screenshots` retakes the screenshots in `docs/images/`, light and dark. It builds the app, starts it on a throwaway database and fills the list with made-up items through the UI. `npm run screenshots -- <dir>` writes them to another directory, to look without touching the committed ones.
+- `npm run screenshots` retakes the screenshots in `docs/images/`, light and dark. It builds the app, starts it on a throwaway database, fills a list with made-up items through the UI, and shares another with two made-up guests. `npm run screenshots -- <dir>` writes them to another directory, to look without touching the committed ones.
 
 ## Layout
 

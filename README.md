@@ -22,8 +22,8 @@ In Latin, a *promus* is the household steward who brings provisions out of the s
 
 ## Status
 
-Early: the list, search, offline sync, undo, the setup wizard, household invites and shared lists are done, and being tried day to day.
-Stats, data export and a Home Assistant integration come next.
+Early: the list, search, offline sync, undo, the setup wizard and household invites are done, and being tried day to day. Sharing a list by link is new.
+Prices come next, then stats, data export and a Home Assistant integration.
 
 ## Quick start
 

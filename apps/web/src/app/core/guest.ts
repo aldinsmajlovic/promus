@@ -81,6 +81,9 @@ function authFailed(): (err: AuthError) => Promise<void> {
     snackBar.dismiss();
     await closed;
     // a save holds the app unstable until it has written every field: Actions.run makes it a pending task
+    // ponytail: so when the cookie goes with an item's options open, Actions.run then offers that save's Undo, which
+    // flashes for about 100 ms over the name step until the page change dismisses it. Upgrade path: skip the Undo
+    // offer once this has stopped the guest's sync
     await app.whenStable();
     if (guest && live) {
       await router.navigate(['/share'], { fragment: guest.token, replaceUrl: true });
