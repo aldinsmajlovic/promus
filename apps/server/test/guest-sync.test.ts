@@ -1,9 +1,9 @@
-import { entryKey, fold, formatHlc, makeEvent, newId } from '@promus/shared';
+import { entryKey, fold, formatHlc, hlcWall, makeEvent, newId, resolveItemId } from '@promus/shared';
 import type { EventInput, EventType, PayloadOf, PullResponse, PushResponse, Share, ShareJoined } from '@promus/shared';
 import { pino } from 'pino';
 import { describe, expect, it } from 'vitest';
 import { createUser } from '../src/users.ts';
-import { SAME_ORIGIN, T0, cookieOf, login, makeTestApp } from './helpers.ts';
+import { DAY, SAME_ORIGIN, T0, cookieOf, login, makeTestApp } from './helpers.ts';
 
 const PW = 'correct horse';
 const HOUR = 3_600_000;
@@ -181,6 +181,34 @@ describe('guest sync', { timeout: 30_000 }, () => {
   it('an add and its undo in one batch, as an offline phone sends them', async () => {
     await undoAdd('Oat milk', true)();
     await undoAdd('milk', true)();
+  });
+
+  it("a backdated name doesn't hand a guest the household's item", async () => {
+    const t = await setup();
+    const milk = newId();
+    const theirs = t.ev('item.created', { itemId: milk, name: 'Milk' });
+    await t.push(theirs);
+    const g = await t.shared();
+    const mine = newId();
+    expect(await g.verdicts(t.ev('item.created', { itemId: mine, name: 'Milk' }, { wall: hlcWall(theirs.hlc) - DAY }))).toEqual(['accepted']);
+    expect(await g.verdicts(t.ev('item.archived', { itemId: mine }), t.ev('item.renamed', { itemId: mine, name: 'Mine' }))).toEqual([
+      'out_of_scope',
+      'out_of_scope',
+    ]);
+    const state = await t.annaFold();
+    expect(state.items.get(resolveItemId(state, milk))).toMatchObject({ name: 'Milk', archived: false });
+  });
+
+  it("a guest's new item the household made later stays the household's", async () => {
+    const t = await setup();
+    const g = await t.shared();
+    const mine = newId();
+    expect(await g.verdicts(t.ev('item.created', { itemId: mine, name: 'Bread' }))).toEqual(['accepted']);
+    const bread = newId();
+    await t.push(t.ev('item.created', { itemId: bread, name: 'Bread' }));
+    expect((await t.annaFold()).aliases.get(bread)).toBe(mine);
+    expect(await g.verdicts(t.ev('item.archived', { itemId: mine }))).toEqual(['out_of_scope']);
+    expect((await t.annaFold()).items.get(mine)?.archived).toBe(false);
   });
 
   it('an ended link refuses pull and push', async () => {

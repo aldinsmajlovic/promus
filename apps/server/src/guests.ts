@@ -72,18 +72,22 @@ const isEntry = (e: EventInput): e is Extract<EventInput, { type: `entry.${strin
 export function guestRejection(e: EventInput, { householdId, listId, state, scope, own }: GuestPushContext): RejectCode | null {
   if (e.householdId !== householdId) return 'forbidden_household';
   if (isEntry(e)) return e.payload.listId === listId ? null : 'out_of_scope';
+  // a real item the guest created, that no one else's id is an alias of. One with such an alias is the household's
+  // too: they named one the same later, or the guest backdated its item.created to sort before theirs
+  const ownItem = (id: string): boolean =>
+    own.has(id) && state.items.has(id) && ![...state.aliases].some(([alias, real]) => real === id && !own.has(alias));
   switch (e.type) {
     case 'item.created':
       return null;
     case 'item.renamed': {
       const id = resolveItemId(state, e.payload.itemId);
-      return scope.has(id) || own.has(id) ? null : 'out_of_scope';
+      return scope.has(id) || ownItem(id) ? null : 'out_of_scope';
     }
-    // how Undo takes back adding a new item. An alias resolves to the household's item of that name: archiving it
-    // would archive theirs
+    // how Undo takes back adding a new item. Not an alias: that resolves to the household's item of that name, and
+    // archiving it would archive theirs
     case 'item.archived':
     case 'item.unarchived':
-      return own.has(e.payload.itemId) && state.items.has(e.payload.itemId) ? null : 'out_of_scope';
+      return ownItem(e.payload.itemId) ? null : 'out_of_scope';
     default:
       return 'out_of_scope';
   }
