@@ -78,7 +78,7 @@
           </ul>
 
           @if (cost(); as c) {
-            <p class="total">
+            <p class="section total">
               {{ t('list.total', { total: c.total }) }}
               @if (c.unpriced.length) {
                 <span aria-hidden="true">·</span>

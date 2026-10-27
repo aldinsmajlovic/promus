@@ -236,18 +236,11 @@ li.arrive {
   }
 }
 
-// in the Done header's muted line, as far in as the rows' text
+// a .section, as the Done header is
 .total {
-  display: flex;
   flex-wrap: wrap;
-  align-items: center;
   gap: 0.25rem;
-  min-height: 3rem;
-  margin: 0 var(--promus-inset);
-  padding-inline: 0.625rem;
-  color: var(--promus-muted);
-  font-size: 0.90625rem;
-  font-weight: 600;
+  margin-block: 0;
 }
 
 // a highlight as tall as the line, as round as a row
