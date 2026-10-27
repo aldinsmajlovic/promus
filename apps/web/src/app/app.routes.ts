@@ -42,6 +42,15 @@ export const routes: Routes = [
     path: 's/:shareId',
     loadChildren: () => import('./core/guest').then((m) => m.GUEST_ROUTES),
   },
+  // a shared list's link, for anyone: a guest, or a member of the household
+  {
+    path: 'share',
+    loadComponent: () => import('./features/share/share.page').then((m) => m.SharePage),
+  },
+  {
+    path: 'share/ended',
+    loadComponent: () => import('./features/share/ended.page').then((m) => m.EndedPage),
+  },
   // no loginGuard: an invite also turns someone who shared another's login into their own user
   {
     path: 'join',

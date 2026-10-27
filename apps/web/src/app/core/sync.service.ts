@@ -51,6 +51,9 @@ export class SyncService {
   private readonly doc = inject(DOCUMENT);
   private readonly outcome = signal<Outcome>({ kind: 'idle' });
   private readonly rejected = signal(0);
+  private readonly pulled = signal(0);
+  /** How many syncs have pulled changes: what they changed may need asking about. */
+  readonly pulls = this.pulled.asReadonly();
   readonly status = computed<SyncStatus>(() => ({
     ...this.outcome(),
     pending: this.store.pendingCount(),
@@ -128,8 +131,9 @@ export class SyncService {
     let authError: AuthError | null = null;
     try {
       // this run's writes land only in the session it starts in
-      await syncOnce(new DexieSyncStorage(this.db, session), this.api, () => Date.now());
+      const { pulled } = await syncOnce(new DexieSyncStorage(this.db, session), this.api, () => Date.now());
       await this.store.load();
+      if (pulled > 0) this.pulled.update((n) => n + 1);
     } catch (err) {
       // not a failure: the session changed under the run, which wrote nothing; the next run starts afresh
       if (err instanceof StaleSyncError) this.rerun = true;

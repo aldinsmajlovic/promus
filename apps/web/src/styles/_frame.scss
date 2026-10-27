@@ -162,6 +162,7 @@
 // the list's name travels from the list to the add view and back. Other titles are other words: they change in
 // place with the band
 app-list-menu .title,
+app-list-page h1 > .title,
 app-add-page .title {
   view-transition-name: list-title;
 }

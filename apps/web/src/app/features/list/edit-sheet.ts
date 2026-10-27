@@ -9,12 +9,16 @@ import { MatActionList, MatListItem, MatListItemIcon } from '@angular/material/l
 import { TranslocoDirective } from '@jsverse/transloco';
 import { filter, merge } from 'rxjs';
 import { Actions, refuse } from '../../core/actions';
+import { GUEST } from '../../core/db';
 import { Household } from '../../core/household';
 import { WIDE } from '../../core/layout';
 import { Store, type UndoToken, ValidationError } from '../../core/store';
 import { Face } from '../../shared/face';
 
-/** `addedBy` is null for an add this phone hasn't synced yet: yours. */
+/**
+ * `addedBy` is null for an add this phone hasn't synced yet: yours. On a guest's phone it can also be an entry the
+ * link brought without its add.
+ */
 export type EditSheetData = {
   listId: string;
   itemId: string;
@@ -101,9 +105,12 @@ export function openItemOptions(data: EditSheetData, row: HTMLElement): void {
         <button mat-list-item (click)="remove()">
           <mat-icon matListItemIcon svgIcon="remove_shopping_cart" />{{ t('edit.remove') }}
         </button>
-        <button mat-list-item (click)="archive()">
-          <mat-icon matListItemIcon svgIcon="history_toggle_off" />{{ t('edit.archive') }}
-        </button>
+        <!-- a guest's suggestions are the household's: not theirs to change -->
+        @if (!guest) {
+          <button mat-list-item (click)="archive()">
+            <mat-icon matListItemIcon svgIcon="history_toggle_off" />{{ t('edit.archive') }}
+          </button>
+        }
       </mat-action-list>
     </ng-container>
   `,
@@ -181,10 +188,11 @@ export class EditSheet {
   private readonly store = inject(Store);
   private readonly actions = inject(Actions);
   private readonly household = inject(Household);
-  /** Who put it on the list, once known. */
+  protected readonly guest = inject(GUEST) !== null;
+  /** Who put it on the list, once known; on a guest's phone, no one rather than perhaps the wrong one. */
   protected readonly by = computed(() => {
     const you = this.household.you();
-    const id = this.data.addedBy ?? you;
+    const id = this.data.addedBy ?? (this.guest ? null : you);
     const person = id && this.household.person(id);
     return person ? { ...person, you: id === you } : undefined;
   });

@@ -1,5 +1,5 @@
 import { Injectable, InjectionToken } from '@angular/core';
-import type { EventInput, Member, HlcState, RejectedEvent, SharesResponse, StoredEvent } from '@promus/shared';
+import type { EventInput, GuestMe, Member, HlcState, RejectedEvent, SharesResponse, StoredEvent } from '@promus/shared';
 import Dexie, { type Table } from 'dexie';
 import type { Lang } from './i18n';
 import type { ThemeMode } from './theme';
@@ -25,6 +25,8 @@ export type Meta = {
   session: Session;
   /** Only in a guest's database, one per link: `promus-guest-<shareId>`. */
   guest: { shareId: string; token: string; listId: string; householdId: string; sharedBy: string; expiresAt: number };
+  /** Only in a guest's database: the link's answer of who the guest is and who's on its list. */
+  me: GuestMe;
   members: Member[];
   shares: SharesResponse;
   currentListId: string;

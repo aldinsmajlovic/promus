@@ -39,7 +39,22 @@
     "noteTooLong": "Högst {{max}} tecken"
   },
   "guest": {
-    "name": "Gäst"
+    "ask": "Be den som delade den om en ny.",
+    "askName": "Be {{name}} om en ny.",
+    "ended": "Länken har slutat gälla",
+    "endedWhy": "Delade listor slutar fungera efter {{days}} dagar, eller när den som delade dem avslutar länken.",
+    "failed": "Listan kunde inte öppnas",
+    "full": "Länken är full",
+    "fullWhy": "En länk tar upp till {{max}} gäster.",
+    "name": "Gäst",
+    "nameHint": "Så att de andra ser vem som lade till vad. Du kan lämna det tomt.",
+    "open": "Öppna listan",
+    "profile": "{{name}}: ditt namn och språk",
+    "save": "Spara",
+    "shared": "{{name}} delade {{list}}",
+    "sheetTitle": "Ditt namn och språk",
+    "tagline": "Lägg till det som fattas och bocka av. Inget konto behövs.",
+    "yourName": "Ditt namn"
   },
   "https": {
     "cookie": "Inloggad, men webbläsaren sparade inte sessionen. Öppna Promus över HTTPS.",

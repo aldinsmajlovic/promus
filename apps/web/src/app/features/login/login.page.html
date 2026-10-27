@@ -43,13 +43,7 @@
           <button matButton="filled" type="submit" [disabled]="busy()">{{ t('login.submit') }}</button>
         </form>
       }
-      <div class="langs">
-        @for (l of langs; track l.value) {
-          <button matButton type="button" [attr.aria-pressed]="lang() === l.value" (click)="setLang(l.value)">
-            {{ t(l.label) }}
-          </button>
-        }
-      </div>
+      <app-lang-switch />
     </main>
   </div>
 </ng-container>

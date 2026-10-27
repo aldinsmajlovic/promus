@@ -25,7 +25,7 @@ import { TranslocoDirective } from '@jsverse/transloco';
 import { type EntryView, type Person, listView } from '@promus/shared';
 import { Actions } from '../../core/actions';
 import { CurrentList } from '../../core/current-list';
-import { PromusDb } from '../../core/db';
+import { GUEST, PromusDb } from '../../core/db';
 import { Household } from '../../core/household';
 import { WIDE } from '../../core/layout';
 import { Shares } from '../../core/shares';
@@ -96,7 +96,9 @@ export class ListPage {
   private readonly injector = inject(Injector);
   private readonly doc = inject(DOCUMENT);
   private readonly household = inject(Household);
-  protected readonly shares = inject(Shares);
+  private readonly shares = inject(Shares);
+  /** A guest's list: no list menu, and Add or find in the link's own data. */
+  protected readonly guest = inject(GUEST) !== null;
   protected readonly wide = inject(WIDE);
   protected readonly activeRows = viewChildren('activeRow', { read: ElementRef });
   protected readonly doneRows = viewChildren('doneRow', { read: ElementRef });
@@ -122,6 +124,17 @@ export class ListPage {
     const theirs = guests.filter((g) => g.shareId === link?.id);
     return [...this.members(), ...theirs.map((g) => ({ id: g.id, name: g.name, guest: true }))];
   });
+  /**
+   * Everyone on the list, and until when its link works: a guest's from the link, the household's from its links.
+   * Checked on every render, not cached: a link runs out without anything in it changing.
+   */
+  protected people(listId: string): { people: Person[]; until: number | null } {
+    const me = this.household.guestMe();
+    if (this.guest) return { people: me?.people ?? [], until: me?.share.expiresAt ?? null };
+    const link = this.shares.liveFor(listId);
+    return { people: link ? this.withGuests() : this.members(), until: link?.expiresAt ?? null };
+  }
+
   // the list the last render showed in full, Done included: rows arriving in it or leaving it move, a list that
   // loads or switches just shows. Angular runs the enter and leave animations after rendering, before this is
   // updated in the read phase. On a cold start Done waits on its meta read, so its first rows would arrive if this

@@ -1,17 +1,18 @@
 import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed';
-import { Component, type ProviderToken, importProvidersFrom, provideAppInitializer, signal } from '@angular/core';
+import { type ProviderToken, importProvidersFrom, provideAppInitializer, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { MatBottomSheetHarness } from '@angular/material/bottom-sheet/testing';
+import { MatButtonHarness } from '@angular/material/button/testing';
 import { MATERIAL_ANIMATIONS } from '@angular/material/core';
 import { MatDialogHarness } from '@angular/material/dialog/testing';
 import { MatFormFieldHarness } from '@angular/material/form-field/testing';
 import { MatInputHarness } from '@angular/material/input/testing';
 import { MatSnackBarHarness } from '@angular/material/snack-bar/testing';
-import { Router, provideRouter } from '@angular/router';
+import { NavigationEnd, Router, provideRouter } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
 import { TranslocoTestingModule } from '@jsverse/transloco';
-import { ApiError, SHARE_TTL_MS, formatHlc, makeEvent, newId } from '@promus/shared';
-import type { EventInput, EventType, PayloadOf, StoredEvent } from '@promus/shared';
+import { ApiError, SHARE_TTL_MS, cleanGuestName, formatHlc, makeEvent, newId } from '@promus/shared';
+import type { EventInput, EventType, GuestMe, PayloadOf, StoredEvent } from '@promus/shared';
 import Dexie from 'dexie';
 import { describe, expect, it, onTestFinished, vi } from 'vitest';
 import sv from '../../i18n/sv.json';
@@ -26,19 +27,18 @@ import { WIDE } from './layout';
 import { Store } from './store';
 import { SyncService } from './sync.service';
 
-// stands in for Task 8's pages: these specs only see where a guest is sent
-@Component({ template: '' })
-class Elsewhere {}
-
 const HOUSEHOLD_PATH = /^\/api\/(me|shares|sync|invites)\b/;
 const error = (code: string, status: number) => Response.json({ error: code }, { status });
 const offline = () => {
   throw new TypeError('Failed to fetch');
 };
 
+/** Who each link's guest is and who's on its list, as its `me` answers; `joined` fills it in. */
+const mes = new Map<string, GuestMe>();
+
 /**
- * `answer` answers a request first. The guest endpoints otherwise have nothing to pull and accept every push but an
- * archive or unarchive, which they refuse as the server does.
+ * `answer` answers a request first. The guest endpoints otherwise have nothing to pull, accept every push but an
+ * archive or unarchive, which they refuse as the server does, and take every new name, kept in `renamed`.
  */
 async function setup(wide = false) {
   const household = new PromusDb(`household-${newId()}`);
@@ -46,6 +46,7 @@ async function setup(wide = false) {
   await household.setMeta('session', { userId: newId(), username: 'anna', householdId });
   const asked: string[] = [];
   const pushed: Record<string, EventInput[]> = {};
+  const renamed: [shareId: string, name: string][] = [];
   const server: { answer: (url: string) => Response | undefined } = { answer: () => undefined };
   const fetch = vi.fn<typeof globalThis.fetch>(async (input, init) => {
     const url = String(input);
@@ -65,6 +66,19 @@ async function setup(wide = false) {
     }
     const pull = /^\/api\/guest\/[^/]+\/pull\?after=(\d+)/.exec(url);
     if (pull) return Response.json({ events: [], lastSeq: Number(pull[1]), hasMore: false, serverTime: Date.now() });
+    const me = /^\/api\/guest\/([^/]+)\/me$/.exec(url);
+    const found = me && mes.get(me[1]!);
+    if (found) return Response.json(found);
+    const rename = /^\/api\/guest\/([^/]+)\/name$/.exec(url);
+    const guest = rename && mes.get(rename[1]!);
+    if (guest) {
+      const raw = (JSON.parse(String(init?.body)) as { name: string }).name;
+      renamed.push([rename![1]!, raw]);
+      const name = cleanGuestName(raw);
+      guest.guest.name = name;
+      guest.people = guest.people.map((p) => (p.id === guest.guest.id ? { ...p, name } : p));
+      return new Response(null, { status: 204 });
+    }
     return error('not_found', 404);
   });
   TestBed.configureTestingModule({
@@ -73,10 +87,7 @@ async function setup(wide = false) {
       { provide: FETCH, useValue: fetch },
       { provide: WIDE, useValue: signal(wide) },
       { provide: MATERIAL_ANIMATIONS, useValue: { animationsDisabled: true } },
-      provideRouter(
-        [...routes, { path: 'share/ended', component: Elsewhere }, { path: 'share', component: Elsewhere }],
-        ...ROUTER_FEATURES,
-      ),
+      provideRouter(routes, ...ROUTER_FEATURES),
       provideAppInitializer(registerIcons),
       importProvidersFrom(
         TranslocoTestingModule.forRoot({
@@ -103,7 +114,7 @@ async function setup(wide = false) {
     await harness.fixture.whenStable();
   };
   const loader = TestbedHarnessEnvironment.documentRootLoader(harness.fixture);
-  return { household, harness, router, server, asked, pushed, guestOf, open, loader };
+  return { household, harness, router, server, asked, pushed, renamed, guestOf, open, loader };
 }
 
 let seq = 0;
@@ -117,13 +128,16 @@ async function joined(items: string[] = [], archived: string[] = []) {
   const listId = newId();
   const householdId = newId();
   const anna = newId();
+  const guestId = newId();
   const at = Date.now() - 60_000;
   let counter = 0;
   const events: StoredEvent[] = [];
-  const add = <T extends EventType>(type: T, payload: PayloadOf<T>) => {
+  /** An event as the link's pull answers it, by anna unless `userId` says who. */
+  const event = <T extends EventType>(type: T, payload: PayloadOf<T>, userId = anna): StoredEvent => {
     const made = makeEvent(type, payload, { householdId, occurredAt: at, hlc: formatHlc(at, counter++, 'anna') });
-    events.push({ ...made, seq: ++seq, userId: anna, receivedAt: at });
+    return { ...made, seq: ++seq, userId, receivedAt: at };
   };
+  const add = <T extends EventType>(type: T, payload: PayloadOf<T>) => events.push(event(type, payload));
   add('list.created', { listId, name: 'Tacokväll' });
   const ids = new Map<string, string>();
   for (const name of items) {
@@ -143,20 +157,31 @@ async function joined(items: string[] = [], archived: string[] = []) {
   const name = `promus-guest-${shareId}`;
   const db = new PromusDb(name);
   const token = `token-${shareId}`;
-  await db.setMeta('guest', {
-    shareId,
-    token,
-    listId,
-    householdId,
-    sharedBy: 'anna',
-    expiresAt: Date.now() + SHARE_TTL_MS,
-  });
-  await db.setMeta('session', { userId: newId(), username: 'Jonas', householdId });
+  const expiresAt = Date.now() + SHARE_TTL_MS;
+  await db.setMeta('guest', { shareId, token, listId, householdId, sharedBy: 'anna', expiresAt });
+  await db.setMeta('session', { userId: guestId, username: 'Jonas', householdId });
   await db.setMeta('currentListId', listId);
+  const me: GuestMe = {
+    guest: { id: guestId, name: 'Jonas' },
+    share: { id: shareId, householdId, listId, expiresAt, sharedBy: 'anna' },
+    people: [
+      { id: anna, name: 'anna', guest: false },
+      { id: guestId, name: 'Jonas', guest: true },
+    ],
+  };
+  mes.set(shareId, structuredClone(me));
+  await db.setMeta('me', me);
   await db.events.bulkPut(events);
   await db.setMeta('cursor', seq);
   db.close();
-  return { shareId, listId, token, name, url: `/s/${shareId}` };
+  /** Puts `more` in the link's data, as if pulled before the page opens. */
+  const pulled = async (...more: StoredEvent[]) => {
+    const again = new PromusDb(name);
+    await again.events.bulkPut(more);
+    await again.setMeta('cursor', seq);
+    again.close();
+  };
+  return { shareId, listId, token, name, guestId, url: `/s/${shareId}`, event, pulled };
 }
 
 /** The names of the items these events make. */
@@ -251,8 +276,11 @@ describe('guest mode', () => {
         : url.startsWith('/api/guest/')
           ? error('unauthenticated', 401)
           : undefined;
+    // the name step's own check may send it on: a full link to the ended page
+    const went: string[] = [];
+    t.router.events.subscribe((e) => e instanceof NavigationEnd && went.push(e.urlAfterRedirects));
     await t.router.navigateByUrl(taco.url);
-    await vi.waitFor(() => expect(t.router.url).toBe(`/share#${taco.token}`));
+    await vi.waitFor(() => expect(went).toContain(`/share#${taco.token}`));
     expect(await Dexie.exists(taco.name)).toBe(true);
   });
 
@@ -366,14 +394,6 @@ describe('guest mode', () => {
     expect(household).toEqual(['list.created', 'item.created', 'entry.added']);
   });
 
-  it("the profile button is the guest's, not the household's", async () => {
-    const t = await setup();
-    const taco = await joined(['Tortillas']);
-    await t.open(taco.url);
-    const profile = t.harness.routeNativeElement!.querySelector('app-profile-button a');
-    expect(profile?.getAttribute('aria-label')).toBe('Inställningar för Jonas');
-  });
-
   it("a guest typing an archived item's name puts it back on the list, and only that", async () => {
     const t = await setup();
     const taco = await joined([], ['Gräddfil']);
@@ -442,5 +462,176 @@ describe('guest mode', () => {
     expect(t.router.url).toBe('/share/ended');
     expect(ended(t.router)).toEqual({ sharedBy: null });
     expect(await Dexie.exists(`promus-guest-${shareId}`)).toBe(false);
+  });
+});
+
+describe("the guest's screens", () => {
+  const page = (t: Awaited<ReturnType<typeof setup>>) => t.harness.routeNativeElement!;
+  const household = (t: Awaited<ReturnType<typeof setup>>) => t.asked.filter((url) => HOUSEHOLD_PATH.test(url));
+
+  it('the list shows its name, with no list menu and no Settings', async () => {
+    const t = await setup();
+    const taco = await joined(['Tortillas']);
+    await t.open(taco.url);
+    expect(page(t).querySelector('h1')?.textContent?.trim()).toBe('Tacokväll');
+    expect(page(t).querySelector('app-list-menu')).toBeNull();
+    expect(page(t).querySelector('[href="/settings"]')).toBeNull();
+  });
+
+  it.each([false, true])('item options have no "Remove from suggestions" (computer: %s)', async (wide) => {
+    const t = await setup(wide);
+    const taco = await joined(['Tortillas']);
+    await t.open(taco.url);
+    page(t).querySelector<HTMLElement>('[aria-label="Alternativ för Tortillas"]')!.click();
+    const options = await (wide ? t.loader.getHarness(MatDialogHarness) : t.loader.getHarness(MatBottomSheetHarness));
+    const text = await (await options.host()).text();
+    expect(text).toContain(sv.edit.remove);
+    expect(text).not.toContain(sv.edit.archive);
+  });
+
+  it('rows and "with" name the people on the list as the link says, offline too', async () => {
+    const t = await setup();
+    const taco = await joined(['Tortillas']);
+    t.server.answer = offline;
+    await t.open(taco.url);
+    await vi.waitFor(() => expect(page(t).querySelector('.with')?.getAttribute('aria-label')).toBe('Delas med anna'));
+    expect(page(t).querySelector('li app-face')?.textContent?.trim()).toBe('A');
+  });
+
+  it("who's on the list is asked when the page opens, and again only when a pull brings changes", async () => {
+    const t = await setup();
+    const taco = await joined(['Tortillas']);
+    const asks = () => t.asked.filter((url) => url === `/api/guest/${taco.shareId}/me`).length;
+    await t.open(taco.url);
+    await vi.waitFor(() => expect(asks()).toBe(1));
+    const sync = t.guestOf(SyncService);
+    await sync.syncNow();
+    await t.harness.fixture.whenStable();
+    expect(asks()).toBe(1);
+    const renamed = taco.event('list.renamed', { listId: taco.listId, name: 'Taco' });
+    t.server.answer = (url) =>
+      url.includes('/pull?')
+        ? Response.json({ events: [renamed], lastSeq: renamed.seq, hasMore: false, serverTime: Date.now() })
+        : undefined;
+    await sync.syncNow();
+    await vi.waitFor(() => expect(asks()).toBe(2));
+    expect(household(t)).toEqual([]);
+  });
+
+  it("an entry the guest's phone got without its add names no one, while the guest's own says you", async () => {
+    const t = await setup();
+    const taco = await joined();
+    const [gurka, korv] = [newId(), newId()];
+    await taco.pulled(
+      taco.event('item.created', { itemId: gurka, name: 'Gurka' }),
+      taco.event('entry.unchecked', { listId: taco.listId, itemId: gurka }),
+      taco.event('item.created', { itemId: korv, name: 'Korv' }, taco.guestId),
+      taco.event('entry.added', { listId: taco.listId, itemId: korv }, taco.guestId),
+    );
+    await t.open(taco.url);
+    const options = async (name: string) => {
+      page(t).querySelector<HTMLElement>(`[aria-label="Alternativ för ${name}"]`)!.click();
+      const sheet = await t.loader.getHarness(MatBottomSheetHarness);
+      const text = await (await sheet.host()).text();
+      await sheet.dismiss();
+      await t.harness.fixture.whenStable();
+      return text;
+    };
+    expect(await options('Gurka')).not.toContain(sv.edit.addedByYou);
+    expect(await options('Korv')).toContain(sv.edit.addedByYou);
+  });
+
+  it.each([false, true])(
+    "Add or find stays in the link's data, and finds only what's been on its list (computer: %s)",
+    async (wide) => {
+      const t = await setup(wide);
+      const taco = await joined(['Tortillas']);
+      await t.open(taco.url);
+      if (!wide) {
+        page(t).querySelector<HTMLElement>('a.dock')!.click();
+        await vi.waitFor(() => expect(t.router.url).toBe(`${taco.url}/add`));
+        await t.harness.fixture.whenStable();
+      }
+      const field = page(t).querySelector<HTMLInputElement>('.add-field input')!;
+      const search = async (text: string) => {
+        field.value = text;
+        field.dispatchEvent(new Event('input'));
+        await t.harness.fixture.whenStable();
+        return [...page(t).querySelectorAll('.results .row')].map((r) => r.textContent?.trim());
+      };
+      // the household's Mjölk is unknown here: typing it offers a new item
+      expect(await search('Mjölk')).toEqual(['Lägg till "Mjölk"']);
+      expect(await search('Tort')).toEqual([`Tortillas${sv.add.onList}`, 'Lägg till "Tort"']);
+      await search('Chorizo');
+      field.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+      await t.harness.fixture.whenStable();
+      await t.guestOf(SyncService).syncNow();
+      expect(created(t.pushed[taco.shareId])).toEqual(['Chorizo']);
+      expect(await namesIn(t.household)).toEqual(['Mjölk']);
+      expect(household(t)).toEqual([]);
+    },
+  );
+
+  it("Add or find opened straight from its address closes to the guest's list", async () => {
+    const t = await setup();
+    const taco = await joined(['Tortillas']);
+    await t.harness.navigateByUrl(`${taco.url}/add`);
+    await t.harness.fixture.whenStable();
+    page(t).querySelector<HTMLElement>(`[aria-label="${sv.dialog.close}"]`)!.click();
+    await vi.waitFor(() => expect(t.router.url).toBe(taco.url));
+  });
+
+  it("the guest's initial opens their sheet: a new name changes their face, and Undo changes it back", async () => {
+    const t = await setup();
+    const taco = await joined(['Tortillas']);
+    await t.open(taco.url);
+    const profile = () => page(t).querySelector<HTMLElement>('app-profile-button button')!;
+    expect(profile().getAttribute('aria-label')).toBe('Jonas: ditt namn och språk');
+    profile().click();
+    const sheet = await t.loader.getHarness(MatBottomSheetHarness);
+    const field = await sheet.getHarness(MatInputHarness);
+    expect(await field.getValue()).toBe('Jonas');
+    await field.setValue('Kalle');
+    await (await sheet.getHarness(MatButtonHarness.with({ text: sv.guest.save }))).click();
+    await vi.waitFor(() => expect(profile().textContent?.trim()).toBe('K'));
+    expect(profile().getAttribute('aria-label')).toBe('Kalle: ditt namn och språk');
+    expect(t.renamed).toEqual([[taco.shareId, 'Kalle']]);
+    expect((await t.guestOf(PromusDb).getMeta('session'))?.username).toBe('Kalle');
+    expect(t.guestOf(Household).person(taco.guestId)?.name).toBe('Kalle');
+    const snack = await t.loader.getHarness(MatSnackBarHarness);
+    expect(await snack.getMessage()).toBe('Bytt namn till Kalle');
+    await snack.dismissWithAction();
+    await vi.waitFor(() => expect(profile().textContent?.trim()).toBe('J'));
+    expect(t.renamed.at(-1)).toEqual([taco.shareId, 'Jonas']);
+    expect(household(t)).toEqual([]);
+  });
+
+  it('a name of only spaces makes the guest Guest, with a G', async () => {
+    const t = await setup();
+    const taco = await joined(['Tortillas']);
+    await t.open(taco.url);
+    const profile = () => page(t).querySelector<HTMLElement>('app-profile-button button')!;
+    profile().click();
+    const sheet = await t.loader.getHarness(MatBottomSheetHarness);
+    await (await sheet.getHarness(MatInputHarness)).setValue('   ');
+    await (await sheet.getHarness(MatButtonHarness.with({ text: sv.guest.save }))).click();
+    await vi.waitFor(() => expect(profile().textContent?.trim()).toBe('G'));
+    expect(profile().getAttribute('aria-label')).toBe('Gäst: ditt namn och språk');
+  });
+
+  it('a name the server finds too long is shown on the field, and the name stays', async () => {
+    const t = await setup();
+    const taco = await joined(['Tortillas']);
+    await t.open(taco.url);
+    t.server.answer = (url) => (url.endsWith('/name') ? error('name_too_long', 400) : undefined);
+    const profile = () => page(t).querySelector<HTMLElement>('app-profile-button button')!;
+    profile().click();
+    const sheet = await t.loader.getHarness(MatBottomSheetHarness);
+    const field = await sheet.getHarness(MatInputHarness);
+    expect(await (await field.host()).getProperty('maxLength')).toBe(40);
+    await field.setValue('Kalle');
+    await (await sheet.getHarness(MatButtonHarness.with({ text: sv.guest.save }))).click();
+    await vi.waitFor(async () => expect(await (await sheet.host()).text()).toContain('Högst 40 tecken'));
+    expect(profile().textContent?.trim()).toBe('J');
   });
 });

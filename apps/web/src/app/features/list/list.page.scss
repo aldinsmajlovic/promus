@@ -13,8 +13,11 @@
   min-width: 0;
 }
 
+// as tall as the list menu's button, so a guest's band, with the list's name alone, is as tall as the household's
 h1 {
   display: flex;
+  align-items: center;
+  min-height: 3rem;
   margin: 0;
   font: inherit;
 }

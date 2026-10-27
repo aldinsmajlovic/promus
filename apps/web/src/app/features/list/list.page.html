@@ -2,18 +2,19 @@
   <div class="frame" [class.split]="wide()">
     <header class="band">
       <div class="head">
-        <h1><app-list-menu /></h1>
+        <h1>
+          @if (!guest) {
+            <app-list-menu />
+          } @else if (list(); as l) {
+            <span class="title brand">{{ l.name }}</span>
+          }
+        </h1>
         @if (list(); as l) {
           <p class="meta">
             {{ t('list.toGet', { n: view().active.length }) }}
-            <!-- checked on every render, not cached: a link runs out without anything in it changing -->
             <!-- ponytail: only on a render, so a page nobody touches keeps an ended link's guests. Upgrade path: a timer at expiresAt -->
-            @let link = shares.liveFor(l.id);
-            <app-people-menu
-              [people]="link ? withGuests() : members()"
-              [until]="link?.expiresAt ?? null"
-              [list]="l.name"
-            />
+            @let on = people(l.id);
+            <app-people-menu [people]="on.people" [until]="on.until" [list]="l.name" />
           </p>
         }
       </div>
@@ -129,7 +130,10 @@
 
         @if (!wide()) {
           <div class="bar">
-            <a #dock class="dock" routerLink="/add"><mat-icon svgIcon="add" />{{ t('add.placeholder') }}</a>
+            <!-- a guest's stays in the link's data, under its own address -->
+            <a #dock class="dock" [routerLink]="guest ? 'add' : '/add'">
+              <mat-icon svgIcon="add" />{{ t('add.placeholder') }}
+            </a>
           </div>
         }
       }

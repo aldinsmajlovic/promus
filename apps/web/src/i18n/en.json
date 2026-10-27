@@ -39,7 +39,22 @@
     "noteTooLong": "At most {{max}} characters"
   },
   "guest": {
-    "name": "Guest"
+    "ask": "Ask the person who shared it for a new one.",
+    "askName": "Ask {{name}} for a new one.",
+    "ended": "This link has ended",
+    "endedWhy": "Shared lists stop working after {{days}} days, or when the person who shared them ends the link.",
+    "failed": "Couldn't open the list",
+    "full": "This link is full",
+    "fullWhy": "A link takes up to {{max}} guests.",
+    "name": "Guest",
+    "nameHint": "So the others can see who added what. You can leave it empty.",
+    "open": "Open list",
+    "profile": "{{name}}: your name and language",
+    "save": "Save",
+    "shared": "{{name}} shared {{list}}",
+    "sheetTitle": "Your name and language",
+    "tagline": "Add what's missing and check things off. No account needed.",
+    "yourName": "Your name"
   },
   "https": {
     "cookie": "Signed in, but this browser didn't keep the session. Open Promus over HTTPS.",

@@ -118,12 +118,15 @@ const guestGuard: CanActivateFn = async (route) => {
   return true;
 };
 
-/** Under `s/:shareId`. */
+/** Under `s/:shareId`: the list, and on a phone its Add or find, both in the link's own data. */
 export const GUEST_ROUTES: Routes = [
   {
     path: '',
     providers: guestProviders(),
     canActivate: [guestGuard],
-    loadComponent: () => import('../features/list/list.page').then((m) => m.ListPage),
+    children: [
+      { path: '', loadComponent: () => import('../features/list/list.page').then((m) => m.ListPage) },
+      { path: 'add', loadComponent: () => import('../features/add/add.page').then((m) => m.AddPage) },
+    ],
   },
 ];
