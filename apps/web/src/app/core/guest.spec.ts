@@ -40,7 +40,7 @@ const mes = new Map<string, GuestMe>();
  * `answer` answers a request first. The guest endpoints otherwise have nothing to pull, accept every push but an
  * archive or unarchive, which they refuse as the server does, and take every new name, kept in `renamed`.
  */
-async function setup(wide = false) {
+async function setup(wide = false, animated = false) {
   const household = new PromusDb(`household-${newId()}`);
   const householdId = newId();
   await household.setMeta('session', { userId: newId(), username: 'anna', householdId });
@@ -86,7 +86,7 @@ async function setup(wide = false) {
       { provide: PromusDb, useValue: household },
       { provide: FETCH, useValue: fetch },
       { provide: WIDE, useValue: signal(wide) },
-      { provide: MATERIAL_ANIMATIONS, useValue: { animationsDisabled: true } },
+      { provide: MATERIAL_ANIMATIONS, useValue: { animationsDisabled: !animated } },
       provideRouter(routes, ...ROUTER_FEATURES),
       provideAppInitializer(registerIcons),
       importProvidersFrom(
@@ -287,7 +287,8 @@ describe('guest mode', () => {
   it.each([false, true])(
     'without its cookie, a note typed in the open options is kept, and nothing says otherwise (computer: %s)',
     async (wide) => {
-      const t = await setup(wide);
+      // the dialog takes its animation's time to close, as in a browser (jsdom never starts a bottom sheet's)
+      const t = await setup(wide, wide);
       const taco = await joined(['Tortillas']);
       await t.open(taco.url);
       t.harness.routeNativeElement!.querySelector<HTMLElement>('[aria-label="Alternativ för Tortillas"]')!.click();
@@ -296,6 +297,10 @@ describe('guest mode', () => {
       await (await note.getControl(MatInputHarness))!.setValue('majs');
       const log = vi.spyOn(console, 'error');
       onTestFinished(() => log.mockRestore());
+      // a browser's, which the note's first save asks to keep the link's data
+      const storage = { persisted: async () => false, persist: async () => true };
+      Object.defineProperty(navigator, 'storage', { value: storage, configurable: true });
+      onTestFinished(() => void Reflect.deleteProperty(navigator, 'storage'));
       t.server.answer = (url) =>
         url === '/api/guest/check'
           ? live(taco.shareId)

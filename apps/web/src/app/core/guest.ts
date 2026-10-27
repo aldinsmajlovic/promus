@@ -5,6 +5,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { type CanActivateFn, RedirectCommand, Router, type Routes } from '@angular/router';
 import { ApiError, type AuthError } from '@promus/shared';
 import Dexie from 'dexie';
+import { firstValueFrom } from 'rxjs';
 import { Actions } from './actions';
 import { ApiClient } from './api';
 import { CurrentList } from './current-list';
@@ -65,10 +66,17 @@ function authFailed(): (err: AuthError) => Promise<void> {
     const guest = await db.getMeta('guest');
     const live = guest !== undefined && err.code !== 'share_ended' && !(await linkEnded(api, guest.token));
     injector.get(SyncService).stop();
-    // nothing of the list stays on screen over the page that follows
+    // nothing of the list stays on screen over the page that follows. An item's options save what was typed in them
+    // as they close, into this page's database: the page, and its database, wait for that to start
+    const sheetRef = sheet._openedBottomSheetRef;
+    const closed = Promise.all([
+      sheetRef && firstValueFrom(sheetRef.afterDismissed()),
+      firstValueFrom(dialog.afterAllClosed),
+    ]);
     sheet.dismiss();
     dialog.closeAll();
     snackBar.dismiss();
+    await closed;
     if (guest && live) {
       await router.navigate(['/share'], { fragment: guest.token, replaceUrl: true });
       return;

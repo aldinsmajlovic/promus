@@ -157,8 +157,8 @@ export class Store {
 
   /**
    * Throws ValidationError; resolves to null when the item is already on the list. An archived item of
-   * that name comes back, with its history and last note, rather than a new one beside it; for a guest, when it's
-   * already on the list, that's `already_on_list`.
+   * that name comes back, with its history and last note, rather than a new one beside it. A guest can't bring it
+   * back, so for them an archived item already on the list is `already_on_list`.
    */
   addByName(listId: string, name: string): Promise<UndoToken | null> {
     return this.act((s) => {
@@ -333,12 +333,13 @@ export class Store {
     this.current.set(state);
     this.pending.update((n) => n + events.length);
     if (this.loaded) this.loaded = { ...this.loaded, outbox: this.loaded.outbox + events.length };
+    // a guest's page left meanwhile closed its database and its sync: the next page's send the outbox
+    if (this.destroyRef.destroyed) return inverse;
     this.persistence ??= requestPersistence(db).catch((err: unknown) => {
       console.error('persistent storage request failed', err);
       return false;
     });
-    // its sync went with its page: the next page's sends what's in the outbox
-    if (!this.destroyRef.destroyed) this.injector.get(SyncService).soon();
+    this.injector.get(SyncService).soon();
     return inverse;
   }
 

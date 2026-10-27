@@ -41,7 +41,7 @@
   "guest": {
     "ask": "Be den som delade den om en ny.",
     "askName": "Be {{name}} om en ny.",
-    "cookie": "Du gick med, men webbläsaren sparade det inte. Delade listor fungerar bara över HTTPS.",
+    "cookie": "Du gick med, men webbläsaren sparade inte sessionen. Delade listor fungerar bara över HTTPS.",
     "ended": "Länken har slutat gälla",
     "endedWhy": "Delade listor slutar fungera efter {{days}} dagar, eller när den som delade dem avslutar länken.",
     "failed": "Listan kunde inte öppnas",
