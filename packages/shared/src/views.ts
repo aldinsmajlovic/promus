@@ -10,6 +10,7 @@ export type EntryView = {
   addedBy: string | null;
   quantity: number;
   price: number | null;
+  checkedBy: string | null;
 };
 
 const entriesOf = (state: HouseholdState, listId: string): EntryState[] =>
@@ -29,8 +30,8 @@ export function listView(
   for (const e of entriesOf(state, listId)) {
     const item = state.items.get(e.itemId);
     if (!item) continue;
-    const { note, checkedAt, addedBy, quantity } = e;
-    const view = { itemId: e.itemId, name: item.name, note, checkedAt, addedBy, quantity, price: item.price };
+    const { note, checkedAt, addedBy, quantity, checkedBy } = e;
+    const view = { itemId: e.itemId, name: item.name, note, checkedAt, addedBy, quantity, price: item.price, checkedBy };
     if (e.state === 'active') active.push(view);
     else if (inDoneWindow(e, now)) done.push(view);
   }

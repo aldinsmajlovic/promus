@@ -24,6 +24,8 @@ export type EntryState = {
   checkedAt: number | null;
   addedBy: string | null;
   quantity: number;
+  /** Who checked it off, and so paid for it; null while it's active, or for a check this phone hasn't synced. */
+  checkedBy: string | null;
 };
 export type HouseholdState = {
   lists: Map<string, ListState>;
@@ -168,13 +170,16 @@ function applyEntry(s: HouseholdState, e: EntryEvent): boolean {
   const at = hlcWall(e.hlc);
   const keep = {
     listId, itemId, note: prev?.note ?? null, addedAt: prev?.addedAt ?? at, addedBy: prev?.addedBy ?? null, quantity: prev?.quantity ?? 1,
+    checkedBy: null,
   };
   switch (e.type) {
     case 'entry.added': {
       const note = e.payload.note || null;
       const { quantity } = e.payload;
       const addedBy = e.userId ?? null;
-      s.entries.set(key, { listId, itemId, state: 'active', note, addedAt: at, checkedAt: null, addedBy, quantity: quantity ?? 1 });
+      s.entries.set(key, {
+        listId, itemId, state: 'active', note, addedAt: at, checkedAt: null, addedBy, quantity: quantity ?? 1, checkedBy: null,
+      });
       if (note) item.lastNote = note;
       // only an add that brings one: adds from before quantities leave it alone, as adds without a note do
       if (quantity) item.lastQuantity = quantity;
@@ -182,7 +187,7 @@ function applyEntry(s: HouseholdState, e: EntryEvent): boolean {
     }
     case 'entry.checked': {
       if (prev?.state === 'checked') break;
-      s.entries.set(key, { ...keep, state: 'checked', checkedAt: at });
+      s.entries.set(key, { ...keep, state: 'checked', checkedAt: at, checkedBy: e.userId ?? null });
       // a check that undoes something only restores state; it is not a new purchase
       if (e.undoOf) break;
       const p = (s.purchases.get(itemId) ?? new Map<string, number>()).set(e.id, at);

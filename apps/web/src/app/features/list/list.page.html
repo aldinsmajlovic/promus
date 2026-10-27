@@ -91,6 +91,18 @@
             </p>
           }
 
+          @if (paid(); as p) {
+            <p class="paid">
+              {{ t('list.paid') }}
+              @for (x of p; track x.id; let last = $last) {
+                {{ x.you ? t('settings.you') : (x.name ?? t('guest.name')) }} {{ x.amount }}
+                @if (!last) {
+                  <span aria-hidden="true">·</span>
+                }
+              }
+            </p>
+          }
+
           @if (view().done.length && doneOpen() !== undefined) {
             <mat-divider />
             <button

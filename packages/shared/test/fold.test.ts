@@ -40,6 +40,16 @@ describe('fold', () => {
     expect(addedBy(added('u1', 3), added('u2', 4))).toBe('u2');
   });
 
+  it('an entry remembers who checked it off, until it is unchecked or added again', () => {
+    const by = (userId: string) => ({ userId });
+    const checkedBy = (...es: FoldEvent[]) => fold([...setup, ...es]).entries.get(entryKey(L, 'milk'))?.checkedBy;
+    const checked = [ev('entry.added', entry, 3, by('u1')), ev('entry.checked', entry, 4, by('u2'))];
+    expect(checkedBy(...checked)).toBe('u2');
+    expect(checkedBy(...checked, ev('entry.noteSet', { ...entry, note: 'x' }, 5, by('u1')))).toBe('u2');
+    expect(checkedBy(...checked, ev('entry.unchecked', entry, 5, by('u1')))).toBeNull();
+    expect(checkedBy(...checked, ev('entry.added', entry, 5, by('u1')))).toBeNull();
+  });
+
   it("an add without a userId counts as nobody else's", () => {
     const s = fold([...setup, ev('entry.added', entry, 3)]);
     expect(s.entries.get(entryKey(L, 'milk'))?.addedBy).toBeNull();
@@ -61,10 +71,10 @@ describe('fold', () => {
     });
     expect(s.items.get('bread')).toMatchObject({ purchaseCount: 1, lastPurchasedAt: 1005 });
     expect(s.entries.get(entryKey(L, 'milk'))).toEqual({
-      listId: L, itemId: 'milk', state: 'active', note: 'laktosfri', addedAt: 1003, checkedAt: null, addedBy: null, quantity: 1,
+      listId: L, itemId: 'milk', state: 'active', note: 'laktosfri', addedAt: 1003, checkedAt: null, addedBy: null, quantity: 1, checkedBy: null,
     });
     expect(s.entries.get(entryKey(L, 'bread'))).toEqual({
-      listId: L, itemId: 'bread', state: 'checked', note: null, addedAt: 1004, checkedAt: 1005, addedBy: null, quantity: 1,
+      listId: L, itemId: 'bread', state: 'checked', note: null, addedAt: 1004, checkedAt: 1005, addedBy: null, quantity: 1, checkedBy: null,
     });
     expect(s.skipped).toBe(0);
   });

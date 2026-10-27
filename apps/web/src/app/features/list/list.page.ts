@@ -127,6 +127,29 @@ export class ListPage {
       formatPrice(es.reduce((ore, e) => ore + (e.price ?? 0) * e.quantity, 0), this.lang(), { whole: true });
     return { total: sum(rows), left: sum(active), unpriced: rows.filter((e) => e.price === null) };
   });
+  /**
+   * What each paid on this trip, most first: whoever checked a priced row in Done off, at its price now, so prices
+   * typed from the receipt afterwards count. Null unless two or more did. Splitting it is up to them.
+   */
+  protected readonly paid = computed(() => {
+    const you = this.household.you();
+    const by = new Map<string | null, number>();
+    for (const e of this.view().done) {
+      if (e.price === null) continue;
+      // a check this phone hasn't synced is yours
+      const id = e.checkedBy ?? you;
+      by.set(id, (by.get(id) ?? 0) + e.price * e.quantity);
+    }
+    if (by.size < 2) return null;
+    return [...by]
+      .sort(([, a], [, b]) => b - a)
+      .map(([id, ore]) => ({
+        id,
+        you: id === you,
+        name: id === null ? null : (this.household.person(id)?.name ?? null),
+        amount: formatPrice(ore, this.lang(), { whole: true }),
+      }));
+  });
   /** Undefined until meta `doneFolded` is first read; then Done shows, open unless folded on this device. */
   protected readonly doneOpen = this.fold.open;
   protected readonly members = computed((): Person[] =>

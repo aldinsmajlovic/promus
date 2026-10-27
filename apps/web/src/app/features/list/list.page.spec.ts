@@ -92,14 +92,18 @@ async function setup(
   return { db, store, listId, fixture, el, loader, sync, server, fetch, members, householdId };
 }
 
-/** Puts `adds` on the list as pulled from the server, later than the local adds, so each names who added it. */
-async function pull(t: Awaited<ReturnType<typeof setup>>, adds: [name: string, userId: string][]) {
+/** Puts `adds` on the list as pulled from the server, later than the local adds, so each names who added it; or checks. */
+async function pull(
+  t: Awaited<ReturnType<typeof setup>>,
+  adds: [name: string, userId: string][],
+  type: 'entry.added' | 'entry.checked' = 'entry.added',
+) {
   const later = Date.now() + 60_000;
   const events = adds.map(
     ([name, userId], i): StoredEvent => ({
       id: newId(),
       householdId: t.householdId,
-      type: 'entry.added',
+      type,
       v: 1,
       hlc: formatHlc(later + i, 0, 'other'),
       occurredAt: later + i,
@@ -800,6 +804,21 @@ describe('ListPage', () => {
     // under the rows to get, above Done
     const order = [...t.el.querySelectorAll('main ul, main .total, main [aria-expanded]')].map((e) => e.tagName);
     expect(order).toEqual(['UL', 'P', 'BUTTON', 'UL']);
+  });
+
+  it('when more than one paid, it shows what each paid: whoever checked a priced row in Done off', async () => {
+    const t = await setup([['Mjölk'], ['Bröd'], ['Ost']], ['Sam']);
+    const [milk, bread, cheese] = [itemId(t.store, 'Mjölk'), itemId(t.store, 'Bröd'), itemId(t.store, 'Ost')];
+    await t.store.setQuantity(t.listId, milk, 3);
+    await t.store.setPrices([{ itemId: milk, price: 1490 }, { itemId: bread, price: 3500 }, { itemId: cheese, price: 9000 }]);
+    await t.store.check(t.listId, milk);
+    await t.fixture.whenStable();
+    // only you so far: nothing to split
+    expect(t.el.querySelector('.paid')).toBeNull();
+
+    await pull(t, [['Bröd', t.members[1]!.id], ['Ost', t.members[1]!.id]], 'entry.checked');
+    await t.fixture.whenStable();
+    expect(text(t.el.querySelector('.paid'))).toBe('Betalat: Sam 125 kr · Du 45 kr');
   });
 
   it('the rows without a price are priced in one sheet, with one undo', async () => {

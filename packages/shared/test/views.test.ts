@@ -22,6 +22,11 @@ describe('views', () => {
     expect(listView(s, L, NOW, sv).active[0]!.addedBy).toBe('u1');
   });
 
+  it('Done rows carry who checked them off', () => {
+    const s = fold([...base, item('milk', 'Mjölk', 2), ...buy('milk', NOW - H).map((e, i) => (i ? { ...e, userId: 'u2' } : e))]);
+    expect(listView(s, L, NOW, sv).done[0]!.checkedBy).toBe('u2');
+  });
+
   it("rows carry their quantity and their item's price", () => {
     const s = fold([
       ...base,
