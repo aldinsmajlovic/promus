@@ -16,13 +16,13 @@ In Latin, a *promus* is the household steward who brings provisions out of the s
 - Works fully offline in the store. Changes sync when the server is reachable, with nothing lost or duplicated.
 - Checked items move to a Done section and leave the list after 24 hours.
 - Every action can be undone from the snackbar. There are no confirmation dialogs.
-- Share several lists and one item history with your household. Invite someone with a link or a QR code, and each person gets their own account.
+- Share several lists and one item history with your household. Invite someone with a link or a QR code, and each person gets their own account. Friends without one can use a single list from a link, until it expires.
 - Installs on Android and iPhone. Swedish and English, with light and dark themes.
 - Runs on your own server, with no public sign-up. Every change is kept with when it happened and who made it.
 
 ## Status
 
-Early: the list, search, offline sync, undo, the setup wizard and household invites are done, and being tried day to day.
+Early: the list, search, offline sync, undo, the setup wizard, household invites and shared lists are done, and being tried day to day.
 Stats, data export and a Home Assistant integration come next.
 
 ## Quick start
@@ -38,7 +38,7 @@ Put HTTPS in front of `http://127.0.0.1:8080` with whatever you use to expose se
 
 ## Documentation
 
-- [Self-hosting](docs/self-hosting.md): Docker, what HTTPS in front needs, the phone, invites, backups and updates.
+- [Self-hosting](docs/self-hosting.md): Docker, what HTTPS in front needs, the phone, invites, shared lists, backups and updates.
 - [Promus with systemd](docs/proxmox.md): built from source and run as a systemd service, for example in a Proxmox LXC container.
 - [Configuration](docs/configuration.md): the environment variables.
 - [Server commands](docs/cli.md): accounts and backups.
