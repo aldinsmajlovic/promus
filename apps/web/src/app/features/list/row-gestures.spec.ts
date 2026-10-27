@@ -33,7 +33,7 @@ function setup(swipe = true) {
     el.dispatchEvent(new PointerEvent(type, { pointerId: 1, clientX: x, clientY: y, button: 0, bubbles: true }));
   // the click a browser sends after pointerup
   const click = () => el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
-  return { host, el, fire, click };
+  return { fixture, host, el, fire, click };
 }
 
 describe('RowGestures', () => {
@@ -41,7 +41,11 @@ describe('RowGestures', () => {
     vi.useFakeTimers();
     HTMLElement.prototype.setPointerCapture = vi.fn();
   });
-  afterEach(() => vi.useRealTimers());
+  afterEach(() => {
+    vi.useRealTimers();
+    // a press disarms any click swallower a test left armed
+    document.dispatchEvent(new PointerEvent('pointerdown'));
+  });
 
   it('a still hold of 480 ms is held, and its click does nothing', () => {
     const { host, fire, click } = setup();
@@ -207,6 +211,29 @@ describe('RowGestures', () => {
       o.fire('pointerdown');
       o.click();
       expect(o.clicks()).toBe(1);
+      o.el.remove();
+    });
+
+    it('destroyed mid-press, the hold never fires and a later tap goes through', () => {
+      const { fixture, fire } = setup();
+      const o = other();
+      fire('pointerdown', 10, 10);
+      fixture.destroy();
+      vi.advanceTimersByTime(480);
+      o.click();
+      expect(o.clicks()).toBe(1);
+      o.el.remove();
+    });
+
+    it('destroyed after the hold, its click is still swallowed', () => {
+      const { fixture, host, fire } = setup();
+      const o = other();
+      fire('pointerdown', 10, 10);
+      vi.advanceTimersByTime(480);
+      expect(host.held).toBe(1);
+      fixture.destroy();
+      o.click();
+      expect(o.clicks()).toBe(0);
       o.el.remove();
     });
 

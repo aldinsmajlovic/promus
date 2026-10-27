@@ -132,7 +132,7 @@ li:has(.swiping, .swept) .swipe-bg {
   translate: -100%;
 }
 
-// the keyboard and screen reader path to a row's options, seen only when focused
+// the keyboard and screen reader path to a row's options, seen only when it or its row is focused
 .opts {
   position: absolute;
   inset-inline-end: 0.25rem;
@@ -143,6 +143,10 @@ li:has(.swiping, .swept) .swipe-bg {
     background: var(--promus-sheet);
     opacity: 1;
   }
+}
+
+li:has(.row:focus-visible) .opts {
+  opacity: 1;
 }
 
 .row {

@@ -1,4 +1,4 @@
-import { Directive, ElementRef, inject, input, output } from '@angular/core';
+import { DestroyRef, Directive, ElementRef, inject, input, output } from '@angular/core';
 
 export const HOLD_MS = 480;
 export const SLOP_PX = 8;
@@ -8,7 +8,7 @@ export const SWIPE_MAX_PX = 110;
 @Directive({
   selector: '[appRowGestures]',
   host: {
-    style: 'touch-action: pan-y; user-select: none; -webkit-touch-callout: none',
+    style: 'touch-action: pan-y; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none',
     '(pointerdown)': 'down($event)',
     '(pointermove)': 'move($event)',
     '(pointerup)': 'up()',
@@ -30,6 +30,11 @@ export class RowGestures {
   private x = 0;
   private y = 0;
   private dx = 0;
+
+  constructor() {
+    // a hold still pending would arm the swallower after the row is gone; one already armed stays, for its click
+    inject(DestroyRef).onDestroy(() => clearTimeout(this.timer));
+  }
 
   protected down(e: PointerEvent): void {
     if (e.button !== 0) return;

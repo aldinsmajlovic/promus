@@ -73,6 +73,14 @@ async function setup(items: [name: string, note?: string][] = [], others: string
   return { db, store, listId, fixture, el, loader, sync, members, householdId };
 }
 
+/** The app starting again on this device: its services anew, over the same database. */
+async function restart(db: PromusDb) {
+  TestBed.resetTestingModule();
+  configure(db);
+  await TestBed.inject(SessionService).load();
+  await TestBed.inject(Store).load();
+}
+
 function itemId(store: Store, name: string): string {
   const item = [...store.state().items.values()].find((i) => i.name === name);
   if (!item) throw new Error(`no item ${name}`);
@@ -143,16 +151,32 @@ describe('ListPage', () => {
     expect(rows(el, true)).toHaveLength(0);
     await vi.waitFor(async () => expect(await db.getMeta('doneFolded')).toBe(true));
 
+    await restart(db);
     const again = TestBed.createComponent(ListPage);
     await again.whenStable();
     expect(doneToggle(again.nativeElement)!.getAttribute('aria-expanded')).toBe('false');
     expect(rows(again.nativeElement, true)).toHaveLength(0);
   });
 
+  it('a fold that is not saved says so', async () => {
+    const failed = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const { db, el, fixture, store, listId, loader } = await setup([['Mjölk']]);
+    await store.check(listId, itemId(store, 'Mjölk'));
+    await fixture.whenStable();
+    vi.spyOn(db, 'setMeta').mockRejectedValueOnce(new Error('disk full'));
+    doneToggle(el)!.click();
+    await fixture.whenStable();
+    expect(doneToggle(el)!.getAttribute('aria-expanded')).toBe('false');
+    expect(await (await loader.getHarness(MatSnackBarHarness)).getMessage()).toBe('Ändringen kunde inte sparas');
+    expect(failed).toHaveBeenCalledWith('action failed', new Error('disk full'));
+    failed.mockRestore();
+  });
+
   it('rows only arrive once the whole list has shown, Done included', async () => {
     const t = await setup([['Mjölk'], ['Ost']]);
     await t.store.check(t.listId, itemId(t.store, 'Ost'));
-    // the list is loaded already; whether Done is folded is read only after it shows
+    // a cold start: the list is loaded already; whether Done is folded is read only after it shows
+    await restart(t.db);
     let release!: () => void;
     const held = new Promise<void>((r) => (release = r));
     const getMeta = t.db.getMeta.bind(t.db) as (key: string) => Promise<unknown>;
@@ -173,6 +197,37 @@ describe('ListPage', () => {
     spy.mockRestore();
   });
 
+  it('back from Add or find, Done shows at once and its rows stay still', async () => {
+    const t = await setup([['Mjölk'], ['Ost']]);
+    await t.store.check(t.listId, itemId(t.store, 'Ost'));
+    await t.fixture.whenStable();
+    t.fixture.destroy();
+    // read once, as the app started: the list page coming back doesn't read it again
+    const getMeta = vi.spyOn(t.db, 'getMeta');
+    const page = TestBed.createComponent(ListPage);
+    // jsdom runs no animations, so ask the page which class an arriving row would get: none as it first renders
+    expect(page.componentInstance['arriving']()).toBe('');
+    page.detectChanges();
+    // that first render had Done, so the list has shown in full: rows that come later arrive
+    expect(names(page.nativeElement, true)).toEqual(['Ost']);
+    expect(page.componentInstance['arriving']()).toBe('arrive');
+    expect(getMeta).not.toHaveBeenCalledWith('doneFolded');
+    getMeta.mockRestore();
+  });
+
+  it('a checked row leaves inert, so its focus can move on', async () => {
+    const { fixture, store, listId } = await setup([['Mjölk']]);
+    const page = fixture.componentInstance;
+    const mjolk = page['view']().active[0]!;
+    await store.check(listId, mjolk.itemId);
+    await fixture.whenStable();
+    const li = Object.assign(document.createElement('li'), { getAnimations: () => [] });
+    page['leave']({ target: li, animationComplete: vi.fn() }, mjolk);
+    expect(li.classList.contains('checked-off')).toBe(true);
+    expect(li.hasAttribute('inert')).toBe(true);
+    expect(li.hasAttribute('aria-hidden')).toBe(false);
+  });
+
   it('a Done row leaves at once, with no fold, unless it was swiped', async () => {
     const { fixture } = await setup([['Mjölk']]);
     const leaveDone = fixture.componentInstance['leaveDone'].bind(fixture.componentInstance);
@@ -181,7 +236,7 @@ describe('ListPage', () => {
     leaveDone({ target: li, animationComplete });
     expect(animationComplete).toHaveBeenCalledOnce();
     expect(li.classList.contains('checked-off')).toBe(false);
-    expect(li.hasAttribute('aria-hidden')).toBe(false);
+    expect(li.hasAttribute('inert')).toBe(false);
   });
 
   it('while Done is folded, a checked row still leaves and is counted', async () => {
@@ -358,6 +413,19 @@ describe('ListPage', () => {
     expect(el.querySelector('aside.sheet.panel app-add-or-find')).toBeTruthy();
     expect(el.querySelector('.dock')).toBeNull();
     expect(text(el)).not.toContain('Lägg till eller hitta');
+  });
+
+  it("on a computer, Add or find's snackbar is at the bottom, over the list", async () => {
+    const { el, fixture, loader } = await setup([['Mjölk']], [], true);
+    const input = el.querySelector<HTMLInputElement>('aside input')!;
+    input.value = 'Ost';
+    input.dispatchEvent(new Event('input'));
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+    await fixture.whenStable();
+    expect(await (await loader.getHarness(MatSnackBarHarness)).getMessage()).toBe('Ost tillagd');
+    const snack = document.querySelector<HTMLElement>('.mat-mdc-snack-bar-container')!;
+    expect(snack.classList).not.toContain('in-toolbar');
+    expect(snack.closest<HTMLElement>('.cdk-global-overlay-wrapper')?.style.alignItems).toBe('flex-end');
   });
 
   it('on a computer, item options open beside the row', async () => {

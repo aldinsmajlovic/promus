@@ -12,6 +12,7 @@ import { TranslocoTestingModule } from '@jsverse/transloco';
 import { entryKey, newId } from '@promus/shared';
 import { describe, expect, it, vi } from 'vitest';
 import sv from '../../../i18n/sv.json';
+import { CurrentList } from '../../core/current-list';
 import { PromusDb } from '../../core/db';
 import { registerIcons } from '../../core/icons';
 import { Store } from '../../core/store';
@@ -255,6 +256,32 @@ describe('AddPage', () => {
     expect(onListNow(t, 'Kaffe')).toBe(true);
     expect(await t.db.outbox.count()).toBe(outbox + 1);
     expect(tag(rowEls(t)[0]!)).toBe('Tillagd');
+  });
+
+  it('Added lasts until you type', async () => {
+    const t = await setup([['Kaffe', 3]]);
+    await tap(t, rowEls(t)[0]!);
+    expect(tag(rowEls(t)[0]!)).toBe('Tillagd');
+
+    await type(t, 'kaf');
+    expect([tag(rowEls(t)[0]!), rowEls(t)[0]!.hasAttribute('disabled')]).toEqual(['På listan', false]);
+    await tap(t, rowEls(t)[0]!);
+    expect(await (await t.loader.getHarness(MatSnackBarHarness)).getMessage()).toBe('Kaffe avbockad');
+  });
+
+  it('Added stays with the list it was added to', async () => {
+    const t = await setup([['Kaffe', 3]]);
+    await tap(t, rowEls(t)[0]!);
+    expect(tag(rowEls(t)[0]!)).toBe('Tillagd');
+
+    const { listId: other } = await t.store.createList('Apotek');
+    TestBed.inject(CurrentList).select(other);
+    await t.fixture.whenStable();
+    expect(titles(t)).toEqual(['Kaffe']);
+    // added there by someone else, as the row shows
+    await t.store.addItem(other, itemId(t.store, 'Kaffe'));
+    await t.fixture.whenStable();
+    expect([tag(rowEls(t)[0]!), rowEls(t)[0]!.hasAttribute('disabled')]).toEqual(['På listan', false]);
   });
 
   it('a failed add leaves the row tappable', async () => {

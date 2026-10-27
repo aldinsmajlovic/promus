@@ -3,6 +3,7 @@ import {
   Component,
   DOCUMENT,
   ElementRef,
+  Injectable,
   Injector,
   PendingTasks,
   runInInjectionContext,
@@ -38,6 +39,35 @@ import { RowGestures } from './row-gestures';
 
 type Rows = Signal<readonly ElementRef<HTMLElement>[]>;
 
+/**
+ * Whether Done is open on this device, kept in meta `doneFolded`. Read once, so a list page coming back from
+ * Add or find shows Done at once.
+ */
+@Injectable({ providedIn: 'root' })
+class DoneFold {
+  private readonly db = inject(PromusDb);
+  private readonly actions = inject(Actions);
+  // undefined until read from meta
+  private readonly state = signal<boolean | undefined>(undefined);
+  readonly open = this.state.asReadonly();
+
+  constructor() {
+    inject(PendingTasks).run(async () => {
+      const folded = await this.db.getMeta('doneFolded').catch((err: unknown) => {
+        console.error('reading doneFolded failed', err);
+        return false;
+      });
+      this.state.set(!folded);
+    });
+  }
+
+  toggle(): void {
+    const open = !this.state();
+    this.state.set(open);
+    this.db.setMeta('doneFolded', !open).catch((err: unknown) => this.actions.failed(err));
+  }
+}
+
 @Component({
   selector: 'app-list-page',
   imports: [
@@ -59,7 +89,7 @@ type Rows = Signal<readonly ElementRef<HTMLElement>[]>;
 export class ListPage {
   private readonly store = inject(Store);
   private readonly current = inject(CurrentList);
-  private readonly db = inject(PromusDb);
+  private readonly fold = inject(DoneFold);
   private readonly actions = inject(Actions);
   private readonly injector = inject(Injector);
   private readonly doc = inject(DOCUMENT);
@@ -78,25 +108,19 @@ export class ListPage {
     if (!list) return { active: [], done: [] };
     return listView(this.store.state(), list.id, this.store.now(), this.current.collator());
   });
-  /** Undefined until meta `doneFolded` is read; then Done shows, open unless folded on this device. */
-  protected readonly doneOpen = signal<boolean | undefined>(undefined);
+  /** Undefined until meta `doneFolded` is first read; then Done shows, open unless folded on this device. */
+  protected readonly doneOpen = this.fold.open;
   protected readonly sharedWith = computed(() =>
     new Intl.ListFormat(this.lang(), { type: 'conjunction' }).format(this.household.others().map((m) => m.username)),
   );
   // the list the last render showed in full, Done included: rows arriving in it or leaving it move, a list that
   // loads or switches just shows. Angular runs the enter and leave animations after rendering, before this is
-  // updated in the read phase. Done waits on its own meta read, so its first rows would arrive if this were set before.
+  // updated in the read phase. On a cold start Done waits on its meta read, so its first rows would arrive if this
+  // were set before.
   private shown: string | undefined;
 
   constructor() {
     void this.household.refresh();
-    inject(PendingTasks).run(async () => {
-      const folded = await this.db.getMeta('doneFolded').catch((err: unknown) => {
-        console.error('reading doneFolded failed', err);
-        return false;
-      });
-      this.doneOpen.set(!folded);
-    });
     afterRenderEffect({
       read: () => {
         this.shown = this.doneOpen() === undefined ? undefined : this.list()?.id;
@@ -128,9 +152,7 @@ export class ListPage {
   }
 
   protected toggleDone(): void {
-    const open = !this.doneOpen();
-    this.doneOpen.set(open);
-    this.db.setMeta('doneFolded', !open).catch((err: unknown) => this.actions.failed(err));
+    this.fold.toggle();
   }
 
   /** Who added an active row, when that was someone else in the household. */
@@ -143,14 +165,15 @@ export class ListPage {
   }
 
   /**
-   * A row checked off pops its circle, strikes its name and folds, hidden from screen readers meanwhile since
-   * its Done copy is already there. A swiped one stays until its slide out has finished; any other just goes.
+   * A row checked off pops its circle, strikes its name and folds, inert meanwhile since its Done copy is already
+   * there: hidden from screen readers, and its focus moves on. A swiped one stays until its slide out has finished;
+   * any other just goes.
    */
   protected leave({ target, animationComplete }: AnimationCallbackEvent, e: EntryView): void {
     if (target.querySelector('.swept')) return this.afterAnimations(target, animationComplete);
     const checked = this.view().done.some((d) => d.itemId === e.itemId);
     if (!checked || this.list()?.id !== this.shown) return animationComplete();
-    target.setAttribute('aria-hidden', 'true');
+    target.setAttribute('inert', '');
     target.classList.add('checked-off');
     this.afterAnimations(target, animationComplete);
   }

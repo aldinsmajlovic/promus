@@ -2,6 +2,7 @@
 
 What changed from the original plan, and why. Newest first, one line each.
 
+- **2026-10-26, the empty list.** A basket in a tinted circle, "Nothing on Shopping list yet" and a pointer to Add or find, instead of one grey sentence. A new list looked dead rather than ready to fill.
 - **2026-10-26, Settings as rows that lead to pages.** Your account and the household each get a page, and theme and language change in place. More to explore, less on screen at once.
 - **2026-10-26, computer layout.** On a computer the list and an always-open Add or find sit side by side under the band, so items can be typed one after another and seen landing. Tablets held upright get the phone layout in a centered column.
 - **2026-10-26, Add or find is the search.** Typing finds items already on the list, and they check off right there. The owner asked for search, and this covers it without a second field.

@@ -48,6 +48,7 @@
         [formControl]="query"
         [placeholder]="t('add.placeholder')"
         [attr.aria-label]="t('add.placeholder')"
+        (input)="typed()"
         (keydown.enter)="enter()"
       />
       @if (text()) {

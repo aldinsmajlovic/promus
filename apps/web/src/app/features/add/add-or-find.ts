@@ -1,4 +1,14 @@
-import { Component, ElementRef, afterNextRender, computed, inject, signal, untracked, viewChild } from '@angular/core';
+import {
+  Component,
+  ElementRef,
+  afterNextRender,
+  computed,
+  inject,
+  linkedSignal,
+  signal,
+  untracked,
+  viewChild,
+} from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { MatIconButton } from '@angular/material/button';
@@ -8,11 +18,13 @@ import { TranslocoDirective } from '@jsverse/transloco';
 import { cleanName, frequentItems, normalizeName } from '@promus/shared';
 import { Actions, refuse } from '../../core/actions';
 import { CurrentList } from '../../core/current-list';
+import { WIDE } from '../../core/layout';
 import { Store, ValidationError } from '../../core/store';
 import { type SearchResult, resultOf, searchItems, segments } from './search';
 
-// at the bottom it would sit on the field; `in-toolbar` keeps it off the rows and Close uncovered
-export const SNACK: MatSnackBarConfig = { verticalPosition: 'top', panelClass: 'in-toolbar' };
+// on a phone, at the bottom it would sit on the field; `in-toolbar` keeps it off the rows and Close uncovered.
+// On a computer, the bottom one sits over the list, beside the panel (styles.scss)
+const SNACK: MatSnackBarConfig = { verticalPosition: 'top', panelClass: 'in-toolbar' };
 const FLASH_MS = 600;
 
 /** Adds items and finds the ones already on the list, which check off and back right here. */
@@ -28,12 +40,19 @@ export class AddOrFind {
   private readonly input = viewChild.required<ElementRef<HTMLInputElement>>('input');
   private readonly list = inject(CurrentList).list;
   private readonly listId = computed(() => this.list()?.id);
+  private readonly wide = inject(WIDE);
   protected readonly query = new FormControl('', { nonNullable: true });
   protected readonly text = toSignal(this.query.valueChanges, { initialValue: '' });
   /** The row just added and the text it was found with: the field clears, the rows stay a moment. */
   protected readonly flash = signal<{ itemId: string; text: string } | null>(null);
-  /** Added in this visit: while still on the list these rows say so and are inert, so a double tap can't add an item and check it off. */
-  protected readonly added = signal<ReadonlySet<string>>(new Set());
+  /**
+   * Added in this visit, until you type or switch lists: while still on the list these rows say so and are inert,
+   * so a double tap can't add an item and check it off. A computer's panel stays open, so typing ends a visit there.
+   */
+  protected readonly added = linkedSignal<string | undefined, ReadonlySet<string>>({
+    source: this.listId,
+    computation: () => new Set(),
+  });
   /** Adds that haven't settled: a second tap meanwhile does nothing. */
   private readonly adding = new Set<string>();
   private readonly needle = computed(() => this.text() || (this.flash()?.text ?? ''));
@@ -73,12 +92,16 @@ export class AddOrFind {
     afterNextRender(() => this.input().nativeElement.focus());
   }
 
+  private snack(): MatSnackBarConfig {
+    return this.wide() ? {} : SNACK;
+  }
+
   protected async tap(r: SearchResult): Promise<void> {
     const listId = this.listId();
     if (!listId || (r.state !== 'none' && this.added().has(r.itemId))) return;
     if (r.state === 'none') await this.add(r);
-    else if (r.state === 'active') await this.actions.run(this.store.check(listId, r.itemId), SNACK);
-    else await this.actions.run(this.store.uncheck(listId, r.itemId), SNACK);
+    else if (r.state === 'active') await this.actions.run(this.store.check(listId, r.itemId), this.snack());
+    else await this.actions.run(this.store.uncheck(listId, r.itemId), this.snack());
   }
 
   private async add(r: SearchResult): Promise<void> {
@@ -90,7 +113,7 @@ export class AddOrFind {
     const text = this.needle();
     let token;
     try {
-      token = await this.actions.run(this.store.addItem(listId, r.itemId), SNACK);
+      token = await this.actions.run(this.store.addItem(listId, r.itemId), this.snack());
     } finally {
       this.adding.delete(r.itemId);
       // a failed add leaves nothing marked
@@ -123,11 +146,16 @@ export class AddOrFind {
     const listId = this.listId();
     if (!listId) return;
     try {
-      if (await this.actions.run(this.store.addByName(listId, this.query.value), SNACK)) this.cleared();
+      if (await this.actions.run(this.store.addByName(listId, this.query.value), this.snack())) this.cleared();
     } catch (err) {
       if (!(err instanceof ValidationError)) throw err;
       refuse(this.query, err);
     }
+  }
+
+  /** The field's own input, not the add clearing it: Added rows stay inert through a double tap. */
+  protected typed(): void {
+    this.added.set(new Set());
   }
 
   protected cleared(): void {
