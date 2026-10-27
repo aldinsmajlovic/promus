@@ -344,6 +344,19 @@ describe('SharePage', () => {
     expect(t.el().textContent).toContain(sv.guest.ask);
   });
 
+  it('a link this phone joined, opened again after it ended, takes its data with it, so offline it opens nothing', async () => {
+    let check = () => error('share_invalid', 404);
+    const t = await setup({ check: () => check() });
+    await t.joinedHere();
+    await t.harness.navigateByUrl(`/share#${t.token}`);
+    await vi.waitFor(() => expect(t.router.url).toBe('/share/ended'));
+    expect(await Dexie.exists(`promus-guest-${t.shareId}`)).toBe(false);
+    check = offline;
+    await t.harness.navigateByUrl(`/share#${t.token}`);
+    await vi.waitFor(() => expect(t.el().querySelector('[role="alert"]')?.textContent).toContain(sv.login.offline));
+    expect(t.router.url).toBe(`/share#${t.token}`);
+  });
+
   it('without a token, the link has ended', async () => {
     const t = await setup();
     await t.harness.navigateByUrl('/share');

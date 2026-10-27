@@ -204,7 +204,7 @@ export class SharePage {
 
   private failed(err: unknown, sharedBy: string | null): void {
     const code = err instanceof ApiError ? err.code : null;
-    if (code === 'share_invalid' || code === 'share_ended') void this.ended(sharedBy);
+    if (code === 'share_invalid' || code === 'share_ended') void this.forget(sharedBy);
     else if (code === 'share_full') void this.ended(sharedBy, true);
     else if (code === 'name_too_long') {
       this.name.setErrors(TOO_LONG);
@@ -217,6 +217,13 @@ export class SharePage {
       console.error('opening the link failed', err);
       this.error.set('guest.failed');
     }
+  }
+
+  /** The link is over: this browser's data of it goes too, as on the link's own page, or offline it would open. */
+  private async forget(sharedBy: string | null): Promise<void> {
+    const shareId = await this.joinedHere();
+    if (shareId) await Dexie.delete(`promus-guest-${shareId}`);
+    await this.ended(sharedBy);
   }
 
   // the person goes in the navigation's state, never the URL: the server logs paths

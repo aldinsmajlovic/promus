@@ -285,16 +285,20 @@ describe('guest mode', () => {
   });
 
   it.each([false, true])(
-    'without its cookie, a note typed in the open options is kept, and nothing says otherwise (computer: %s)',
+    'without its cookie, a note and a name typed in the open options are kept, and nothing says otherwise (computer: %s)',
     async (wide) => {
-      // the dialog takes its animation's time to close, as in a browser (jsdom never starts a bottom sheet's)
-      const t = await setup(wide, wide);
+      // the options take their animation's time to close, as in a browser
+      const t = await setup(wide, true);
       const taco = await joined(['Tortillas']);
       await t.open(taco.url);
       t.harness.routeNativeElement!.querySelector<HTMLElement>('[aria-label="Alternativ för Tortillas"]')!.click();
       const options = await (wide ? t.loader.getHarness(MatDialogHarness) : t.loader.getHarness(MatBottomSheetHarness));
-      const note = await options.getHarness(MatFormFieldHarness.with({ floatingLabelText: 'Anteckning' }));
-      await (await note.getControl(MatInputHarness))!.setValue('majs');
+      const field = async (label: string) => {
+        const box = await options.getHarness(MatFormFieldHarness.with({ floatingLabelText: label }));
+        return (await box.getControl(MatInputHarness))!;
+      };
+      await (await field('Anteckning')).setValue('majs');
+      await (await field('Namn')).setValue('Tortillas XL');
       const log = vi.spyOn(console, 'error');
       onTestFinished(() => log.mockRestore());
       // a browser's, which the note's first save asks to keep the link's data
@@ -307,11 +311,20 @@ describe('guest mode', () => {
           : url.startsWith('/api/guest/')
             ? error('unauthenticated', 401)
             : undefined;
-      await t.guestOf(SyncService).syncNow();
+      const synced = t.guestOf(SyncService).syncNow();
+      if (!wide) {
+        // jsdom never runs a bottom sheet's animation: it ends here, as a phone's does, a while after it starts
+        const sheet = document.querySelector('mat-bottom-sheet-container')!;
+        await vi.waitFor(() => expect(sheet.hasAttribute('mat-exit')).toBe(true));
+        await new Promise((resolve) => setTimeout(resolve, 150));
+        sheet.dispatchEvent(Object.assign(new Event('animationend'), { animationName: '_mat-bottom-sheet-exit' }));
+      }
+      await synced;
       await vi.waitFor(() => expect(t.router.url).toBe(`/share#${taco.token}`));
       await t.harness.fixture.whenStable();
-      const outbox = await new PromusDb(taco.name).outbox.toArray();
-      expect(outbox.map((r) => r.event)).toContainEqual(expect.objectContaining({ type: 'entry.noteSet' }));
+      const outbox = (await new PromusDb(taco.name).outbox.toArray()).map((r) => r.event);
+      expect(outbox).toContainEqual(expect.objectContaining({ type: 'entry.noteSet' }));
+      expect(outbox).toContainEqual(expect.objectContaining({ type: 'item.renamed' }));
       expect(log).not.toHaveBeenCalled();
       expect(await t.loader.getAllHarnesses(MatSnackBarHarness)).toHaveLength(0);
     },
@@ -586,7 +599,10 @@ describe("the guest's screens", () => {
       return text;
     };
     expect(await options('Gurka')).not.toContain(sv.edit.addedByYou);
-    expect(await options('Korv')).toContain(sv.edit.addedByYou);
+    const own = await options('Korv');
+    expect(own).toContain(sv.edit.addedByYou);
+    // who's a guest is for the others
+    expect(own).not.toContain(sv.edit.guestOnList);
   });
 
   it.each([false, true])(

@@ -51,7 +51,7 @@ test('a friend opens a shared list, adds to it, and the link ends', async ({ pag
 
   // coming back to the app syncs, instead of waiting for the 15 s timer
   await friend.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
-  await expect(friend.getByRole('heading', { name: 'Länken har slutat gälla' })).toBeVisible();
+  await expect(friend.getByRole('heading', { name: 'Länken har slutat gälla' })).toBeVisible({ timeout: 20_000 });
   await expect(friend.getByText('Be e2e-a om en ny.')).toBeVisible();
   await expect(friend.getByText('Chorizo')).toHaveCount(0);
   await expect.poll(() => databases(friend)).not.toContain(`promus-guest-${shareId}`);

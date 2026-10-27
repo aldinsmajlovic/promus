@@ -22,7 +22,7 @@ export class Face {
   private readonly household = inject(Household);
   readonly member = input.required<{ id: string; username: string }>();
   readonly badge = input<string | null>(null);
-  /** A guest of a shared list, marked with a thin white ring. */
+  /** A guest of a shared list, marked with a ring in the face's own ink. */
   readonly guest = input(false);
   protected readonly initial = computed(() => initialOf(this.member().username));
   protected readonly tone = computed(() => faceTone(this.member().id, this.member().id === this.household.you()));

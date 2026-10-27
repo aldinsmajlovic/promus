@@ -1,4 +1,4 @@
-import { DestroyRef, EnvironmentInjector, Injector, type Provider, inject } from '@angular/core';
+import { ApplicationRef, DestroyRef, EnvironmentInjector, Injector, type Provider, inject } from '@angular/core';
 import { MatBottomSheet } from '@angular/material/bottom-sheet';
 import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -39,7 +39,9 @@ const linkEnded = (api: ApiClient, token: string): Promise<boolean> =>
  */
 function guestDb(): PromusDb {
   const db = new PromusDb(`promus-guest-${inject(GUEST)?.shareId}`);
-  // false: Dexie's own handler would close it to reopen on the next read
+  // false: Dexie's own handler would close it to reopen on the next read.
+  // ponytail: when another tab deletes it, this tab stays on the list: its sync fails every 15 s and every action says
+  // "Couldn't save the change" until a reload. Upgrade path: go to the ended page on versionchange
   db.on('versionchange', () => {
     db.close();
     return false;
@@ -60,6 +62,7 @@ function authFailed(): (err: AuthError) => Promise<void> {
   const sheet = inject(MatBottomSheet);
   const dialog = inject(MatDialog);
   const snackBar = inject(MatSnackBar);
+  const app = inject(ApplicationRef);
   // SyncService injects this, so it's looked up when called
   const injector = inject(Injector);
   return async (err) => {
@@ -67,7 +70,7 @@ function authFailed(): (err: AuthError) => Promise<void> {
     const live = guest !== undefined && err.code !== 'share_ended' && !(await linkEnded(api, guest.token));
     injector.get(SyncService).stop();
     // nothing of the list stays on screen over the page that follows. An item's options save what was typed in them
-    // as they close, into this page's database: the page, and its database, wait for that to start
+    // as they close, into this page's database: the page, and its database, wait for that save to end
     const sheetRef = sheet._openedBottomSheetRef;
     const closed = Promise.all([
       sheetRef && firstValueFrom(sheetRef.afterDismissed()),
@@ -77,6 +80,8 @@ function authFailed(): (err: AuthError) => Promise<void> {
     dialog.closeAll();
     snackBar.dismiss();
     await closed;
+    // a save holds the app unstable until it has written every field: Actions.run makes it a pending task
+    await app.whenStable();
     if (guest && live) {
       await router.navigate(['/share'], { fragment: guest.token, replaceUrl: true });
       return;

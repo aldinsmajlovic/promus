@@ -86,7 +86,8 @@ export function openItemOptions(data: EditSheetData, row: HTMLElement): void {
           <app-face [member]="{ id: b.id, username: byName }" [guest]="b.guest" />
           <span class="who">
             <b>{{ b.you ? t('edit.addedByYou') : t('list.addedBy', { name: byName }) }}</b>
-            @if (b.guest) {
+            <!-- tells the others who someone is: nothing to say to yourself -->
+            @if (b.guest && !b.you) {
               <span>{{ t('edit.guestOnList') }}</span>
             }
           </span>
