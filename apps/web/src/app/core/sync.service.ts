@@ -15,7 +15,7 @@ export type SyncStatus = {
 type Outcome = Pick<SyncStatus, 'kind' | 'messageKey'>;
 
 const SOON_MS = 2000;
-const EVERY_MS = 60_000;
+const EVERY_MS = 15_000;
 
 const messageOf = (err: unknown): string => {
   if (!(err instanceof ApiError)) return 'sync.failed';
@@ -32,7 +32,7 @@ function failure(err: unknown): Outcome {
   return { kind: 'error', messageKey: messageOf(err) };
 }
 
-/** Push then pull, in the background: on start, when visible, when online, every 60 s and after actions. */
+/** Push then pull, in the background: on start, when visible, when online, every 15 s and after actions. */
 @Injectable({ providedIn: 'root' })
 export class SyncService {
   private readonly store = inject(Store);

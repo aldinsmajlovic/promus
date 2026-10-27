@@ -2,7 +2,13 @@
   <!-- no name until the current list is known, rather than a wrong one first -->
   @let list = current.list();
   @if (list !== undefined) {
-    <button class="trigger" matRipple [matMenuTriggerFor]="menu" (menuClosed)="mode.set({ kind: 'lists' })">
+    <button
+      class="trigger"
+      matRipple
+      [matMenuTriggerFor]="menu"
+      (menuOpened)="shares.refresh()"
+      (menuClosed)="mode.set({ kind: 'lists' })"
+    >
       <span class="title brand">{{ list?.name ?? t('list.default') }}</span>
       <mat-icon svgIcon="arrow_drop_down" />
     </button>
@@ -24,6 +30,9 @@
         >
           <span class="menu-row">
             <span class="menu-name">{{ l.name }}</span>
+            @if (shares.liveFor(l.id)) {
+              <mat-icon class="shared" svgIcon="link" aria-hidden="false" [attr.aria-label]="t('share.shared')" />
+            }
             <span>{{ l.activeCount }}</span>
           </span>
         </button>
@@ -32,6 +41,11 @@
       <button mat-menu-item (click)="$event.stopPropagation(); open({ kind: 'new' })">
         <mat-icon svgIcon="add" />{{ t('list.new') }}
       </button>
+      @if (list) {
+        <button mat-menu-item (click)="share(list)">
+          <mat-icon svgIcon="share" />{{ t('share.title', { list: list.name }) }}
+        </button>
+      }
     } @else if (m.kind === 'actions') {
       <div class="heading">{{ m.list.name }}</div>
       <button mat-menu-item (click)="$event.stopPropagation(); open({ kind: 'rename', list: m.list })">

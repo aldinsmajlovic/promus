@@ -196,7 +196,7 @@ describe('SyncService', () => {
     await vi.waitFor(() => expect(sync.status()).toMatchObject({ kind: 'idle', pending: 0 }));
   });
 
-  it('syncs on start, when visible, when online, every 60 s while visible and 2 s after soon()', async () => {
+  it('syncs on start, when visible, when online, every 15 s while visible and 2 s after soon()', async () => {
     const { sync } = await setup(async (events) => accepted(events));
     const syncNow = vi.spyOn(sync, 'syncNow').mockResolvedValue();
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] });
@@ -221,12 +221,14 @@ describe('SyncService', () => {
     window.dispatchEvent(new Event('online'));
     document.dispatchEvent(new Event('visibilitychange'));
     expect(syncNow).toHaveBeenCalledTimes(4);
-    vi.advanceTimersByTime(57_000);
+    vi.advanceTimersByTime(11_999);
+    expect(syncNow).toHaveBeenCalledTimes(4);
+    vi.advanceTimersByTime(1);
     expect(syncNow).toHaveBeenCalledTimes(5);
 
     const hidden = vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden');
     document.dispatchEvent(new Event('visibilitychange'));
-    vi.advanceTimersByTime(60_000);
+    vi.advanceTimersByTime(15_000);
     hidden.mockRestore();
     expect(syncNow).toHaveBeenCalledTimes(5);
 

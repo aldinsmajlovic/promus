@@ -66,6 +66,15 @@
   text-overflow: ellipsis;
 }
 
+// mat-menu-item sizes and colors its icons; this one marks the row, so it is smaller and muted
+.menu-row .shared {
+  width: 1.125rem;
+  height: 1.125rem;
+  margin: 0;
+  align-self: center;
+  color: var(--mat-sys-on-surface-variant);
+}
+
 .selected {
   background: var(--mat-sys-secondary-container);
   color: var(--mat-sys-on-secondary-container);

@@ -6,6 +6,11 @@ import { ApiClient, FETCH } from './api';
 const json = (status: number, body: unknown) =>
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
 
+const L = '0190a3b2-0000-7000-8000-000000000001';
+
+const calls = (fetch: ReturnType<typeof vi.fn<typeof globalThis.fetch>>) =>
+  fetch.mock.calls.map(([url, init]) => [init?.method, url, init?.body && JSON.parse(init.body as string)]);
+
 function setup(fetch: typeof globalThis.fetch) {
   TestBed.configureTestingModule({ providers: [{ provide: FETCH, useValue: fetch }] });
   return TestBed.inject(ApiClient);
@@ -44,6 +49,52 @@ describe('ApiClient', () => {
       ['/api/sync/pull?after=7&limit=500', 'GET', 'same-origin'],
     ]);
     expect(JSON.parse(fetch.mock.calls[0]?.[1]?.body as string)).toEqual({ username: 'anna', password: 'secret' });
+  });
+
+  it('makes, ends and brings back links, and says whether a link was made', async () => {
+    const share = { id: 's1', listId: L, token: 'tok', expiresAt: 1, createdBy: 'u1' };
+    const fetch = vi
+      .fn<typeof globalThis.fetch>()
+      .mockResolvedValueOnce(json(201, share))
+      .mockResolvedValueOnce(json(200, share))
+      .mockResolvedValueOnce(json(200, { shares: [share], guests: [] }))
+      .mockResolvedValue(new Response(null, { status: 204 }));
+    const api = setup(fetch);
+    expect(await api.createShare(L)).toEqual({ share, created: true });
+    expect(await api.createShare(L)).toEqual({ share, created: false });
+    expect(await api.shares()).toEqual({ shares: [share], guests: [] });
+    await api.endShare('s1');
+    await api.restoreShare('s1');
+    expect(calls(fetch)).toEqual([
+      ['POST', '/api/shares', { listId: L }],
+      ['POST', '/api/shares', { listId: L }],
+      ['GET', '/api/shares', undefined],
+      ['DELETE', '/api/shares/s1', undefined],
+      ['POST', '/api/shares/s1/restore', undefined],
+    ]);
+  });
+
+  // the server logs every path
+  it('a guest sends the link only in bodies', async () => {
+    const fetch = vi.fn<typeof globalThis.fetch>(async () => json(200, {}));
+    const api = setup(fetch);
+    await api.checkShare('tok');
+    await api.joinShare('tok', 'Jonas');
+    await api.joinShare('tok');
+    await api.guestMe('s1');
+    await api.renameGuest('s1', 'Jo');
+    await api.guestSync('s1').push([]);
+    await api.guestSync('s1').pull(7, 500);
+    expect(calls(fetch)).toEqual([
+      ['POST', '/api/guest/check', { token: 'tok' }],
+      ['POST', '/api/guest/join', { token: 'tok', name: 'Jonas' }],
+      ['POST', '/api/guest/join', { token: 'tok' }],
+      ['GET', '/api/guest/s1/me', undefined],
+      ['PUT', '/api/guest/s1/name', { name: 'Jo' }],
+      ['POST', '/api/guest/s1/push', { events: [] }],
+      ['GET', '/api/guest/s1/pull?after=7&limit=500', undefined],
+    ]);
+    expect(fetch.mock.calls.some(([url]) => String(url).includes('tok'))).toBe(false);
   });
 
   // through the service worker, no network is a 504 response rather than a failed fetch

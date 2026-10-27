@@ -133,6 +133,15 @@
     "step": "Step {{n}} of {{total}}",
     "title": "Set up Promus"
   },
+  "share": {
+    "copy": "Copy",
+    "end": "End link",
+    "intro": "Anyone with this link can add, change and check off items on this list. They see nothing else of yours, and they don't need an account.",
+    "share": "Share",
+    "shared": "Shared by link",
+    "title": "Share {{list}}",
+    "until": "Works until"
+  },
   "snack": {
     "added": "{{name}} added",
     "archived": "{{name}} removed from suggestions",
@@ -146,6 +155,8 @@
     "noteSet": "Note saved",
     "removed": "{{name}} removed",
     "renamed": "Renamed to {{name}}",
+    "shareEnded": "Link ended",
+    "shareMade": "Link made",
     "unchecked": "{{name}} back on the list",
     "undo": "Undo"
   },

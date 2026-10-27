@@ -3,12 +3,29 @@ import {
   ApiError,
   AuthError,
   NetworkError,
+  guestNameSchema,
   inviteAcceptSchema,
   inviteTokenSchema,
   loginRequestSchema,
   setupRequestSchema,
+  shareCreateSchema,
+  shareJoinSchema,
+  shareTokenSchema,
 } from '@promus/shared';
-import type { EventInput, InviteAccept, Member, PullResponse, PushResponse, SetupRequest, SyncApi } from '@promus/shared';
+import type {
+  EventInput,
+  GuestMe,
+  InviteAccept,
+  Member,
+  PullResponse,
+  PushResponse,
+  SetupRequest,
+  Share,
+  ShareCheck,
+  ShareJoined,
+  SharesResponse,
+  SyncApi,
+} from '@promus/shared';
 
 export type User = { id: string; username: string };
 
@@ -70,6 +87,49 @@ export class ApiClient implements SyncApi {
     return this.request('POST', '/api/invites/accept', inviteAcceptSchema.parse(req));
   }
 
+  /** The list's live link, or a new one: `created` says which. */
+  async createShare(listId: string): Promise<{ share: Share; created: boolean }> {
+    const res = await this.send<Share>('POST', '/api/shares', shareCreateSchema.parse({ listId }));
+    return { share: res.body, created: res.status === 201 };
+  }
+
+  shares(): Promise<SharesResponse> {
+    return this.request('GET', '/api/shares');
+  }
+
+  endShare(id: string): Promise<void> {
+    return this.request('DELETE', `/api/shares/${encodeURIComponent(id)}`);
+  }
+
+  restoreShare(id: string): Promise<void> {
+    return this.request('POST', `/api/shares/${encodeURIComponent(id)}/restore`);
+  }
+
+  checkShare(token: string): Promise<ShareCheck> {
+    return this.request('POST', '/api/guest/check', shareTokenSchema.parse({ token }));
+  }
+
+  joinShare(token: string, name?: string): Promise<ShareJoined> {
+    return this.request('POST', '/api/guest/join', shareJoinSchema.parse({ token, name }));
+  }
+
+  guestMe(shareId: string): Promise<GuestMe> {
+    return this.request('GET', `/api/guest/${encodeURIComponent(shareId)}/me`);
+  }
+
+  renameGuest(shareId: string, name: string): Promise<void> {
+    return this.request('PUT', `/api/guest/${encodeURIComponent(shareId)}/name`, guestNameSchema.parse({ name }));
+  }
+
+  /** Sync as a guest of one link: the same calls as the household's, scoped to its list. */
+  guestSync(shareId: string): SyncApi {
+    const base = `/api/guest/${encodeURIComponent(shareId)}`;
+    return {
+      push: (events) => this.request('POST', `${base}/push`, { events }),
+      pull: (after, limit) => this.request('GET', `${base}/pull?after=${after}&limit=${limit}`),
+    };
+  }
+
   push(events: EventInput[]): Promise<PushResponse> {
     return this.request('POST', '/api/sync/push', { events });
   }
@@ -79,6 +139,10 @@ export class ApiClient implements SyncApi {
   }
 
   private async request<T>(method: string, path: string, body?: unknown): Promise<T> {
+    return (await this.send<T>(method, path, body)).body;
+  }
+
+  private async send<T>(method: string, path: string, body?: unknown): Promise<{ status: number; body: T }> {
     let res: Response;
     let text: string;
     try {
@@ -98,7 +162,7 @@ export class ApiClient implements SyncApi {
       // fetch rejects with a TypeError when no response arrives, also when the body is cut off
       throw err instanceof TypeError ? new NetworkError(err.message, { cause: err }) : err;
     }
-    if (res.ok) return (text === '' ? undefined : JSON.parse(text)) as T;
+    if (res.ok) return { status: res.status, body: (text === '' ? undefined : JSON.parse(text)) as T };
     const code = errorCode(text);
     if (res.status === 401) throw new AuthError(code);
     throw new ApiError(res.status, code ?? 'unknown');

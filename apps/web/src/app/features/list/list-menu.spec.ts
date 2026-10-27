@@ -8,19 +8,39 @@ import { MatMenuHarness } from '@angular/material/menu/testing';
 import { MatSnackBarHarness } from '@angular/material/snack-bar/testing';
 import { provideRouter } from '@angular/router';
 import { TranslocoTestingModule } from '@jsverse/transloco';
-import { newId } from '@promus/shared';
+import { type Share, newId } from '@promus/shared';
 import { describe, expect, it, vi } from 'vitest';
 import sv from '../../../i18n/sv.json';
+import { FETCH } from '../../core/api';
 import { CurrentList } from '../../core/current-list';
 import { PromusDb } from '../../core/db';
 import { registerIcons } from '../../core/icons';
+import { ORIGIN } from '../../core/platform';
 import { SessionService } from '../../core/session';
 import { Store } from '../../core/store';
 import { SyncService, type SyncStatus } from '../../core/sync.service';
 import { ListMenu } from './list-menu';
 
+const link = (listId: string): Share => ({ id: 's1', listId, token: 'tok', expiresAt: Date.now() + 1000, createdBy: 'u1' });
+
 async function setup(second = true) {
   const db = new PromusDb(`menu-${newId()}`);
+  // the list's live link, once made or set by a test
+  const live: { share: Share | null } = { share: null };
+  const fetch = vi.fn<typeof globalThis.fetch>(async (url, init) => {
+    if (url === '/api/shares' && init?.method === 'GET')
+      return Response.json({ shares: live.share ? [live.share] : [], guests: [] });
+    if (url === '/api/shares' && init?.method === 'POST') {
+      const made = live.share === null;
+      live.share ??= link(JSON.parse(init.body as string).listId);
+      return Response.json(live.share, { status: made ? 201 : 200 });
+    }
+    if (url === '/api/shares/s1' && init?.method === 'DELETE') {
+      live.share = null;
+      return new Response(null, { status: 204 });
+    }
+    throw new Error(`unexpected ${init?.method} ${String(url)}`);
+  });
   await db.setMeta('session', {
     userId: newId(),
     username: 'anna',
@@ -30,6 +50,8 @@ async function setup(second = true) {
   TestBed.configureTestingModule({
     providers: [
       { provide: PromusDb, useValue: db },
+      { provide: FETCH, useValue: fetch },
+      { provide: ORIGIN, useValue: 'https://promus.example' },
       {
         provide: SyncService,
         useValue: {
@@ -62,7 +84,7 @@ async function setup(second = true) {
   const el: HTMLElement = fixture.nativeElement;
   const loader = TestbedHarnessEnvironment.documentRootLoader(fixture);
   const menu = await loader.getHarness(MatMenuHarness);
-  return { db, store, current, listId, fixture, el, loader, menu };
+  return { db, store, current, listId, fixture, el, loader, menu, fetch, live };
 }
 
 type T = Awaited<ReturnType<typeof setup>>;
@@ -70,6 +92,7 @@ type T = Awaited<ReturnType<typeof setup>>;
 const text = (el: Element | null) => el?.textContent?.replace(/\s+/g, ' ').trim() ?? '';
 const items = (t: T) => [...document.querySelectorAll<HTMLElement>('.mat-mdc-menu-panel [role^="menuitem"]')];
 const item = (t: T, label: RegExp) => items(t).find((i) => label.test(text(i)))!;
+const sheet = () => document.querySelector('mat-bottom-sheet-container');
 const input = () => document.querySelector<HTMLInputElement>('.mat-mdc-menu-panel input')!;
 
 async function typeName(t: T, name: string) {
@@ -223,5 +246,45 @@ describe('ListMenu', () => {
     await snackBar.dismissWithAction();
     await t.fixture.whenStable();
     expect(text(t.el.querySelector('button'))).toBe('Inköpslista');
+  });
+
+  it('Share {list} sits under the divider, after New list', async () => {
+    const t = await setup();
+    await t.menu.open();
+    expect(items(t).slice(2).map((i) => text(i))).toEqual(['Ny lista', 'Dela Inköpslista']);
+    expect(items(t)[2]?.previousElementSibling?.tagName).toBe('MAT-DIVIDER');
+  });
+
+  it('a list with a live link shows the link icon', async () => {
+    const t = await setup();
+    t.live.share = link(t.listId);
+    await t.menu.open();
+    const icon = (label: RegExp) => item(t, label).querySelector('mat-icon[svgicon="link"]');
+    await vi.waitFor(() => expect(icon(/^Inköpslista/)).not.toBeNull());
+    expect(icon(/^Inköpslista/)?.getAttribute('aria-label')).toBe(sv.share.shared);
+    expect(icon(/^Helg/)).toBeNull();
+  });
+
+  it('sharing makes a link and shows it, and Undo ends it', async () => {
+    const t = await setup();
+    await t.menu.open();
+    item(t, /^Dela/).click();
+    await vi.waitFor(() => expect(sheet()?.textContent).toContain('https://promus.example/share#tok'));
+    const body = JSON.stringify({ listId: t.listId });
+    expect(t.fetch).toHaveBeenCalledWith('/api/shares', expect.objectContaining({ method: 'POST', body }));
+    const snackBar = await t.loader.getHarness(MatSnackBarHarness);
+    expect(await snackBar.getMessage()).toBe('Länken skapad');
+    await snackBar.dismissWithAction();
+    await vi.waitFor(() => expect(sheet()).toBeNull());
+    await vi.waitFor(() => expect(t.live.share).toBeNull());
+  });
+
+  it('sharing a shared list shows its link, with nothing to undo', async () => {
+    const t = await setup();
+    t.live.share = link(t.listId);
+    await t.menu.open();
+    item(t, /^Dela/).click();
+    await vi.waitFor(() => expect(sheet()?.textContent).toContain('https://promus.example/share#tok'));
+    expect(await t.loader.getAllHarnesses(MatSnackBarHarness)).toEqual([]);
   });
 });

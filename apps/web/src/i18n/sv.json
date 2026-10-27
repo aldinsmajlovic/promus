@@ -133,6 +133,15 @@
     "step": "Steg {{n}} av {{total}}",
     "title": "Kom igång med Promus"
   },
+  "share": {
+    "copy": "Kopiera",
+    "end": "Avsluta länken",
+    "intro": "Alla med länken kan lägga till, ändra och bocka av varor på den här listan. De ser inget annat av ditt, och de behöver inget konto.",
+    "share": "Dela",
+    "shared": "Delad med länk",
+    "title": "Dela {{list}}",
+    "until": "Fungerar till"
+  },
   "snack": {
     "added": "{{name}} tillagd",
     "archived": "{{name}} borttagen från förslag",
@@ -146,6 +155,8 @@
     "noteSet": "Anteckning sparad",
     "removed": "{{name}} borttagen",
     "renamed": "Bytt namn till {{name}}",
+    "shareEnded": "Länken avslutad",
+    "shareMade": "Länken skapad",
     "unchecked": "{{name}} tillbaka på listan",
     "undo": "Ångra"
   },

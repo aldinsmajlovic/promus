@@ -15,6 +15,7 @@ import group from '@material-symbols/svg-400/rounded/group.svg';
 import historyToggleOff from '@material-symbols/svg-400/rounded/history_toggle_off.svg';
 import keyboardArrowDown from '@material-symbols/svg-400/rounded/keyboard_arrow_down.svg';
 import keyboardArrowUp from '@material-symbols/svg-400/rounded/keyboard_arrow_up.svg';
+import link from '@material-symbols/svg-400/rounded/link.svg';
 import logout from '@material-symbols/svg-400/rounded/logout.svg';
 import mobileArrowDown from '@material-symbols/svg-400/rounded/mobile_arrow_down.svg';
 import moreVert from '@material-symbols/svg-400/rounded/more_vert.svg';
@@ -52,6 +53,7 @@ const ICONS: Record<string, string> = {
   content_copy: contentCopy,
   person_add: personAdd,
   share,
+  link,
   shopping_basket: shoppingBasket,
   visibility,
   visibility_off: visibilityOff,

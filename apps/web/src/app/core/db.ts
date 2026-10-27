@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import type { EventInput, Member, HlcState, RejectedEvent, StoredEvent } from '@promus/shared';
+import type { EventInput, Member, HlcState, RejectedEvent, SharesResponse, StoredEvent } from '@promus/shared';
 import Dexie, { type Table } from 'dexie';
 import type { Lang } from './i18n';
 import type { ThemeMode } from './theme';
@@ -17,6 +17,7 @@ export type Meta = {
   deviceId: string;
   session: Session;
   members: Member[];
+  shares: SharesResponse;
   currentListId: string;
   lang: Lang | 'system';
   theme: ThemeMode;

@@ -84,7 +84,7 @@ test('works offline and syncs later', async ({ page, context, device }) => {
   await expect(page.getByText('Bröd tillagd')).toBeHidden({ timeout: 8_000 });
 
   await context.setOffline(false);
-  // `online` is a sync trigger, but Playwright fires none in a page loaded offline; the 60 s timer would catch it too
+  // `online` is a sync trigger, but Playwright fires none in a page loaded offline; the 15 s timer would catch it too
   await page.evaluate(() => window.dispatchEvent(new Event('online')));
   await expect(unsynced(page)).toBeHidden({ timeout: 70_000 });
   await settled(page, 'e2e-a');
