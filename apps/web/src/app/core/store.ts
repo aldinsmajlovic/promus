@@ -352,7 +352,10 @@ export class Store {
       // ponytail: changes are seen through counts, cursor and household. Another tab's restamp keeps all
       // four equal and shows at the next load; a change counter in `meta` would catch it.
       if (!sameSeen(this.latest, this.loaded)) await this.read();
-    }).catch((err: unknown) => console.error('store reload failed', err));
+    }).catch((err: unknown) => {
+      // a guest's page left mid-reload closed its database on purpose: nothing is shown to reload
+      if (!this.destroyRef.destroyed) console.error('store reload failed', err);
+    });
   }
 
   private async read(): Promise<void> {
