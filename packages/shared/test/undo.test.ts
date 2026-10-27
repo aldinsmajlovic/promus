@@ -10,13 +10,14 @@ const NOW = 1_000_000;
 const sv = new Intl.Collator('sv', { numeric: true });
 const e = (itemId: string) => ({ listId: L, itemId });
 
-// milk: active with a note, bread: checked, eggs: exists but not on the list
+// milk: active with a note, 3 of them and a price, bread: checked, eggs: exists but not on the list
 const setup = [
   ev('list.created', { listId: L, name: 'Hem' }, 1),
   ev('item.created', { itemId: 'milk', name: 'Mjölk' }, 2),
   ev('item.created', { itemId: 'bread', name: 'Bröd' }, 3),
   ev('item.created', { itemId: 'eggs', name: 'Ägg' }, 4),
-  ev('entry.added', { ...e('milk'), note: 'laktosfri' }, 5),
+  ev('entry.added', { ...e('milk'), note: 'laktosfri', quantity: 3 }, 5),
+  ev('item.priceSet', { itemId: 'milk', price: 1490 }, 5),
   ev('entry.added', e('bread'), 6),
   ev('entry.checked', e('bread'), 7),
 ];
@@ -32,11 +33,16 @@ const snapshot = (events: FoldEvent[]) => {
 const actions: [string, FoldEvent][] = [
   ['entry.added (absent)', ev('entry.added', { ...e('eggs'), note: 'stora' }, 100)],
   ['entry.added (active)', ev('entry.added', { ...e('milk'), note: 'havre' }, 100)],
+  ['entry.added (active, another quantity)', ev('entry.added', { ...e('milk'), quantity: 2 }, 100)],
   ['entry.checked', ev('entry.checked', e('milk'), 100)],
   ['entry.unchecked', ev('entry.unchecked', e('bread'), 100)],
   ['entry.removed (active)', ev('entry.removed', e('milk'), 100)],
   ['entry.removed (checked)', ev('entry.removed', e('bread'), 100)],
   ['entry.noteSet', ev('entry.noteSet', { ...e('milk'), note: 'lätt' }, 100)],
+  ['entry.quantitySet', ev('entry.quantitySet', { ...e('milk'), quantity: 6 }, 100)],
+  ['item.priceSet', ev('item.priceSet', { itemId: 'milk', price: 1690 }, 100)],
+  ['item.priceSet (cleared)', ev('item.priceSet', { itemId: 'milk', price: null }, 100)],
+  ['item.priceSet (the first)', ev('item.priceSet', { itemId: 'bread', price: 2500 }, 100)],
   ['item.created', ev('item.created', { itemId: 'tea', name: 'Te' }, 100)],
   ['item.renamed', ev('item.renamed', { itemId: 'milk', name: 'Havredryck' }, 100)],
   ['item.archived', ev('item.archived', { itemId: 'milk' }, 100)],
@@ -59,6 +65,8 @@ describe('inverseOf', () => {
     expect(inverseOf(ev('item.unarchived', { itemId: 'milk' }, 100), before)).toEqual([]);
     expect(inverseOf(ev('list.restored', { listId: L }, 100), before)).toEqual([]);
     expect(inverseOf(ev('entry.noteSet', { ...e('eggs'), note: 'x' }, 100), before)).toEqual([]);
+    expect(inverseOf(ev('entry.quantitySet', { ...e('eggs'), quantity: 2 }, 100), before)).toEqual([]);
+    expect(inverseOf(ev('item.priceSet', { itemId: 'nope', price: 100 }, 100), before)).toEqual([]);
   });
 
   it('undoing the creation of a new item hides it from suggestions', () => {

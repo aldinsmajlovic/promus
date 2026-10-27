@@ -22,6 +22,20 @@ describe('views', () => {
     expect(listView(s, L, NOW, sv).active[0]!.addedBy).toBe('u1');
   });
 
+  it("rows carry their quantity and their item's price", () => {
+    const s = fold([
+      ...base,
+      item('milk', 'Mjölk', 2),
+      item('bread', 'Bröd', 3),
+      ev('item.priceSet', { itemId: 'milk', price: 1490 }, 4),
+      ev('entry.added', { listId: L, itemId: 'milk', quantity: 3 }, 5),
+      ...buy('bread', NOW - H),
+    ]);
+    const { active, done } = listView(s, L, NOW, sv);
+    expect(active[0]).toMatchObject({ itemId: 'milk', quantity: 3, price: 1490 });
+    expect(done[0]).toMatchObject({ itemId: 'bread', quantity: 1, price: null });
+  });
+
   it('sorts active entries the Swedish way', () => {
     const names = ['Ägg', 'Bananer', 'Vispgrädde', 'Kaffe'];
     const s = fold([

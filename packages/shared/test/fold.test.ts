@@ -57,14 +57,14 @@ describe('fold', () => {
     expect(s.lists.get(L)).toEqual({ id: L, name: 'Hem', deleted: false, createdAt: 1000 });
     expect(s.items.get('milk')).toEqual({
       id: 'milk', name: 'Mjölk', normalized: 'mjölk', archived: false,
-      purchaseCount: 0, lastPurchasedAt: null, lastNote: 'laktosfri',
+      purchaseCount: 0, lastPurchasedAt: null, lastNote: 'laktosfri', price: null, lastQuantity: 1,
     });
     expect(s.items.get('bread')).toMatchObject({ purchaseCount: 1, lastPurchasedAt: 1005 });
     expect(s.entries.get(entryKey(L, 'milk'))).toEqual({
-      listId: L, itemId: 'milk', state: 'active', note: 'laktosfri', addedAt: 1003, checkedAt: null, addedBy: null,
+      listId: L, itemId: 'milk', state: 'active', note: 'laktosfri', addedAt: 1003, checkedAt: null, addedBy: null, quantity: 1,
     });
     expect(s.entries.get(entryKey(L, 'bread'))).toEqual({
-      listId: L, itemId: 'bread', state: 'checked', note: null, addedAt: 1004, checkedAt: 1005, addedBy: null,
+      listId: L, itemId: 'bread', state: 'checked', note: null, addedAt: 1004, checkedAt: 1005, addedBy: null, quantity: 1,
     });
     expect(s.skipped).toBe(0);
   });
@@ -226,6 +226,48 @@ describe('fold', () => {
     expect(after.entries.get(entryKey(L, 'milk'))?.note).toBe('laktosfri');
   });
 
+  it('sets, changes and clears a price, last by hlc', () => {
+    const price = (p: number | null, wall: number) => ev('item.priceSet', { itemId: 'milk', price: p }, wall);
+    const priceOf = (...es: FoldEvent[]) => fold([...setup, ...es]).items.get('milk')?.price;
+    expect(priceOf()).toBeNull();
+    expect(priceOf(price(1490, 3))).toBe(1490);
+    expect(priceOf(price(1490, 3), price(1690, 4))).toBe(1690);
+    expect(priceOf(price(1690, 4), price(1490, 3))).toBe(1690);
+    expect(priceOf(price(1490, 3), price(null, 4))).toBeNull();
+  });
+
+  it('a price set on an alias lands on the real item', () => {
+    const s = fold([
+      ...setup,
+      ev('item.created', { itemId: 'milk2', name: 'mjölk' }, 3),
+      ev('item.priceSet', { itemId: 'milk2', price: 1490 }, 4),
+    ]);
+    expect(s.items.get('milk')?.price).toBe(1490);
+    expect(s.items.has('milk2')).toBe(false);
+  });
+
+  it('takes the quantity from the add, 1 without one, and keeps it through checks', () => {
+    const quantityOf = (...es: FoldEvent[]) => fold([...setup, ...es]).entries.get(entryKey(L, 'milk'))?.quantity;
+    expect(quantityOf(ev('entry.added', entry, 3))).toBe(1);
+    expect(quantityOf(ev('entry.added', { ...entry, quantity: 3 }, 3))).toBe(3);
+    expect(quantityOf(ev('entry.added', entry, 3), ev('entry.quantitySet', { ...entry, quantity: 4 }, 4))).toBe(4);
+    const checked = [ev('entry.added', { ...entry, quantity: 3 }, 3), ev('entry.checked', entry, 4)];
+    expect(quantityOf(...checked)).toBe(3);
+    expect(quantityOf(...checked, ev('entry.unchecked', entry, 5))).toBe(3);
+    expect(quantityOf(...checked, ev('entry.added', entry, 5))).toBe(1);
+  });
+
+  it('remembers the last quantity as it remembers the last note', () => {
+    const last = (...es: FoldEvent[]) => fold([...setup, ...es]).items.get('milk')?.lastQuantity;
+    expect(last()).toBe(1);
+    expect(last(ev('entry.added', { ...entry, quantity: 3 }, 3))).toBe(3);
+    // an add without one, as every add from before quantities, leaves it alone
+    expect(last(ev('entry.added', { ...entry, quantity: 3 }, 3), ev('entry.removed', entry, 4), ev('entry.added', entry, 5))).toBe(3);
+    expect(last(ev('entry.added', { ...entry, quantity: 3 }, 3), ev('entry.quantitySet', { ...entry, quantity: 1 }, 4))).toBe(1);
+    // a quantity for an entry that isn't there changes nothing, as a note doesn't
+    expect(last(ev('entry.quantitySet', { ...entry, quantity: 5 }, 3))).toBe(1);
+  });
+
   it('skips unknown event types without throwing', () => {
     const s = fold([...setup, unknownEvent(10)]);
     expect(s.skipped).toBe(1);
@@ -240,8 +282,9 @@ describe('fold', () => {
       ev('item.archived', { itemId: 'nope' }, 11),
       ev('entry.added', { listId: 'nope', itemId: 'milk' }, 12),
       ev('entry.checked', { listId: L, itemId: 'nope' }, 13),
+      ev('item.priceSet', { itemId: 'nope', price: 100 }, 14),
     ]);
-    expect(s.skipped).toBe(4);
+    expect(s.skipped).toBe(5);
     expect(s.entries.size).toBe(0);
   });
 

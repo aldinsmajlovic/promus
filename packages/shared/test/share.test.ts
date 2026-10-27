@@ -105,6 +105,17 @@ describe('sharedEvents', () => {
     expect(scopeItems(all, scope)).toEqual(new Set(['m1']));
   });
 
+  it('prices come along for the items in scope, also from before the link', () => {
+    const milkPrice = stored('item.priceSet', { itemId: 'milk', price: 1490 }, { seq: 8, wall: 2 * DAY });
+    const soapPrice = stored('item.priceSet', { itemId: 'soap', price: 2990 }, { seq: 9, wall: 2 * DAY + 1 });
+    const milkAdded = stored('entry.added', { ...on(L, 'milk'), quantity: 3 }, { seq: 10, wall: 9 * DAY });
+    const all = [...household, milkPrice, soapPrice, milkAdded];
+    const shared = sharedEvents(all, { listId: L, fromSeq: 10, madeAt }, 0);
+    expect(shared).toContain(milkPrice);
+    expect(shared).not.toContain(soapPrice);
+    expect(listView(fold(shared), L, madeAt, sv).active[0]).toMatchObject({ itemId: 'milk', quantity: 3, price: 1490 });
+  });
+
   it("each entry shows as the household's does", () => {
     const pre = [
       stored('item.created', { itemId: 'cream', name: 'Grädde' }, { seq: 8, wall: DAY + 7 }),
@@ -130,6 +141,12 @@ describe('sharedEvents', () => {
       stored('item.created', { itemId: 'cream2', name: 'grädde' }, { seq: 25, wall: madeAt + 3 * HOUR }),
       stored('entry.added', { ...on(L, 'cream2'), note: 'vispgrädde' }, { seq: 26, wall: madeAt + 3 * HOUR + 1 }),
       stored('entry.checked', on(L, 'bread'), { seq: 27, wall: madeAt + 4 * HOUR }),
+      // prices and quantities, one of each from before the link, and one arriving late
+      stored('item.priceSet', { itemId: 'milk', price: 1490 }, { seq: 28, wall: 5 * DAY }),
+      stored('entry.quantitySet', { ...on(L, 'milk'), quantity: 2 }, { seq: 29, wall: 3 * DAY }),
+      stored('entry.quantitySet', { ...on(L, 'butter'), quantity: 3 }, { seq: 30, wall: madeAt + 5 * HOUR }),
+      stored('entry.added', { ...on(L, 'soap'), quantity: 4 }, { seq: 31, wall: madeAt + 6 * HOUR }),
+      stored('item.priceSet', { itemId: 'soap', price: 2990 }, { seq: 32, wall: madeAt + 7 * HOUR }),
     ];
     const all = [...household, ...pre, ...post];
     const shared = sharedEvents(all, { listId: L, fromSeq: 18, madeAt }, 0);

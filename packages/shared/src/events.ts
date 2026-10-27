@@ -7,6 +7,9 @@ import { cleanName } from './normalize.ts';
 export const LIMITS = {
   nameMax: 200,
   noteMax: 500,
+  // öre: 99 999,99 kr
+  priceMax: 9_999_999,
+  quantityMax: 99,
   pushMaxEvents: 500,
   pushMaxBytes: 1_000_000,
   pullMaxLimit: 500,
@@ -16,14 +19,16 @@ export const LIMITS = {
 
 export const EVENT_TYPES = [
   'list.created', 'list.renamed', 'list.deleted', 'list.restored',
-  'item.created', 'item.renamed', 'item.archived', 'item.unarchived',
-  'entry.added', 'entry.checked', 'entry.unchecked', 'entry.removed', 'entry.noteSet',
+  'item.created', 'item.renamed', 'item.archived', 'item.unarchived', 'item.priceSet',
+  'entry.added', 'entry.checked', 'entry.unchecked', 'entry.removed', 'entry.noteSet', 'entry.quantitySet',
 ] as const;
 export type EventType = (typeof EVENT_TYPES)[number];
 
 const id = z.uuid();
 const name = z.string().min(1).max(LIMITS.nameMax).refine((s) => s === cleanName(s), 'name must be clean');
 const note = z.string().max(LIMITS.noteMax);
+const price = z.number().int().min(0).max(LIMITS.priceMax).nullable();
+const quantity = z.number().int().min(1).max(LIMITS.quantityMax);
 
 const event = <T extends EventType, P extends z.ZodRawShape>(type: T, payload: P) =>
   z.strictObject({
@@ -50,11 +55,13 @@ export const eventInputSchema = z.discriminatedUnion('type', [
   event('item.renamed', { ...itemP, name }),
   event('item.archived', itemP),
   event('item.unarchived', itemP),
-  event('entry.added', { ...entry, note: note.optional() }),
+  event('item.priceSet', { ...itemP, price }),
+  event('entry.added', { ...entry, note: note.optional(), quantity: quantity.optional() }),
   event('entry.checked', entry),
   event('entry.unchecked', entry),
   event('entry.removed', entry),
   event('entry.noteSet', { ...entry, note }),
+  event('entry.quantitySet', { ...entry, quantity }),
 ]);
 
 export type EventInput = z.infer<typeof eventInputSchema>;

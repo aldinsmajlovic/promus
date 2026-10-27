@@ -1,7 +1,16 @@
 import { LIMITS } from './events.ts';
 import { entryKey, type EntryState, type HouseholdState, type ItemState } from './fold.ts';
 
-export type EntryView = { itemId: string; name: string; note: string | null; checkedAt: number | null; addedBy: string | null };
+/** `price` is the item's, in öre, for one: not times `quantity`. */
+export type EntryView = {
+  itemId: string;
+  name: string;
+  note: string | null;
+  checkedAt: number | null;
+  addedBy: string | null;
+  quantity: number;
+  price: number | null;
+};
 
 const entriesOf = (state: HouseholdState, listId: string): EntryState[] =>
   state.lists.get(listId)?.deleted === false ? [...state.entries.values()].filter((e) => e.listId === listId) : [];
@@ -20,7 +29,8 @@ export function listView(
   for (const e of entriesOf(state, listId)) {
     const item = state.items.get(e.itemId);
     if (!item) continue;
-    const view = { itemId: e.itemId, name: item.name, note: e.note, checkedAt: e.checkedAt, addedBy: e.addedBy };
+    const { note, checkedAt, addedBy, quantity } = e;
+    const view = { itemId: e.itemId, name: item.name, note, checkedAt, addedBy, quantity, price: item.price };
     if (e.state === 'active') active.push(view);
     else if (inDoneWindow(e, now)) done.push(view);
   }

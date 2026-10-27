@@ -11,6 +11,9 @@ export type ItemState = {
   purchaseCount: number;
   lastPurchasedAt: number | null;
   lastNote: string | null;
+  /** In öre. */
+  price: number | null;
+  lastQuantity: number;
 };
 export type EntryState = {
   listId: string;
@@ -20,6 +23,7 @@ export type EntryState = {
   addedAt: number;
   checkedAt: number | null;
   addedBy: string | null;
+  quantity: number;
 };
 export type HouseholdState = {
   lists: Map<string, ListState>;
@@ -118,7 +122,9 @@ function apply(s: HouseholdState, e: FoldEvent): boolean {
         s.aliases.set(id, existing);
         return true;
       }
-      const item = { id, name, normalized, archived: false, purchaseCount: 0, lastPurchasedAt: null, lastNote: null };
+      const item = {
+        id, name, normalized, archived: false, purchaseCount: 0, lastPurchasedAt: null, lastNote: null, price: null, lastQuantity: 1,
+      };
       s.items.set(id, item);
       indexName(s, item);
       return true;
@@ -136,11 +142,18 @@ function apply(s: HouseholdState, e: FoldEvent): boolean {
       if (!item.archived) indexName(s, item);
       return true;
     }
+    case 'item.priceSet': {
+      const item = s.items.get(resolveItemId(s, e.payload.itemId));
+      if (!item) return false;
+      item.price = e.payload.price;
+      return true;
+    }
     case 'entry.added':
     case 'entry.checked':
     case 'entry.unchecked':
     case 'entry.removed':
     case 'entry.noteSet':
+    case 'entry.quantitySet':
       return applyEntry(s, e);
   }
 }
@@ -153,12 +166,18 @@ function applyEntry(s: HouseholdState, e: EntryEvent): boolean {
   const key = entryKey(listId, itemId);
   const prev = s.entries.get(key);
   const at = hlcWall(e.hlc);
-  const keep = { listId, itemId, note: prev?.note ?? null, addedAt: prev?.addedAt ?? at, addedBy: prev?.addedBy ?? null };
+  const keep = {
+    listId, itemId, note: prev?.note ?? null, addedAt: prev?.addedAt ?? at, addedBy: prev?.addedBy ?? null, quantity: prev?.quantity ?? 1,
+  };
   switch (e.type) {
     case 'entry.added': {
       const note = e.payload.note || null;
-      s.entries.set(key, { listId, itemId, state: 'active', note, addedAt: at, checkedAt: null, addedBy: e.userId ?? null });
+      const { quantity } = e.payload;
+      const addedBy = e.userId ?? null;
+      s.entries.set(key, { listId, itemId, state: 'active', note, addedAt: at, checkedAt: null, addedBy, quantity: quantity ?? 1 });
       if (note) item.lastNote = note;
+      // only an add that brings one: adds from before quantities leave it alone, as adds without a note do
+      if (quantity) item.lastQuantity = quantity;
       break;
     }
     case 'entry.checked': {
@@ -184,6 +203,11 @@ function applyEntry(s: HouseholdState, e: EntryEvent): boolean {
       if (!prev) break;
       prev.note = e.payload.note || null;
       item.lastNote = prev.note;
+      break;
+    case 'entry.quantitySet':
+      if (!prev) break;
+      prev.quantity = e.payload.quantity;
+      item.lastQuantity = prev.quantity;
       break;
   }
   return true;
