@@ -155,7 +155,7 @@ test('a price and a quantity, typed once, come back with the item', async ({ pag
   await expect(row).toContainText('×3');
   await expect(row).toContainText('44,70 kr');
   const total = page.locator('.total');
-  await expect(total).toContainText('45 kr kvar av 45 kr');
+  await expect(total).toContainText('45 kr totalt');
 
   // checked off, it's still in the total, and no longer left
   await row.click();
@@ -168,5 +168,5 @@ test('a price and a quantity, typed once, come back with the item', async ({ pag
   await expect(page.getByText('Havregryn tillagd')).toBeVisible();
   await page.getByRole('button', { name: 'Stäng' }).click();
   await expect(row).toContainText('×3');
-  await expect(total).toContainText('45 kr kvar av 45 kr');
+  await expect(total).toContainText('45 kr totalt');
 });

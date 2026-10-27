@@ -107,6 +107,7 @@
     "settings": "Settings",
     "swipeRemove": "Remove",
     "toGet": "{{n}} to get",
+    "total": "{{total}} total",
     "unpriced": "{{n}} without a price",
     "with": "with",
     "withLabel": "Shared with {{names}}"

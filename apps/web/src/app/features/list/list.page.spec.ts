@@ -794,7 +794,8 @@ describe('ListPage', () => {
     await t.store.setQuantity(t.listId, milk, 3);
     await t.store.setPrices([{ itemId: milk, price: 1490 }]);
     await t.fixture.whenStable();
-    expect(total()).toBe('45 kr kvar av 45 kr 2');
+    // nothing in Done: what's left is the total
+    expect(total()).toBe('45 kr totalt 2');
     // a tag and a count, named for screen readers and on hover
     const unpriced = t.el.querySelector('.total button')!;
     expect([unpriced.getAttribute('aria-label'), unpriced.getAttribute('title')]).toEqual(['2 utan pris', '2 utan pris']);
@@ -842,7 +843,7 @@ describe('ListPage', () => {
     inputs[1]!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
     await t.fixture.whenStable();
     expect(await t.loader.getAllHarnesses(MatBottomSheetHarness)).toHaveLength(0);
-    expect(text(t.el.querySelector('.total'))).toBe('139 kr kvar av 139 kr');
+    expect(text(t.el.querySelector('.total'))).toBe('139 kr totalt');
 
     const snackBar = await t.loader.getHarness(MatSnackBarHarness);
     expect(await snackBar.getMessage()).toBe('Priser sparade');

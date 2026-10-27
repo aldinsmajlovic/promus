@@ -79,7 +79,8 @@
 
           @if (cost(); as c) {
             <p class="section total">
-              {{ t('list.left', { left: c.left, total: c.total }) }}
+              <!-- with nothing priced in Done, all of it is left: the total says it -->
+              {{ c.left === c.total ? t('list.total', c) : t('list.left', c) }}
               @if (c.unpriced.length) {
                 @let unpriced = t('list.unpriced', { n: c.unpriced.length });
                 <button

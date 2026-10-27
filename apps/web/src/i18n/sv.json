@@ -107,6 +107,7 @@
     "settings": "Inställningar",
     "swipeRemove": "Ta bort",
     "toGet": "{{n}} att handla",
+    "total": "{{total}} totalt",
     "unpriced": "{{n}} utan pris",
     "with": "med",
     "withLabel": "Delas med {{names}}"
