@@ -21,6 +21,7 @@ import { Household } from '../../core/household';
 import { WIDE } from '../../core/layout';
 import { registerIcons } from '../../core/icons';
 import { SessionService } from '../../core/session';
+import { Shares } from '../../core/shares';
 import { Store } from '../../core/store';
 import { SyncService, type SyncStatus } from '../../core/sync.service';
 import { ListPage } from './list.page';
@@ -29,12 +30,12 @@ import { untilDay } from './share-sheet';
 function configure(db: PromusDb, wide = false) {
   const status = signal<SyncStatus>({ kind: 'idle', pending: 0, rejected: 0 });
   const sync = { status, syncNow: vi.fn(async () => undefined), soon: () => undefined };
-  // the household's links and guests, as the server has them now
-  const server: { shares: SharesResponse } = { shares: { shares: [], guests: [] } };
+  // the household's links and guests, as the server has them now, or once a test lets it answer
+  const server: { shares: SharesResponse | Promise<SharesResponse> } = { shares: { shares: [], guests: [] } };
   // the page asks who's in the household; no household in the answer keeps the cached members
   const fetch = vi.fn<typeof globalThis.fetch>(async (url) =>
     url === '/api/shares'
-      ? Response.json(server.shares)
+      ? Response.json(await server.shares)
       : Response.json({ user: { id: 'u1', username: 'anna' }, households: [] }),
   );
   TestBed.configureTestingModule({
@@ -66,7 +67,7 @@ async function setup(
   items: [name: string, note?: string][] = [],
   others: string[] = [],
   wide = false,
-  shares?: (listId: string) => SharesResponse,
+  shares?: (listId: string) => SharesResponse | Promise<SharesResponse>,
 ) {
   const db = new PromusDb(`list-${newId()}`);
   const you: Member = { id: newId(), username: 'anna', role: 'owner' };
@@ -387,6 +388,23 @@ describe('ListPage', () => {
     failed.mockRestore();
   });
 
+  it("a guest the page's own question brings asks nothing more", async () => {
+    let answer!: () => void;
+    const held = new Promise<void>((resolve) => (answer = resolve));
+    const t = await setup([['Chorizo']], [], false, () =>
+      held.then(() => ({ shares: [], guests: [{ id: 'g1', shareId: 's1', name: 'Fredrik' }] })),
+    );
+    // the row shows before the server has answered the page
+    await pull(t, [['Chorizo', 'g1']]);
+    await t.fixture.whenStable();
+    expect(row(t.el, 'Chorizo').querySelector('app-face')).toBeNull();
+
+    answer();
+    await vi.waitFor(() => expect(text(row(t.el, 'Chorizo').querySelector('app-face'))).toBe('F'));
+    await TestBed.inject(Shares).settled();
+    expect(sharesAsked(t.fetch)).toBe(1);
+  });
+
   it("\"with\" shows the household and the guests of this list's link; tapping it says until when", async () => {
     const expiresAt = Date.now() + 86_400_000;
     const t = await setup([['Mjölk']], ['bo'], false, (listId) => ({
@@ -408,8 +426,28 @@ describe('ListPage', () => {
     await (await t.loader.getHarness(MatMenuHarness.with({ selector: '.with' }))).open();
     const panel = document.querySelector('.people-menu')!;
     expect(text(panel.querySelector('.heading'))).toBe('På Inköpslista');
-    expect([...panel.querySelectorAll('.person .name')].map(text)).toEqual(['anna', 'bo', 'Fredrik', 'Gäst']);
+    expect([...panel.querySelectorAll('.person .full-name')].map(text)).toEqual(['anna', 'bo', 'Fredrik', 'Gäst']);
     expect(text(panel.querySelector('.until'))).toBe(`Länken fungerar till ${untilDay(expiresAt, 'sv')}`);
+  });
+
+  it('a link that runs out on screen takes its guests from "with" when the page next renders', async () => {
+    const expiresAt = Date.now() + 60_000;
+    const t = await setup([['Mjölk'], ['Ost']], ['bo'], false, (listId) => ({
+      shares: [{ id: 's1', listId, token: 'tok1', expiresAt, createdBy: 'u1' }],
+      guests: [{ id: 'g1', shareId: 's1', name: 'Fredrik' }],
+    }));
+    await t.store.check(t.listId, itemId(t.store, 'Ost'));
+    await vi.waitFor(() => expect(t.el.querySelectorAll('.with app-face')).toHaveLength(2));
+    await vi.waitFor(() => expect(doneToggle(t.el)).not.toBeNull());
+
+    // folding Done changes nothing in the list, only what the page shows
+    const later = vi.spyOn(Date, 'now').mockReturnValue(expiresAt);
+    doneToggle(t.el)!.click();
+    await t.fixture.whenStable();
+    expect(t.el.querySelector('.with')!.getAttribute('aria-label')).toBe('Delas med bo');
+    await (await t.loader.getHarness(MatMenuHarness.with({ selector: '.with' }))).open();
+    expect(document.querySelector('.people-menu .until')).toBeNull();
+    later.mockRestore();
   });
 
   it.each([

@@ -271,9 +271,9 @@ app-add-page .title {
   color: #4A3418;
 }
 
-// a guest of a shared list, on the band and on the sheet alike
+// a guest of a shared list, ringed in the face's own ink: white vanished on light mode's white surfaces
 .face.guest {
-  box-shadow: inset 0 0 0 1.5px #fff;
+  box-shadow: inset 0 0 0 1.5px currentColor;
 }
 
 .face .badge {
@@ -389,6 +389,16 @@ app-add-page .title {
 .list-menu,
 .people-menu {
   --mat-menu-container-shape: 1.125rem;
+
+  // a muted line over the items, naming what they belong to
+  .heading {
+    padding: 0.75rem 0.75rem 0.5rem;
+    overflow: hidden;
+    color: var(--mat-sys-on-surface-variant);
+    font: var(--mat-sys-title-small);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
 }
 
 .mat-mdc-menu-item {

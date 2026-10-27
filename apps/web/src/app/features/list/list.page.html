@@ -6,7 +6,13 @@
         @if (list(); as l) {
           <p class="meta">
             {{ t('list.toGet', { n: view().active.length }) }}
-            <app-people-menu [people]="people()" [until]="link()?.expiresAt ?? null" [list]="l.name" />
+            <!-- checked on every render, not cached: a link runs out without anything in it changing -->
+            @let link = shares.liveFor(l.id);
+            <app-people-menu
+              [people]="link ? withGuests() : members()"
+              [until]="link?.expiresAt ?? null"
+              [list]="l.name"
+            />
           </p>
         }
       </div>

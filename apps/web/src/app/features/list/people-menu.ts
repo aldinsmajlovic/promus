@@ -38,7 +38,7 @@ import { untilDay } from './share-sheet';
           <button mat-menu-item class="person">
             <span class="row">
               <app-face [member]="{ id: p.id, username: p.name ?? guest }" [guest]="p.guest" />
-              <span class="name">{{ p.name ?? guest }}</span>
+              <span class="full-name">{{ p.name ?? guest }}</span>
               <span class="tag">{{ p.id === household.you() ? t('settings.you') : p.guest ? guest : '' }}</span>
             </span>
           </button>
@@ -85,26 +85,18 @@ import { untilDay } from './share-sheet';
         outline: 3px solid var(--promus-accent);
       }
     }
-    // as the list menu's
-    .heading {
-      padding: 0.75rem 0.75rem 0.5rem;
-      overflow: hidden;
-      color: var(--mat-sys-on-surface-variant);
-      font: var(--mat-sys-title-small);
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
     .row {
       --face-size: 2.25rem;
       display: flex;
       align-items: center;
       gap: 0.75rem;
     }
-    .name {
+    // the one place full names show, so they wrap, even a 40-letter word; not .name, a row's clamped name
+    .full-name {
       flex: 1;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
+      min-width: 0;
+      font-size: 1rem;
+      overflow-wrap: anywhere;
     }
     .tag,
     .until {

@@ -47,7 +47,7 @@ const text = (el: Element | null) => el?.textContent?.replace(/\s+/g, ' ').trim(
 // each row's initial, name, and You or Guest
 const rows = () =>
   [...document.querySelectorAll('.people-menu .person')].map((r) =>
-    ['app-face', '.name', '.tag'].map((part) => text(r.querySelector(part))),
+    ['app-face', '.full-name', '.tag'].map((part) => text(r.querySelector(part))),
   );
 
 describe('PeopleMenu', () => {

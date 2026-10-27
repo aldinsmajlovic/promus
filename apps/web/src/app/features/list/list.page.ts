@@ -96,7 +96,7 @@ export class ListPage {
   private readonly injector = inject(Injector);
   private readonly doc = inject(DOCUMENT);
   private readonly household = inject(Household);
-  private readonly shares = inject(Shares);
+  protected readonly shares = inject(Shares);
   protected readonly wide = inject(WIDE);
   protected readonly activeRows = viewChildren('activeRow', { read: ElementRef });
   protected readonly doneRows = viewChildren('doneRow', { read: ElementRef });
@@ -112,19 +112,16 @@ export class ListPage {
   });
   /** Undefined until meta `doneFolded` is first read; then Done shows, open unless folded on this device. */
   protected readonly doneOpen = this.fold.open;
-  /** The list's live link. */
-  protected readonly link = computed(() => {
-    const list = this.list();
-    return list ? this.shares.liveFor(list.id) : null;
+  protected readonly members = computed((): Person[] =>
+    this.household.members().map((m) => ({ id: m.id, name: m.username, guest: false })),
+  );
+  /** The household, and the guests of the list's link; the template checks that it's still live. */
+  protected readonly withGuests = computed((): Person[] => {
+    const { shares, guests } = this.shares.data();
+    const link = shares.find((s) => s.listId === this.list()?.id);
+    const theirs = guests.filter((g) => g.shareId === link?.id);
+    return [...this.members(), ...theirs.map((g) => ({ id: g.id, name: g.name, guest: true }))];
   });
-  /** The household, and the guests of the list's live link. */
-  protected readonly people = computed((): Person[] => [
-    ...this.household.members().map((m) => ({ id: m.id, name: m.username, guest: false })),
-    ...this.shares
-      .data()
-      .guests.filter((g) => g.shareId === this.link()?.id)
-      .map((g) => ({ id: g.id, name: g.name, guest: true })),
-  ]);
   // the list the last render showed in full, Done included: rows arriving in it or leaving it move, a list that
   // loads or switches just shows. Angular runs the enter and leave animations after rendering, before this is
   // updated in the read phase. On a cold start Done waits on its meta read, so its first rows would arrive if this
