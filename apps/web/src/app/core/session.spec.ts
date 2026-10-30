@@ -1,6 +1,10 @@
+import { importProvidersFrom } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { ApiError, AuthError, formatHlc, makeEvent, newId } from '@promus/shared';
+import { TranslocoTestingModule } from '@jsverse/transloco';
+import { ApiError, AuthError, NetworkError, formatHlc, makeEvent, newId } from '@promus/shared';
 import { describe, expect, it, vi } from 'vitest';
+import en from '../../i18n/en.json';
+import sv from '../../i18n/sv.json';
 import { ApiClient } from './api';
 import { PendingChangesError, PromusDb } from './db';
 import { DexieSyncStorage } from './dexie-storage';
@@ -16,11 +20,19 @@ async function setup() {
     login: vi.fn<ApiClient['login']>(),
     logout: vi.fn<ApiClient['logout']>(async () => undefined),
     me: vi.fn<ApiClient['me']>(async () => ({ user: anna.user, households: [] })),
+    createHousehold: vi.fn<ApiClient['createHousehold']>(async () => ({ householdId: 'h2', created: true })),
   };
   TestBed.configureTestingModule({
     providers: [
       { provide: PromusDb, useValue: db },
       { provide: ApiClient, useValue: api },
+      importProvidersFrom(
+        TranslocoTestingModule.forRoot({
+          langs: { sv, en },
+          translocoConfig: { availableLangs: ['sv', 'en'], defaultLang: 'en' },
+          preloadLangs: true,
+        }),
+      ),
     ],
   });
   const sessions = TestBed.inject(SessionService);
@@ -142,5 +154,49 @@ describe('SessionService', () => {
     expect(sessions.session()).toBeNull();
     expect(await db.getMeta('session')).toBeUndefined();
     expect(await db.outbox.count()).toBe(0);
+  });
+
+  it('starting over discards queued changes, and keeps the device settings', async () => {
+    const { db, sessions, queue } = await setup();
+    await queue();
+    await db.setMeta('lang', 'en');
+    const result = await sessions.startOver();
+    expect(result).toEqual({ session: { userId: 'u1', username: 'anna', householdId: 'h2' }, created: true });
+    expect(await db.outbox.count()).toBe(0);
+    expect(await db.getMeta('lang')).toBe('en');
+    expect(sessions.session()).toEqual(result?.session);
+  });
+
+  it('starting over offline leaves the device signed out', async () => {
+    const { db, api, sessions, queue } = await setup();
+    await queue();
+    api.createHousehold.mockRejectedValue(new NetworkError());
+    await expect(sessions.startOver()).rejects.toBeInstanceOf(NetworkError);
+    expect(await db.getMeta('session')).toBeUndefined();
+    expect(sessions.session()).toBeNull();
+  });
+
+  it('starting over without a session does nothing', async () => {
+    const { db, api, sessions } = await setup();
+    await db.wipe();
+    await expect(sessions.startOver()).resolves.toBeNull();
+    expect(api.createHousehold).not.toHaveBeenCalled();
+  });
+
+  it('signing in to no household makes one', async () => {
+    const { api, sessions } = await setup();
+    api.login.mockResolvedValue({ ...anna, householdId: null });
+    const session = await sessions.login('anna', 'pw');
+    expect(api.createHousehold).toHaveBeenCalledWith('en');
+    expect(session.householdId).toBe('h2');
+  });
+
+  it('the same user signing in to another household wipes, queued changes too', async () => {
+    const { db, api, sessions, queue } = await setup();
+    await queue();
+    api.login.mockResolvedValue({ ...anna, householdId: 'h9' });
+    await sessions.login('anna', 'pw');
+    expect(await db.outbox.count()).toBe(0);
+    expect(sessions.session()?.householdId).toBe('h9');
   });
 });

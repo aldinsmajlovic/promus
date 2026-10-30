@@ -77,12 +77,13 @@ export class PromusDb extends Dexie {
   /**
    * Clears every table but the device's language and theme in one transaction, so open tabs see it
    * through liveQuery and keep working. Throws PendingChangesError, and clears nothing, while the
-   * outbox holds unpushed events.
+   * outbox holds unpushed events, unless `discardPending`: those events can never sync (the user left
+   * their household), so they go too.
    */
-  async wipe(): Promise<void> {
+  async wipe({ discardPending = false }: { discardPending?: boolean } = {}): Promise<void> {
     await this.transaction('rw', this.tables, async () => {
       // checked inside the transaction: no tab can queue an event between the check and the clear
-      if ((await this.outbox.where('pushed').equals(0).count()) > 0) throw new PendingChangesError();
+      if (!discardPending && (await this.outbox.where('pushed').equals(0).count()) > 0) throw new PendingChangesError();
       await Promise.all(
         this.tables.map((t) =>
           t.name === this.meta.name ? this.meta.where('key').noneOf(DEVICE_KEYS).delete() : t.clear(),

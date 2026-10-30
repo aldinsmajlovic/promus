@@ -111,19 +111,11 @@ describe('LoginPage', () => {
     t.fetch.mockResolvedValueOnce(json(500, { error: 'internal' }));
     await t.signIn('anna', 'pw');
     await vi.waitFor(() => expect(t.message()).toBe('Inloggningen misslyckades'));
-    // a user without a household, say
-    t.fetch.mockResolvedValueOnce(json(200, { ...bo, householdId: null }));
-    await t.signIn('bo', 'pw');
-    await vi.waitFor(() => expect(log).toHaveBeenCalledTimes(2));
-    expect(t.message()).toBe('Inloggningen misslyckades');
-    expect(log.mock.calls).toEqual([
-      ['login failed', expect.objectContaining({ code: 'internal' })],
-      ['login failed', expect.objectContaining({ code: 'no_household' })],
-    ]);
+    expect(log.mock.calls).toEqual([['login failed', expect.objectContaining({ code: 'internal' })]]);
     expect(log.mock.calls.every(([, err]) => err instanceof ApiError)).toBe(true);
     log.mockRestore();
 
-    expect(t.fetch).toHaveBeenCalledTimes(5);
+    expect(t.fetch).toHaveBeenCalledTimes(4);
     expect(t.router.url).toBe('/login');
     expect(t.sync.syncNow).not.toHaveBeenCalled();
   });

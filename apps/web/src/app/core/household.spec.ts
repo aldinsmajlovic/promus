@@ -1,6 +1,10 @@
+import { importProvidersFrom } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { TranslocoTestingModule } from '@jsverse/transloco';
 import { NetworkError, newId } from '@promus/shared';
 import { describe, expect, it, vi } from 'vitest';
+import en from '../../i18n/en.json';
+import sv from '../../i18n/sv.json';
 import { ApiClient } from './api';
 import { PromusDb } from './db';
 import { Household } from './household';
@@ -16,6 +20,13 @@ function setup() {
     providers: [
       { provide: PromusDb, useValue: db },
       { provide: ApiClient, useValue: api },
+      importProvidersFrom(
+        TranslocoTestingModule.forRoot({
+          langs: { sv, en },
+          translocoConfig: { availableLangs: ['sv', 'en'], defaultLang: 'sv' },
+          preloadLangs: true,
+        }),
+      ),
     ],
   });
   return { db, api, household: TestBed.inject(Household) };
