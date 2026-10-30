@@ -18,6 +18,9 @@
           </p>
         }
       </div>
+      @if (list(); as l) {
+        <app-share-button [list]="l" [entries]="view().active" />
+      }
       <app-profile-button />
     </header>
 

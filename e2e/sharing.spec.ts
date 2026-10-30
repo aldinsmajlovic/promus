@@ -1,10 +1,10 @@
 import type { Page } from '@playwright/test';
 import { expect, login, test } from './fixtures.ts';
 
-/** The share sheet of the current list, from the list menu: its link. */
-async function openShare(page: Page, list: string): Promise<string> {
-  await page.locator('app-list-menu .trigger').click();
-  await page.getByRole('menuitem', { name: `Dela ${list}` }).click();
+/** The share sheet of the current list, from the band's Share: its link. */
+async function openShare(page: Page): Promise<string> {
+  await page.getByRole('button', { name: 'Dela', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Dela länk' }).click();
   return (await page.locator('app-share-sheet .url').textContent())!.trim();
 }
 
@@ -19,7 +19,7 @@ test('a friend opens a shared list, adds to it, and the link ends', async ({ pag
   await page.getByPlaceholder('Namnge den nya listan').press('Enter');
   await expect(page.locator('app-list-menu .trigger')).toHaveText(/Tacokväll/);
 
-  const link = await openShare(page, 'Tacokväll');
+  const link = await openShare(page);
   expect(link).toMatch(/^http:\/\/localhost:8181\/share#[\w-]{43}$/);
   await expect(page.getByText('Länken skapad')).toBeVisible();
   await page.keyboard.press('Escape');
@@ -45,7 +45,7 @@ test('a friend opens a shared list, adds to it, and the link ends', async ({ pag
   await expect(row).toHaveAccessibleDescription('Tillagd av Jonas');
 
   // one live link per list: the menu opens the same one
-  expect(await openShare(page, 'Tacokväll')).toBe(link);
+  expect(await openShare(page)).toBe(link);
   await page.getByRole('button', { name: 'Avsluta länken' }).click();
   await expect(page.getByText('Länken avslutad')).toBeVisible();
 

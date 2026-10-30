@@ -87,7 +87,7 @@ For a friend who wants Promus but not your lists: in **Settings**, tap **Invite 
 
 ## Share a list
 
-To let friends without an account use one list, tap the list's name and choose **Share**, for example **Share Taco night**. The link shows as a QR code, with **Share** and **Copy**. Whoever opens it types a name, or leaves it empty to show as Guest, and is on the list. On that phone, the link opens the list straight away after that.
+To let friends without an account use one list, tap **Share** in the band, beside your initial, and choose **Share link**. The link shows as a QR code, with **Share** and **Copy**. Whoever opens it types a name, or leaves it empty to show as Guest, and is on the list. On that phone, the link opens the list straight away after that.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="images/share-sheet-dark.png">
@@ -103,6 +103,7 @@ To let friends without an account use one list, tap the list's name and choose *
 - **The link:** it works for 14 days. A list has one live link: sharing it again shows the same one, and anyone in the household can end it. The list menu marks shared lists with a link icon.
 - **Ending it:** **End link**, under the link, ends it at once, and **Undo** in the snackbar brings it back within its 14 days. Guests see that the link has ended the next time their phone reaches the server. What they added stays on the list, with their names, but changes made offline that never reached the server are lost. A guest whose phone reaches the server before the Undo sees the same, and gets the list back, as the same guest, by opening the link again. Deleting the list ends its link too, until the delete is undone.
 - **A leaked link:** anyone who has it can change that one list until the link ends, and sees nothing else. A link takes at most 50 guests.
+- **As text:** **Copy as text** and **Copy as Markdown**, in the same menu, copy what's left to get under the list's name, to paste anywhere. Markdown makes it a checklist. Guests have these two as well.
 - **Reaching the server:** friends open the link on their own phones, so the server must be reachable from the internet. Over a VPN or only on your home network, you can share only with people on it.
 - **Chat apps:** some open links in a browser of their own. There the list works while it's open, but reopening it may need signal. Opening the link later in another browser makes a second guest.
 

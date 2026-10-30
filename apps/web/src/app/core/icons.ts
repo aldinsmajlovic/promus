@@ -5,6 +5,7 @@ import add from '@material-symbols/svg-400/rounded/add.svg';
 import arrowBack from '@material-symbols/svg-400/rounded/arrow_back.svg';
 import arrowDropDown from '@material-symbols/svg-400/rounded/arrow_drop_down.svg';
 import check from '@material-symbols/svg-400/rounded/check.svg';
+import checklist from '@material-symbols/svg-400/rounded/checklist.svg';
 import chevronRight from '@material-symbols/svg-400/rounded/chevron_right.svg';
 import close from '@material-symbols/svg-400/rounded/close.svg';
 import contentCopy from '@material-symbols/svg-400/rounded/content_copy.svg';
@@ -55,6 +56,7 @@ const ICONS: Record<string, string> = {
   edit,
   delete: deleteIcon,
   content_copy: contentCopy,
+  checklist,
   person_add: personAdd,
   share,
   sell,

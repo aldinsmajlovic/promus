@@ -41,6 +41,7 @@ import { PeopleMenu } from './people-menu';
 import { PriceSheet, type PriceSheetData } from './price-sheet';
 import { ProfileButton } from './profile-button';
 import { RowGestures } from './row-gestures';
+import { ShareButton } from './share-button';
 
 type Rows = Signal<readonly ElementRef<HTMLElement>[]>;
 
@@ -87,6 +88,7 @@ class DoneFold {
     PeopleMenu,
     Face,
     RowGestures,
+    ShareButton,
     AddOrFind,
   ],
   templateUrl: './list.page.html',

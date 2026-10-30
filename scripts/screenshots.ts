@@ -91,8 +91,8 @@ async function share(page: Page): Promise<string> {
   await page.getByPlaceholder('Name the new list').fill(SHARED);
   await page.getByPlaceholder('Name the new list').press('Enter');
   await add(page, SHARED_ITEMS);
-  await page.locator('app-list-menu .trigger').click();
-  await page.getByRole('menuitem', { name: `Share ${SHARED}` }).click();
+  await page.getByRole('button', { name: 'Share', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Share link' }).click();
   const link = (await page.locator('app-share-sheet .url').textContent())!.trim();
   await settle(page, 'Settings for demo');
   return link;

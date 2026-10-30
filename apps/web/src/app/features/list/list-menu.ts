@@ -1,32 +1,24 @@
 import { Component, Injector, afterNextRender, effect, inject, signal, viewChild } from '@angular/core';
 import type { ElementRef } from '@angular/core';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
-import { MatBottomSheet } from '@angular/material/bottom-sheet';
 import { MatRipple } from '@angular/material/core';
 import { MatDivider } from '@angular/material/divider';
 import { MatError, MatFormField } from '@angular/material/form-field';
 import { MatIcon } from '@angular/material/icon';
 import { MatInput } from '@angular/material/input';
 import { MatMenu, MatMenuItem, MatMenuTrigger } from '@angular/material/menu';
-import { MatSnackBar, type MatSnackBarConfig } from '@angular/material/snack-bar';
-import { TranslocoDirective, TranslocoService } from '@jsverse/transloco';
+import { TranslocoDirective } from '@jsverse/transloco';
 import { Actions, refuse } from '../../core/actions';
-import { ApiClient } from '../../core/api';
 import { CurrentList } from '../../core/current-list';
 import { Shares } from '../../core/shares';
 import { Store, ValidationError } from '../../core/store';
-import { SyncService } from '../../core/sync.service';
 import { RowGestures } from './row-gestures';
-import { ShareSheet, type ShareSheetData } from './share-sheet';
-
-// at the top: the share sheet takes the bottom of the screen
-const SNACK: MatSnackBarConfig = { duration: 5000, verticalPosition: 'top' };
 
 type ListSummary = ReturnType<CurrentList['lists']>[number];
 type Mode =
   { kind: 'lists' } | { kind: 'new' } | { kind: 'actions'; list: ListSummary } | { kind: 'rename'; list: ListSummary };
 
-/** The list name in the toolbar, a menu for switching lists; New list, Share, Rename and Delete are in it too. */
+/** The list name in the toolbar, a menu for switching lists; New list, Rename and Delete are in it too. */
 @Component({
   selector: 'app-list-menu',
   imports: [
@@ -49,11 +41,6 @@ type Mode =
 export class ListMenu {
   private readonly store = inject(Store);
   private readonly actions = inject(Actions);
-  private readonly api = inject(ApiClient);
-  private readonly sheet = inject(MatBottomSheet);
-  private readonly sync = inject(SyncService);
-  private readonly snackBar = inject(MatSnackBar);
-  private readonly transloco = inject(TranslocoService);
   protected readonly current = inject(CurrentList);
   protected readonly shares = inject(Shares);
   private readonly injector = inject(Injector);
@@ -90,35 +77,6 @@ export class ListMenu {
 
   protected delete(list: ListSummary): void {
     void this.actions.run(this.store.deleteList(list.id));
-  }
-
-  /** Opens the list's link, made now unless it has a live one; Undo ends a link made now. */
-  protected async share(list: ListSummary): Promise<void> {
-    let made: Awaited<ReturnType<ApiClient['createShare']>>;
-    try {
-      // a list the server hasn't seen yet can't be shared; syncNow never rejects
-      if (this.sync.status().pending > 0) await this.sync.syncNow();
-      made = await this.api.createShare(list.id);
-    } catch (err) {
-      this.actions.failed(err);
-      return;
-    }
-    const t = this.transloco;
-    const data: ShareSheetData = { listName: list.name, share: made.share };
-    this.sheet.open(ShareSheet, { data, ariaLabel: t.translate('share.title', { list: list.name }) });
-    if (!made.created) return;
-    void this.shares.refresh();
-    this.snackBar
-      .open(t.translate('snack.shareMade'), t.translate('snack.undo'), SNACK)
-      .onAction()
-      .subscribe(() => {
-        // whichever sheet is open now: this one may be closed, and the link opened again
-        this.sheet.dismiss();
-        this.api.endShare(made.share.id).then(
-          () => this.shares.refresh(),
-          (err: unknown) => this.actions.failed(err, SNACK),
-        );
-      });
   }
 
   private async submit(): Promise<void> {

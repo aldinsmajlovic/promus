@@ -41,11 +41,6 @@
       <button mat-menu-item (click)="$event.stopPropagation(); open({ kind: 'new' })">
         <mat-icon svgIcon="add" />{{ t('list.new') }}
       </button>
-      @if (list) {
-        <button mat-menu-item (click)="share(list)">
-          <mat-icon svgIcon="share" />{{ t('share.title', { list: list.name }) }}
-        </button>
-      }
     } @else if (m.kind === 'actions') {
       <div class="heading">{{ m.list.name }}</div>
       <button mat-menu-item (click)="$event.stopPropagation(); open({ kind: 'rename', list: m.list })">

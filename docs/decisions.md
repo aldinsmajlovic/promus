@@ -2,6 +2,7 @@
 
 What changed from the original plan, and why. Newest first, one line each.
 
+- **2026-10-30, Share in the band.** A share icon beside your initial opens Share link, Copy as text and Copy as Markdown, instead of Share {list} in the list menu. The owner didn't find it there, and wanted to paste the list into other apps.
 - **2026-10-30, fuzzier search.** Words match in any order, so "mjölk laktos" finds Laktosfri mjölk. When nothing matches letter for letter, Fuse.js guesses, most bought first among equals: "köttbulle" finds Köttfärs and Bullar, "njölk" finds Mjölk. uFuzzy still comes first, since it marks what matched and keeps the most bought on top. The owner would rather see a loose guess than nothing.
 - **2026-10-30, capitals on a phone.** Item and list names, and notes, start with a capital on a phone's keyboard, so names don't need Shift.
 - **2026-10-27, invites to lists of one's own.** Settings gets Invite a friend, under Household, since the friend isn't in it: the link makes an account with a household and list of its own, as `user:create` does, so a friend who can't self-host can use your server without sharing your lists. The invite stays the inviter's, who can undo it. Still no public sign-up: the server is on the internet, and anyone who found it could make accounts.
