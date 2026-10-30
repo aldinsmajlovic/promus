@@ -12,21 +12,53 @@
       @if (members().length > 0) {
         <ul>
           @for (m of members(); track m.id) {
-            <li>
+            <li appRowGestures [swipe]="false" (held)="isOwner() && m.id !== you() && options.openMenu()">
               <app-face [member]="m" />
               <span class="name">{{ m.username }}</span>
               @if (m.id === you()) {
                 <span class="role">{{ t('settings.you') }}</span>
               }
+              <span
+                #options="matMenuTrigger"
+                class="anchor"
+                [matMenuTriggerFor]="menu"
+                [matMenuTriggerData]="{ member: m }"
+              ></span>
             </li>
           }
         </ul>
       }
+      <mat-menu #menu="matMenu" xPosition="before">
+        <ng-template matMenuContent let-member="member">
+          <button mat-menu-item (click)="remove(member)">
+            <mat-icon svgIcon="person_remove" />{{ t('settings.removeMember') }}
+          </button>
+        </ng-template>
+      </mat-menu>
       <div class="acts">
         <button matButton="tonal" type="button" (click)="invite(false)">
           <mat-icon svgIcon="person_add" />{{ t('settings.invite') }}
         </button>
       </div>
+      @if (!isOwner() && members().length > 0) {
+        @let n = pending();
+        <div class="acts leave">
+          <p id="pending" class="pending" aria-live="polite">
+            @if (n > 0) {
+              {{ t(pendingKey(n), { n }) }}
+            }
+          </p>
+          <button
+            matButton="outlined"
+            type="button"
+            [disabled]="n > 0"
+            [attr.aria-describedby]="n > 0 ? 'pending' : null"
+            (click)="leave()"
+          >
+            <mat-icon svgIcon="logout" />{{ t('settings.leave') }}
+          </button>
+        </div>
+      }
     </main>
   </div>
 </ng-container>

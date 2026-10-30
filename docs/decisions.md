@@ -2,6 +2,7 @@
 
 What changed from the original plan, and why. Newest first, one line each.
 
+- **2026-10-30, removing someone from a household.** The owner holds a member (or right-clicks) and chooses Remove from household, and a member can tap Leave household, both with Undo. The person keeps their account and starts over with lists of their own. Their phones delete the household's data at the next sync, unsynced changes included, as a guest's do when a link ends. Their name stays on what they added and paid for. Their invites stop working while they're out. Live share links keep working: ending a list's link and sharing the list again is how to cut one off.
 - **2026-10-30, Share in the band.** A share icon beside your initial opens Share link, Copy as text and Copy as Markdown, instead of Share {list} in the list menu. The owner didn't find it there, and wanted to paste the list into other apps.
 - **2026-10-30, fuzzier search.** Words match in any order, so "mjölk laktos" finds Laktosfri mjölk. When nothing matches letter for letter, Fuse.js guesses, most bought first among equals: "köttbulle" finds Köttfärs and Bullar, "njölk" finds Mjölk. uFuzzy still comes first, since it marks what matched and keeps the most bought on top. The owner would rather see a loose guess than nothing.
 - **2026-10-30, capitals on a phone.** Item and list names, and notes, start with a capital on a phone's keyboard, so names don't need Shift.

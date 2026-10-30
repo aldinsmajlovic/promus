@@ -25,7 +25,10 @@ export class Household {
   private readonly asked = new Set<string>();
   readonly members = this.list.asReadonly();
   readonly you = computed(() => this.session.session()?.userId ?? null);
-  readonly others = computed(() => this.list().filter((m) => m.id !== this.you()));
+  /** Who is in the household now: former members stay in `members` so their names stay on what they added. */
+  readonly current = computed(() => this.list().filter((m) => !m.former));
+  readonly isOwner = computed(() => this.current().some((m) => m.id === this.you() && m.role === 'owner'));
+  readonly others = computed(() => this.current().filter((m) => m.id !== this.you()));
   readonly byId = computed(() => new Map(this.list().map((m) => [m.id, m])));
 
   constructor() {

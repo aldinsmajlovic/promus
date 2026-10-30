@@ -76,7 +76,8 @@ The installed app works offline and syncs whenever the phone can reach the serve
 In **Settings**, open **Household** and tap **Invite someone**. The link shows as a QR code to scan, with **Share** and **Copy**.
 - **The link:** it works once, for 7 days. **Undo** in the snackbar cancels it.
 - **Joining:** whoever opens it chooses their own username and password, joins your household, and sees the same lists and item history.
-- **Removing someone:** not possible yet. Until it is, `user:password` from the [server commands](cli.md) signs them out everywhere.
+- **Removing:** hold a member's row, or right-click it, and choose **Remove from household**. **Undo** in the snackbar puts them back, unless they have already started lists of their own. They keep their account and get lists of their own; their phones delete your household's data at the next sync, even changes not yet synced. Their name stays on what they added. Share links already made keep working: end the link and share the list again to cut one off.
+- **Leaving:** a member taps **Leave household** at the bottom of the page, once their changes have synced. **Undo** keeps them in; otherwise they start over with lists of their own.
 
 ## Invite a friend
 

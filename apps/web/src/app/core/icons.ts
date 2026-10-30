@@ -22,6 +22,7 @@ import logout from '@material-symbols/svg-400/rounded/logout.svg';
 import mobileArrowDown from '@material-symbols/svg-400/rounded/mobile_arrow_down.svg';
 import moreVert from '@material-symbols/svg-400/rounded/more_vert.svg';
 import personAdd from '@material-symbols/svg-400/rounded/person_add.svg';
+import personRemove from '@material-symbols/svg-400/rounded/person_remove.svg';
 import refresh from '@material-symbols/svg-400/rounded/refresh.svg';
 import remove from '@material-symbols/svg-400/rounded/remove.svg';
 import removeShoppingCart from '@material-symbols/svg-400/rounded/remove_shopping_cart.svg';
@@ -58,6 +59,7 @@ const ICONS: Record<string, string> = {
   content_copy: contentCopy,
   checklist,
   person_add: personAdd,
+  person_remove: personRemove,
   share,
   sell,
   link,
