@@ -4,6 +4,7 @@ import {
   AuthError,
   NetworkError,
   guestNameSchema,
+  householdCreateSchema,
   inviteAcceptSchema,
   inviteCreateSchema,
   inviteTokenSchema,
@@ -137,8 +138,28 @@ export class ApiClient implements SyncApi {
     return this.request('POST', '/api/sync/push', { events });
   }
 
-  pull(after: number, limit: number): Promise<PullResponse> {
-    return this.request('GET', `/api/sync/pull?after=${after}&limit=${limit}`);
+  pull(after: number, limit: number, household?: string): Promise<PullResponse> {
+    const scope = household === undefined ? '' : `&household=${encodeURIComponent(household)}`;
+    return this.request('GET', `/api/sync/pull?after=${after}&limit=${limit}${scope}`);
+  }
+
+  /** The user's household, or a new one: `created` says which. */
+  async createHousehold(locale: 'sv' | 'en'): Promise<{ householdId: string; created: boolean }> {
+    const body = householdCreateSchema.parse({ locale });
+    const res = await this.send<{ householdId: string }>('POST', '/api/households', body);
+    return { householdId: res.body.householdId, created: res.status === 201 };
+  }
+
+  removeMember(householdId: string, userId: string): Promise<void> {
+    return this.request('DELETE', this.memberPath(householdId, userId));
+  }
+
+  restoreMember(householdId: string, userId: string): Promise<void> {
+    return this.request('POST', `${this.memberPath(householdId, userId)}/restore`);
+  }
+
+  private memberPath(householdId: string, userId: string): string {
+    return `/api/households/${encodeURIComponent(householdId)}/members/${encodeURIComponent(userId)}`;
   }
 
   private async request<T>(method: string, path: string, body?: unknown): Promise<T> {

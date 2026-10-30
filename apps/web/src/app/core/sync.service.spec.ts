@@ -1,3 +1,4 @@
+import type { Provider } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { ApiError, AuthError, NetworkError, formatHlc, makeEvent, newId } from '@promus/shared';
 import type { EventInput, PullResponse, PushResponse, StoredEvent, SyncApi } from '@promus/shared';
@@ -5,7 +6,7 @@ import { describe, expect, it, onTestFinished, vi } from 'vitest';
 import { ApiClient } from './api';
 import { PromusDb } from './db';
 import { Store } from './store';
-import { SyncService } from './sync.service';
+import { SYNC_REMOVED, SyncService } from './sync.service';
 
 const pullNothing = async (after: number): Promise<PullResponse> => ({
   events: [],
@@ -19,7 +20,7 @@ const accepted = (events: EventInput[]): PushResponse => ({
   serverTime: Date.now(),
 });
 
-async function setup(push: SyncApi['push']) {
+async function setup(push: SyncApi['push'], extra: Provider[] = []) {
   const db = new PromusDb(`sync-${newId()}`);
   await db.setMeta('session', { userId: newId(), username: 'anna', householdId: newId() });
   const api = { push: vi.fn(push), pull: vi.fn(pullNothing) };
@@ -27,6 +28,7 @@ async function setup(push: SyncApi['push']) {
     providers: [
       { provide: PromusDb, useValue: db },
       { provide: ApiClient, useValue: api },
+      ...extra,
     ],
   });
   const store = TestBed.inject(Store);
@@ -52,6 +54,28 @@ describe('SyncService', () => {
     await sync.syncNow();
     expect(sync.status()).toEqual({ kind: 'auth', pending: 1, rejected: 0 });
     expect(await db.outbox.count()).toBe(1);
+  });
+
+  it('on not_a_member, hands off once the run is done, and syncs again after', async () => {
+    const removed = vi.fn(async () => undefined);
+    const { api, sync } = await setup(
+      async (events) => accepted(events),
+      [{ provide: SYNC_REMOVED, useValue: removed }],
+    );
+    sync.start();
+    onTestFinished(() => sync.stop());
+    api.pull.mockRejectedValueOnce(new ApiError(403, 'not_a_member'));
+    await vi.waitFor(() => expect(removed).toHaveBeenCalledTimes(1));
+    await vi.waitFor(() => expect(api.pull.mock.calls.length).toBeGreaterThan(1));
+    expect(removed).toHaveBeenCalledTimes(1);
+    expect(sync.status().kind).toBe('idle');
+  });
+
+  it('without SYNC_REMOVED, not_a_member is an error', async () => {
+    const { api, sync } = await setup(async (events) => accepted(events));
+    api.pull.mockRejectedValueOnce(new ApiError(403, 'not_a_member'));
+    await sync.syncNow();
+    expect(sync.status()).toMatchObject({ kind: 'error', messageKey: 'sync.failed' });
   });
 
   it('signed out, stays off the network and idle: only a 401 asks to sign in', async () => {

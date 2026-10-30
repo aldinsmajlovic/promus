@@ -1,7 +1,9 @@
 import { TestBed } from '@angular/core/testing';
-import { ApiError, AuthError, NetworkError } from '@promus/shared';
+import { ApiError, AuthError, NetworkError, newId } from '@promus/shared';
 import { describe, expect, it, vi } from 'vitest';
 import { ApiClient, FETCH } from './api';
+import { PromusDb } from './db';
+import { SYNC_API } from './sync.service';
 
 const json = (status: number, body: unknown) =>
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
@@ -104,5 +106,52 @@ describe('ApiClient', () => {
       .mockResolvedValue(json(200, { events: [], lastSeq: 0, hasMore: false, serverTime: 1 }));
     await setup(fetch).pull(0, 500);
     expect(fetch.mock.calls[0]?.[1]?.headers).toMatchObject({ 'ngsw-bypass': 'true' });
+  });
+
+  it('the household pull names the household in the session at the time of the call', async () => {
+    const db = new PromusDb(`api-${newId()}`);
+    await db.setMeta('session', { userId: 'u1', username: 'anna', householdId: 'h1' });
+    const fetch = vi
+      .fn<typeof globalThis.fetch>()
+      .mockImplementation(async () => json(200, { events: [], lastSeq: 0, hasMore: false, serverTime: 1 }));
+    TestBed.configureTestingModule({
+      providers: [
+        { provide: PromusDb, useValue: db },
+        { provide: FETCH, useValue: fetch },
+      ],
+    });
+    const sync = TestBed.inject(SYNC_API);
+    await sync.pull(3, 500);
+    await db.setMeta('session', { userId: 'u1', username: 'anna', householdId: 'h2' });
+    await sync.pull(3, 500);
+    expect(fetch.mock.calls.map(([url]) => url)).toEqual([
+      '/api/sync/pull?after=3&limit=500&household=h1',
+      '/api/sync/pull?after=3&limit=500&household=h2',
+    ]);
+  });
+
+  it('createHousehold says whether it made one', async () => {
+    const fetch = vi
+      .fn<typeof globalThis.fetch>()
+      .mockResolvedValueOnce(json(201, { householdId: 'h1' }))
+      .mockResolvedValueOnce(json(200, { householdId: 'h1' }));
+    const api = setup(fetch);
+    expect(await api.createHousehold('sv')).toEqual({ householdId: 'h1', created: true });
+    expect(await api.createHousehold('en')).toEqual({ householdId: 'h1', created: false });
+    expect(calls(fetch)).toEqual([
+      ['POST', '/api/households', { locale: 'sv' }],
+      ['POST', '/api/households', { locale: 'en' }],
+    ]);
+  });
+
+  it('removes and restores a member', async () => {
+    const fetch = vi.fn<typeof globalThis.fetch>().mockImplementation(async () => new Response(null, { status: 204 }));
+    const api = setup(fetch);
+    await api.removeMember('h1', 'u 2');
+    await api.restoreMember('h1', 'u 2');
+    expect(calls(fetch)).toEqual([
+      ['DELETE', '/api/households/h1/members/u%202', undefined],
+      ['POST', '/api/households/h1/members/u%202/restore', undefined],
+    ]);
   });
 });
