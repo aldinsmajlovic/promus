@@ -94,7 +94,7 @@
 
 .bar {
   flex: none;
-  padding: 0.5rem var(--promus-inset) calc(0.5rem + env(safe-area-inset-bottom));
+  padding: 0.5rem var(--promus-inset) calc(var(--promus-inset) + env(safe-area-inset-bottom));
 }
 
 .field {
