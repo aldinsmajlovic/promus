@@ -94,6 +94,26 @@ describe('searchItems', () => {
     expect(names(groceries(), 'mjlk')).toEqual(['Mjölk']);
   });
 
+  it('with no match letter for letter, the closest guesses come, most bought first among equals', () => {
+    const s = catalog([['Köttfärs', 1], ['Bullar', 4], ['Gurka', 9], ['Mjölk', 0]]);
+    expect(names(s, 'köttbulle')).toEqual(['Bullar', 'Köttfärs']);
+    expect(names(s, 'njölk')).toEqual(['Mjölk']);
+    expect(names(s, 'xyz')).toEqual([]);
+    // a guess is shown plain: nothing in it matched as typed
+    expect(searchItems(s, 'köttbulle', listId, NOW).results.every((r) => r.ranges.length === 0)).toBe(true);
+  });
+
+  it('words match in any order, past five in the order typed', () => {
+    const s = catalog([['Laktosfri mjölk', 0], ['aa bb cc dd ee ff gg', 0]]);
+    // [name, whether anything in it is marked]
+    const found = (q: string) => searchItems(s, q, listId, NOW).results.map((r) => [r.name, r.ranges.length > 0]);
+    expect(found('mjölk laktos')).toEqual([['Laktosfri mjölk', true]]);
+    expect(found('ee dd cc bb aa')).toEqual([['aa bb cc dd ee ff gg', true]]);
+    expect(found('aa bb cc dd ee ff')).toEqual([['aa bb cc dd ee ff gg', true]]);
+    // six out of order: only Fuse's guess
+    expect(found('aa bb cc dd ff ee')).toEqual([['aa bb cc dd ee ff gg', false]]);
+  });
+
   it('an exact match comes first regardless of score', () => {
     const s = groceries();
     const { results, exact } = searchItems(s, ' GRÄDDE ', listId, NOW);
@@ -118,6 +138,10 @@ describe('searchItems', () => {
       expect(results.length).toBeGreaterThan(0);
       expect(results.length).toBeLessThanOrEqual(20);
     }
+    // nothing letter for letter, so Fuse guesses too
+    const start = performance.now();
+    searchItems(s, 'köttbulle', listId, NOW);
+    expect(performance.now() - start, 'köttbulle').toBeLessThan(50);
   });
 
   it('a needle longer than any name may be matches nothing, at once', () => {
