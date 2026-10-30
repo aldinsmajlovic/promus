@@ -96,10 +96,13 @@ export function syncRoutes(deps: Pick<AppDeps, 'db' | 'now' | 'logger'>) {
       }),
     )
     .get('/sync/pull', requireAuth('browser'), (c) => {
+      const auth = c.get('auth');
+      const household = c.req.query('household');
+      if (household !== undefined && !auth.householdIds.includes(household)) return c.json({ error: 'not_a_member' }, 403);
       const after = intParam(c.req.query('after'), 0, 0, Number.MAX_SAFE_INTEGER);
       const limit = intParam(c.req.query('limit'), LIMITS.pullMaxLimit, 1, LIMITS.pullMaxLimit);
       if (after === null || limit === null) return c.json({ error: 'invalid_request' }, 400);
-      const { events, hasMore } = listEvents(db, c.get('auth').householdIds, after, limit);
+      const { events, hasMore } = listEvents(db, auth.householdIds, after, limit);
       return c.json({ events, lastSeq: events.at(-1)?.seq ?? after, hasMore, serverTime: now() } satisfies PullResponse);
     });
 }

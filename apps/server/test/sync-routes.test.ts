@@ -146,6 +146,14 @@ describe('sync routes', { timeout: 30_000 }, () => {
     }
   });
 
+  it('a pull for a household the user is out of is refused, and one without household answers as before', async () => {
+    const { a, b, cookieA, pull } = await setup();
+    expect((await pull(cookieA, `?household=${a.householdId}`)).status).toBe(200);
+    expect((await pull(cookieA, `?household=${b.householdId}`)).status).toBe(403);
+    expect(await (await pull(cookieA, `?household=${b.householdId}`)).json()).toEqual({ error: 'not_a_member' });
+    expect((await pull(cookieA)).status).toBe(200);
+  });
+
   it('api sessions cannot sync', async () => {
     const { a, app, db, push: _p } = await setup();
     const { token } = createSession(db, { userId: a.userId, kind: 'api', name: 'cli', scopes: [], now: T0 });
