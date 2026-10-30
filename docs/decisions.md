@@ -2,6 +2,7 @@
 
 What changed from the original plan, and why. Newest first, one line each.
 
+- **2026-10-30, capitals on a phone.** Item and list names, and notes, start with a capital on a phone's keyboard, so names don't need Shift.
 - **2026-10-27, invites to lists of one's own.** Settings gets Invite a friend, under Household, since the friend isn't in it: the link makes an account with a household and list of its own, as `user:create` does, so a friend who can't self-host can use your server without sharing your lists. The invite stays the inviter's, who can undo it. Still no public sign-up: the server is on the internet, and anyone who found it could make accounts.
 - **2026-10-27, holding a suggestion.** Holding a row in Add or find, or right-clicking it, opens a menu with Remove from suggestions, with undo. Before, an item had to be on the list to be removed from the suggestions. The owner expected it there.
 - **2026-10-27, the total in one phrase.** "167 kr kvar av 326 kr", or "326 kr totalt" while it's all left, and a price tag with the count of items without a price, instead of "≈ 326 kr totalt · 167 kr kvar · 2 utan pris". The owner found the line long and clumsy.

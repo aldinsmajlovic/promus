@@ -105,7 +105,13 @@ export function openItemOptions(data: EditSheetData, row: HTMLElement): void {
       @for (field of fields; track field.label) {
         <mat-form-field subscriptSizing="dynamic">
           <mat-label>{{ t(field.label) }}</mat-label>
-          <input matInput [formControl]="field.control" enterkeyhint="done" (keydown.enter)="close()" />
+          <input
+            matInput
+            autocapitalize="sentences"
+            enterkeyhint="done"
+            [formControl]="field.control"
+            (keydown.enter)="close()"
+          />
           @let refused = field.control.getError('refused');
           <mat-error>{{ refused && t(refused.key, refused.params) }}</mat-error>
         </mat-form-field>
