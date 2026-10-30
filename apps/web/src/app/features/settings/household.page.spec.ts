@@ -190,12 +190,34 @@ describe('HouseholdPage', () => {
     expect(t.el.textContent).toContain(sv.settings.pending.one.replace('{{n}}', '1'));
   });
 
+  it('a second tap on Leave does nothing', async () => {
+    const t = await setup({ userId: 'u2' });
+    await leave(t);
+    const button = await t.root.getHarness(MatButtonHarness.with({ text: sv.settings.leave }));
+    expect(await button.isDisabled()).toBe(true);
+    await button.click();
+    await snackbar(t);
+    const deletes = t.fetch.mock.calls.filter(([, init]) => init?.method === 'DELETE');
+    expect(deletes.length).toBe(1);
+    expect(t.startOver.run).not.toHaveBeenCalledWith('removed');
+  });
+
+  it('a failed Undo on Leave starts over, then says so', async () => {
+    const t = await setup({ userId: 'u2', restore: json(500, { error: 'boom' }) });
+    await leave(t);
+    await (await snackbar(t)).dismissWithAction();
+    await vi.waitFor(() => expect(t.startOver.run).toHaveBeenCalledWith('left'));
+    await vi.waitFor(async () => {
+      expect(await (await t.root.getHarness(MatSnackBarHarness)).getMessage()).toBe(sv.errors.actionFailed);
+    });
+  });
+
   it('leaving offline changes nothing', async () => {
     const t = await setup({ userId: 'u2', removeFails: true });
     await leave(t);
     const snack = await snackbar(t);
     expect(await snack.getMessage()).toBe(sv.errors.actionFailed);
-    expect(t.sync.stop).not.toHaveBeenCalled();
+    expect(t.sync.start).toHaveBeenCalled();
     expect(t.startOver.run).not.toHaveBeenCalled();
   });
 

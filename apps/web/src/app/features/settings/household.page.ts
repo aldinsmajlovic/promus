@@ -1,4 +1,4 @@
-import { Component, computed, inject } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { MatButton, MatIconButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import { MatMenu, MatMenuContent, MatMenuItem, MatMenuTrigger } from '@angular/material/menu';
@@ -55,6 +55,8 @@ export class HouseholdPage {
   protected readonly pending = inject(Store).pendingCount;
   protected readonly back = injectBack();
   protected readonly invite = injectInvite();
+  /** From the tap on Leave until it is undone, failed or over: a second tap would sync into a 403. */
+  protected readonly leaving = signal(false);
   private readonly owner = computed(() => this.members().find((m) => m.role === 'owner')?.username ?? '');
 
   constructor() {
@@ -101,15 +103,25 @@ export class HouseholdPage {
     if (!session) return;
     const { householdId, userId } = session;
     const owner = this.owner();
+    this.leaving.set(true);
     try {
       // what is unsynced is gone once they are out, and the button is off while there is any
       await this.sync.syncNow();
-      await this.api.removeMember(householdId, userId);
     } catch (err) {
+      this.leaving.set(false);
       this.actions.failed(err, SNACK);
       return;
     }
+    // stopped before the removal, so no sync can pull after it commits
     this.sync.stop();
+    try {
+      await this.api.removeMember(householdId, userId);
+    } catch (err) {
+      this.sync.start();
+      this.leaving.set(false);
+      this.actions.failed(err, SNACK);
+      return;
+    }
     const ref = this.snackBar.open(
       this.transloco.translate('snack.left', { owner }),
       this.transloco.translate('snack.undo'),
@@ -117,10 +129,14 @@ export class HouseholdPage {
     );
     ref.onAction().subscribe(() => {
       this.restore(householdId, userId).then(
-        () => this.sync.start(),
-        (err: unknown) => {
+        () => {
+          this.sync.start();
+          this.leaving.set(false);
+        },
+        async (err: unknown) => {
+          // starting over closes open snackbars, so the failure is shown after it
+          await this.startOver.run('left');
           this.actions.failed(err, SNACK);
-          return this.startOver.run('left');
         },
       );
     });

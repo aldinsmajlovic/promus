@@ -51,7 +51,7 @@
           <button
             matButton="outlined"
             type="button"
-            [disabled]="n > 0"
+            [disabled]="n > 0 || leaving()"
             [attr.aria-describedby]="n > 0 ? 'pending' : null"
             (click)="leave()"
           >
