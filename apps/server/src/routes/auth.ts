@@ -51,15 +51,15 @@ export function authRoutes({ db, logger, now }: Pick<AppDeps, 'db' | 'logger' | 
     .get('/me', requireAuth('any'), (c) => {
       const { userId, username } = c.get('auth');
       const households = db
-        .prepare('SELECT household_id AS id, role FROM household_members WHERE user_id = ? ORDER BY household_id')
+        .prepare('SELECT household_id AS id, role FROM household_members WHERE user_id = ? AND removed_at IS NULL ORDER BY household_id')
         .all(userId) as { id: string; role: string }[];
       const members = db.prepare(
-        `SELECT u.id, u.username, m.role FROM household_members m JOIN users u ON u.id = m.user_id
+        `SELECT u.id, u.username, m.role, m.removed_at IS NOT NULL AS former FROM household_members m JOIN users u ON u.id = m.user_id
          WHERE m.household_id = ? AND u.disabled_at IS NULL ORDER BY u.username_norm`,
       );
       return c.json({
         user: { id: userId, username },
-        households: households.map((h) => ({ ...h, members: members.all(h.id) as Member[] })),
+        households: households.map((h) => ({ ...h, members: (members.all(h.id) as (Omit<Member, 'former'> & { former: number })[]).map((m) => ({ ...m, former: m.former === 1 })) })),
       });
     });
 }

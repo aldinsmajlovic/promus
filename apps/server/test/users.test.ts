@@ -17,7 +17,7 @@ describe('users', { timeout: 20_000 }, () => {
     expect(await verifyPassword(PW, user.password_hash as string)).toBe(true);
     expect(db.prepare('SELECT * FROM households').all()).toEqual([{ id: ids.householdId, created_at: T0 }]);
     expect(db.prepare('SELECT * FROM household_members').all()).toEqual([
-      { household_id: ids.householdId, user_id: ids.userId, role: 'owner' },
+      { household_id: ids.householdId, user_id: ids.userId, role: 'owner', removed_at: null, removed_by: null },
     ]);
 
     const ev = db.prepare('SELECT * FROM events').get() as Record<string, string | number | null>;

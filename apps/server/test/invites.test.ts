@@ -38,7 +38,7 @@ async function setup() {
     send('POST', '/api/invites/accept', { token, username, password, locale });
   const me = async (cookie: string) =>
     (await (await t.app.request('/api/me', { headers: { Cookie: cookie } })).json()) as {
-      households: { id: string; role: string; members: { id: string; username: string; role: string }[] }[];
+      households: { id: string; role: string; members: { id: string; username: string; role: string; former: boolean }[] }[];
     };
   return { ...t, lines, anna, cookieA, send, invite, check, accept, me };
 }
@@ -82,7 +82,7 @@ describe('invites', { timeout: 30_000 }, () => {
     expect(t.db.prepare('SELECT used_by FROM invites').get()).toEqual({ used_by: bo.id });
 
     const cookieB = cookieOf(await login(t.app, 'bo', PW));
-    const members = [{ id: t.anna.userId, username: 'Anna', role: 'owner' }, { id: bo.id, username: 'Bo', role: 'member' }];
+    const members = [{ id: t.anna.userId, username: 'Anna', role: 'owner', former: false }, { id: bo.id, username: 'Bo', role: 'member', former: false }];
     expect(await t.me(t.cookieA)).toEqual(expect.objectContaining({ households: [{ id: t.anna.householdId, role: 'owner', members }] }));
     expect((await t.me(cookieB)).households).toEqual([{ id: t.anna.householdId, role: 'member', members }]);
 
@@ -119,9 +119,9 @@ describe('invites', { timeout: 30_000 }, () => {
     const bo = t.db.prepare("SELECT id FROM users WHERE username = 'Bo'").get() as { id: string };
     const cookieB = cookieOf(await login(t.app, 'bo', PW));
     const { households } = await t.me(cookieB);
-    expect(households).toEqual([{ id: expect.any(String), role: 'owner', members: [{ id: bo.id, username: 'Bo', role: 'owner' }] }]);
+    expect(households).toEqual([{ id: expect.any(String), role: 'owner', members: [{ id: bo.id, username: 'Bo', role: 'owner', former: false }] }]);
     expect(households[0]!.id).not.toBe(t.anna.householdId);
-    expect((await t.me(t.cookieA)).households[0]!.members).toEqual([{ id: t.anna.userId, username: 'Anna', role: 'owner' }]);
+    expect((await t.me(t.cookieA)).households[0]!.members).toEqual([{ id: t.anna.userId, username: 'Anna', role: 'owner', former: false }]);
 
     const pulled = (await (await t.app.request('/api/sync/pull', { headers: { Cookie: cookieB } })).json()) as PullResponse;
     expect(pulled.events.map((e) => [e.type, e.householdId, (e.payload as { name: string }).name]))
@@ -194,6 +194,46 @@ describe('invites', { timeout: 30_000 }, () => {
     expect(short.status).toBe(400);
     expect(await short.json()).toEqual({ error: 'password_too_short' });
     expect((await t.accept(token, 'Bo')).status).toBe(201);
+  });
+
+  describe('a former member', () => {
+    async function removedBo() {
+      const t = await setup();
+      expect((await t.accept((await t.invite()).token)).status).toBe(201);
+      const boId = (t.db.prepare("SELECT id FROM users WHERE username = 'Bo'").get() as { id: string }).id;
+      const cookieB = cookieOf(await login(t.app, 'bo', PW));
+      const householdInvite = await t.invite(cookieB);
+      const ownInvite = await t.invite(cookieB, { ownHousehold: true });
+      const setRemoved = (at: number | null) =>
+        t.db.prepare('UPDATE household_members SET removed_at = ?, removed_by = ? WHERE user_id = ?').run(at, at === null ? null : t.anna.userId, boId);
+      return { ...t, boId, cookieB, householdInvite, ownInvite, setRemoved };
+    }
+
+    it('signs in to no household, and their session sees none', async () => {
+      const t = await removedBo();
+      t.setRemoved(T0);
+      const res = await login(t.app, 'bo', PW);
+      expect(((await res.json()) as { householdId: string | null }).householdId).toBeNull();
+      expect((await t.me(t.cookieB)).households).toEqual([]);
+    });
+
+    it('is listed on /me, marked', async () => {
+      const t = await removedBo();
+      t.setRemoved(T0);
+      expect((await t.me(t.cookieA)).households[0]!.members).toEqual([
+        { id: t.anna.userId, username: 'Anna', role: 'owner', former: false },
+        { id: t.boId, username: 'Bo', role: 'member', former: true },
+      ]);
+    });
+
+    it("has invites that stop working, and work again once they're back", async () => {
+      const t = await removedBo();
+      t.setRemoved(T0);
+      expect((await t.check(t.householdInvite.token)).status).toBe(404);
+      expect((await t.check(t.ownInvite.token)).status).toBe(404);
+      t.setRemoved(null);
+      expect((await t.check(t.householdInvite.token)).status).toBe(200);
+    });
   });
 
   it('never logs a token', async () => {

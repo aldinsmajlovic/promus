@@ -32,7 +32,7 @@ export function findSession(db: DatabaseSync, token: string, now: number): AuthC
     .get(hashToken(token), now) as SessionRow | undefined;
   if (!row) return null;
   const households = db
-    .prepare('SELECT household_id FROM household_members WHERE user_id = ? ORDER BY household_id')
+    .prepare('SELECT household_id FROM household_members WHERE user_id = ? AND removed_at IS NULL ORDER BY household_id')
     .all(row.user_id) as { household_id: string }[];
   return {
     sessionId: row.id,

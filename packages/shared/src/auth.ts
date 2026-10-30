@@ -28,5 +28,5 @@ export type InviteAccept = z.infer<typeof inviteAcceptSchema>;
 
 export type InviteCheck = { expiresAt: number; invitedBy: string; ownHousehold: boolean };
 
-/** A household member, as Settings lists them. */
-export type Member = { id: string; username: string; role: string };
+/** A household member, as Settings lists them. `former` is true after they left or were removed; members cached by older versions lack it. */
+export type Member = { id: string; username: string; role: string; former: boolean };

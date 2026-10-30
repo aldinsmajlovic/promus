@@ -23,6 +23,7 @@ export function findValidInvite(db: DatabaseSync, tokenHash: string, now: number
     .prepare(
       `SELECT i.id, i.household_id, i.expires_at, i.own_household, u.username AS invited_by
        FROM invites i JOIN users u ON u.id = i.created_by
+       JOIN household_members m ON m.household_id = i.household_id AND m.user_id = i.created_by AND m.removed_at IS NULL
        WHERE i.token_hash = ? AND i.used_at IS NULL AND i.revoked_at IS NULL AND i.expires_at >= ?`,
     )
     .get(tokenHash, now) as InviteRow | undefined;
