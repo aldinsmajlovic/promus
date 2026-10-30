@@ -119,8 +119,10 @@
     // the sheet's negative margin would carry its rounded top off-screen once stuck
     top: 1.5rem;
     box-sizing: border-box;
-    // in a browser that can't follow the scroll (below): it fits under the band, 7.5rem tall, at the top of the page
+    // in a browser that can't follow the scroll (below): it fits under the band, 7.5rem tall, at the top of the page.
+    // Once stuck it ends 4.5rem above the window's bottom, so it is rounded there too: a card, not a cut-off sheet
     max-height: calc(100dvh - 6rem);
+    border-radius: var(--mat-sys-corner-extra-large);
   }
 
   // from wherever its top is down to the window's bottom: under the band at first, then taller as the page scrolls,
@@ -131,6 +133,8 @@
       animation-timeline: view() !important;
       // from its top at the window's bottom to its top where it sticks
       animation-range: cover 0% cover calc(100dvh - 1.5rem) !important;
+      // it always reaches the window's bottom, as the list's sheet does
+      border-radius: var(--mat-sys-corner-extra-large-top);
     }
   }
 }
