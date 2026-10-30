@@ -317,6 +317,17 @@ describe('ListPage', () => {
     expect(shared.getAttribute('aria-label')).toBe('Delas med bo, cia, dan och eva');
   });
 
+  it('a former member is named on their row but is not in the band', async () => {
+    const t = await setup([['Ost']], ['bo']);
+    const [you, bo] = t.members;
+    await t.db.setMeta('members', [you!, { ...bo!, former: true }]);
+    await TestBed.inject(Household).refresh();
+    await pull(t, [['Ost', bo!.id]]);
+    const ost = () => rows(t.el, false).find((r) => text(r.querySelector('.name')) === 'Ost')!;
+    await vi.waitFor(() => expect(ost().getAttribute('aria-description')).toBe('Tillagd av bo'));
+    expect(t.el.querySelector('.with')).toBeNull();
+  });
+
   it('with no one else, only your initial shows', async () => {
     const { el, fixture } = await setup([['Mjölk']]);
     await vi.waitFor(() => expect(TestBed.inject(Household).members()).toHaveLength(1));

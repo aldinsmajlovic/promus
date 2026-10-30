@@ -77,7 +77,7 @@ async function setup({ origin = 'https://promus.example', userId = 'u1', pending
   const root = TestbedHarnessEnvironment.documentRootLoader(fixture);
   const invite = async () => (await root.getHarness(MatButtonHarness.with({ text: sv.settings.invite }))).click();
   const sheet = () => document.querySelector('mat-bottom-sheet-container');
-  return { fetch, el, root, invite, sheet, sync, startOver, fixture };
+  return { db, fetch, el, root, invite, sheet, sync, startOver, fixture };
 }
 
 // the face is only decoration, so a row reads as its name and role
@@ -136,6 +136,14 @@ describe('HouseholdPage', () => {
       const next = await t.root.getHarness(MatSnackBarHarness);
       expect(await next.getMessage()).toBe(sv.snack.memberMoved.replace('{{name}}', 'bo'));
     });
+  });
+
+  it('only rows the owner can remove are focusable', async () => {
+    const t = await setup();
+    await vi.waitFor(() => expect(t.el.querySelectorAll('li').length).toBe(2));
+    const [anna, bo] = Array.from(t.el.querySelectorAll('li'));
+    expect(anna!.hasAttribute('tabindex')).toBe(false);
+    expect(bo!.getAttribute('tabindex')).toBe('0');
   });
 
   it('no menu on your own row, nor for a member', async () => {
@@ -210,6 +218,20 @@ describe('HouseholdPage', () => {
     await vi.waitFor(async () => {
       expect(await (await t.root.getHarness(MatSnackBarHarness)).getMessage()).toBe(sv.errors.actionFailed);
     });
+  });
+
+  it('leaving after being removed meanwhile does nothing', async () => {
+    const t = await setup({ userId: 'u2' });
+    const session = TestBed.inject(SessionService);
+    t.sync.syncNow.mockImplementation(async () => {
+      await t.db.setMeta('session', { userId: 'u2', username: 'bo', householdId: 'h2' });
+      await session.load();
+    });
+    await leave(t);
+    await vi.waitFor(() => expect(t.sync.syncNow).toHaveBeenCalled());
+    await t.fixture.whenStable();
+    expect(t.fetch.mock.calls.filter(([, init]) => init?.method === 'DELETE')).toHaveLength(0);
+    expect(t.startOver.run).not.toHaveBeenCalled();
   });
 
   it('leaving offline changes nothing', async () => {

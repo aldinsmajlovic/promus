@@ -54,8 +54,10 @@ async function setup(reply: Reply = () => undefined, full = false) {
   });
   const session = TestBed.inject(SessionService);
   await session.load();
+  const sync = TestBed.inject(SyncService);
+  vi.spyOn(sync, 'start');
   const snack = () => document.querySelector('simple-snack-bar, .mat-mdc-snack-bar-container')?.textContent ?? '';
-  return { db, fetch, session, snack, startOver: TestBed.inject(StartOver), router: TestBed.inject(Router) };
+  return { db, fetch, session, snack, sync, startOver: TestBed.inject(StartOver), router: TestBed.inject(Router) };
 }
 
 describe('StartOver', () => {
@@ -92,6 +94,7 @@ describe('StartOver', () => {
     expect(t.session.session()).toBeNull();
     expect(t.router.url).toBe('/login');
     expect(t.snack()).toContain(sv.errors.actionFailed);
+    expect(t.sync.start).toHaveBeenCalled();
   });
 
   it('a 403 not_a_member during sync runs it', async () => {

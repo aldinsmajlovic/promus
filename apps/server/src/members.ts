@@ -3,13 +3,16 @@ import { transaction } from './db.ts';
 import { insertHousehold } from './users.ts';
 import type { Locale } from './users.ts';
 
-type Row = { role: string; removed_by: string | null };
+/** Undo for your own leave is for a slip of the thumb; later, only the owner can bring someone back. */
+const OWN_RESTORE_MS = 10 * 60_000;
+
+type Row = { role: string; removed_by: string | null; removed_at: number | null };
 type Ids = { householdId: string; actorId: string; targetId: string; now: number };
 
 const rowOf = (db: DatabaseSync, householdId: string, userId: string, live: boolean) =>
   db
     .prepare(
-      `SELECT role, removed_by FROM household_members
+      `SELECT role, removed_by, removed_at FROM household_members
        WHERE household_id = ? AND user_id = ? AND removed_at IS ${live ? '' : 'NOT '}NULL`,
     )
     .get(householdId, userId) as Row | undefined;
@@ -37,7 +40,7 @@ export function restoreMember(db: DatabaseSync, { householdId, actorId, targetId
   return transaction(db, () => {
     const target = rowOf(db, householdId, targetId, false);
     if (!target) return 'not_found';
-    const own = actorId === targetId && target.removed_by === targetId;
+    const own = actorId === targetId && target.removed_by === targetId && now - (target.removed_at ?? 0) <= OWN_RESTORE_MS;
     if (!own && !isLiveOwner(db, householdId, actorId)) return 'forbidden';
     const elsewhere = db
       .prepare('SELECT household_id AS id FROM household_members WHERE user_id = ? AND removed_at IS NULL')

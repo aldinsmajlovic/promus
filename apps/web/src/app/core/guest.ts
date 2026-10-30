@@ -12,7 +12,7 @@ import { injectCloseOverlays } from './overlays';
 import { SessionService } from './session';
 import { Shares } from './shares';
 import { Store } from './store';
-import { SYNC_API, SYNC_AUTH_FAILED, SyncService } from './sync.service';
+import { SYNC_API, SYNC_AUTH_FAILED, SYNC_REMOVED, SyncService } from './sync.service';
 
 // the person goes in the navigation's state, never the URL: the server logs paths
 const ENDED = '/share/ended';
@@ -85,6 +85,7 @@ function guestProviders(): Provider[] {
     { provide: DexieSyncStorage, useFactory: () => new DexieSyncStorage(inject(PromusDb)) },
     { provide: SYNC_API, useFactory: () => inject(ApiClient).guestSync(inject(GUEST)?.shareId ?? '') },
     { provide: SYNC_AUTH_FAILED, useFactory: authFailed },
+    { provide: SYNC_REMOVED, useValue: null },
     SessionService,
     Store,
     SyncService,

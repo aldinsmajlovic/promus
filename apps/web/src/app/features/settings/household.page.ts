@@ -104,16 +104,15 @@ export class HouseholdPage {
     const { householdId, userId } = session;
     const owner = this.owner();
     this.leaving.set(true);
-    try {
-      // what is unsynced is gone once they are out, and the button is off while there is any
-      await this.sync.syncNow();
-    } catch (err) {
+    // stopped first, so no sync can pull after the removal commits and none reruns after this one
+    this.sync.stop();
+    // what is unsynced is gone once they are out, and the button is off while there is any
+    await this.sync.syncNow();
+    // not_a_member in that sync: already removed, and starting over has run
+    if (this.session.session()?.householdId !== householdId) {
       this.leaving.set(false);
-      this.actions.failed(err, SNACK);
       return;
     }
-    // stopped before the removal, so no sync can pull after it commits
-    this.sync.stop();
     try {
       await this.api.removeMember(householdId, userId);
     } catch (err) {

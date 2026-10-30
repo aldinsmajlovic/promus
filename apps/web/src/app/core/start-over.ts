@@ -37,10 +37,12 @@ export class StartOver {
       started = await this.session.startOver();
     } catch (err) {
       this.actions.failed(err);
+      this.sync.start();
       await this.router.navigateByUrl('/login', { replaceUrl: true });
       return;
     }
     if (!started) {
+      this.sync.start();
       await this.router.navigateByUrl('/login', { replaceUrl: true });
       return;
     }

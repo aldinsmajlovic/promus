@@ -155,7 +155,7 @@ export class ListPage {
   /** Undefined until meta `doneFolded` is first read; then Done shows, open unless folded on this device. */
   protected readonly doneOpen = this.fold.open;
   protected readonly members = computed((): Person[] =>
-    this.household.members().map((m) => ({ id: m.id, name: m.username, guest: false })),
+    this.household.current().map((m) => ({ id: m.id, name: m.username, guest: false })),
   );
   /** The household, and the guests of the list's link; the template checks that it's still live. */
   protected readonly withGuests = computed((): Person[] => {

@@ -98,6 +98,37 @@ describe('removing and restoring members', { timeout: 30_000 }, () => {
     expect((await t.me(t.bo.cookie)).households.map((x) => x.id)).toEqual([t.h]);
   });
 
+  it('their own leave can be undone within 10 minutes, not after; the owner always can', async () => {
+    const t = await setup();
+    await t.remove(t.bo.id, t.bo.cookie);
+    t.setNow(T0 + 9 * 60_000);
+    expect((await t.restore(t.bo.id, t.bo.cookie)).status).toBe(204);
+    await t.remove(t.bo.id, t.bo.cookie);
+    t.setNow(T0 + 20 * 60_000);
+    expect((await t.restore(t.bo.id, t.bo.cookie)).status).toBe(403);
+    expect(t.member(t.bo.id)).toEqual({ removed_at: T0 + 9 * 60_000, removed_by: t.bo.id });
+    t.setNow(T0 + 21 * 60_000);
+    expect((await t.restore(t.bo.id, t.cookieA)).status).toBe(204);
+  });
+
+  it("another household's owner and an outsider can neither remove nor restore", async () => {
+    const t = await setup();
+    await createUser(t.db, { username: 'Dee', password: PW, locale: 'sv', now: T0 });
+    const dee = cookieOf(await login(t.app, 'dee', PW));
+    const eve = await createUser(t.db, { username: 'Eve', password: PW, locale: 'sv', now: T0 });
+    t.db.prepare('UPDATE household_members SET removed_at = ?, removed_by = ? WHERE user_id = ?').run(T0, eve.userId, eve.userId);
+    const outsider = cookieOf(await login(t.app, 'eve', PW));
+    for (const cookie of [dee, outsider]) {
+      expect((await t.remove(t.bo.id, cookie)).status).toBe(403);
+      expect(t.member(t.bo.id)).toEqual({ removed_at: null, removed_by: null });
+    }
+    await t.remove(t.bo.id, t.cookieA);
+    for (const cookie of [dee, outsider]) {
+      expect((await t.restore(t.bo.id, cookie)).status).toBe(403);
+      expect(t.member(t.bo.id)).toEqual({ removed_at: T0, removed_by: t.anna.userId });
+    }
+  });
+
   it("someone the owner removed can't put themself back", async () => {
     const t = await setup();
     await t.remove(t.bo.id, t.cookieA);

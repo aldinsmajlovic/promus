@@ -12,7 +12,7 @@
       @if (members().length > 0) {
         <ul>
           @for (m of members(); track m.id) {
-            <li appRowGestures [swipe]="false" (held)="isOwner() && m.id !== you() && options.openMenu()">
+            <li appRowGestures [swipe]="false" [attr.tabindex]="isOwner() && m.id !== you() ? 0 : null" (held)="isOwner() && m.id !== you() && options.openMenu()">
               <app-face [member]="m" />
               <span class="name">{{ m.username }}</span>
               @if (m.id === you()) {
