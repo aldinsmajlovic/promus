@@ -507,7 +507,7 @@ describe('guest mode', () => {
 
   it('calls no household endpoint, and shows none of its people', async () => {
     const t = await setup();
-    await t.household.setMeta('members', [{ id: newId(), username: 'fredrik', role: 'member' }]);
+    await t.household.setMeta('members', [{ id: newId(), username: 'fredrik', role: 'member', former: false }]);
     // added by someone the guest's page doesn't know: on the household's page, that asks the server for its links
     const taco = await joined(['Tortillas']);
     await t.open(taco.url);

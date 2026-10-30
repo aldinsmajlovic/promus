@@ -70,8 +70,8 @@ async function setup(
   shares?: (listId: string) => SharesResponse | Promise<SharesResponse>,
 ) {
   const db = new PromusDb(`list-${newId()}`);
-  const you: Member = { id: newId(), username: 'anna', role: 'owner' };
-  const members = [you, ...others.map((username) => ({ id: newId(), username, role: 'member' }))];
+  const you: Member = { id: newId(), username: 'anna', role: 'owner', former: false };
+  const members = [you, ...others.map((username) => ({ id: newId(), username, role: 'member', former: false }))];
   const householdId = newId();
   await db.setMeta('session', { userId: you.id, username: you.username, householdId });
   await db.setMeta('members', members);

@@ -6,8 +6,8 @@ import { PromusDb } from './db';
 import { Household } from './household';
 import { SessionService } from './session';
 
-const anna = { id: 'u1', username: 'anna', role: 'owner' };
-const bo = { id: 'u2', username: 'bo', role: 'member' };
+const anna = { id: 'u1', username: 'anna', role: 'owner', former: false };
+const bo = { id: 'u2', username: 'bo', role: 'member', former: false };
 
 function setup() {
   const db = new PromusDb(`household-${newId()}`);
