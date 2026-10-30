@@ -26,6 +26,10 @@ export const inviteTokenSchema = z.object({ token: z.string().min(1).max(100) })
 export const inviteAcceptSchema = accountSchema.extend(inviteTokenSchema.shape).extend({ locale: z.enum(['sv', 'en']).optional() });
 export type InviteAccept = z.infer<typeof inviteAcceptSchema>;
 
+/** A household on demand, for someone who has none; `locale` names its default list. */
+export const householdCreateSchema = z.object({ locale: z.enum(['sv', 'en']).optional() });
+export type HouseholdCreate = z.infer<typeof householdCreateSchema>;
+
 export type InviteCheck = { expiresAt: number; invitedBy: string; ownHousehold: boolean };
 
 /** A household member, as Settings lists them. `former` is true after they left or were removed; members cached by older versions lack it. */

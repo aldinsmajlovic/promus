@@ -10,6 +10,7 @@ import { authRoutes } from './routes/auth.ts';
 import { guestRoutes } from './routes/guest.ts';
 import { healthRoutes } from './routes/health.ts';
 import { inviteRoutes } from './routes/invites.ts';
+import { memberRoutes } from './routes/members.ts';
 import { shareRoutes } from './routes/shares.ts';
 import { setupRoutes } from './routes/setup.ts';
 import { syncRoutes } from './routes/sync.ts';
@@ -57,6 +58,7 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
   app.route('/api', authRoutes(deps));
   app.route('/api', setupRoutes(deps));
   app.route('/api', inviteRoutes(deps));
+  app.route('/api', memberRoutes(deps));
   app.route('/api', shareRoutes(deps));
   app.route('/api', guestRoutes(deps));
   app.route('/api', syncRoutes(deps));
