@@ -28,7 +28,7 @@ function app(base?: ReturnType<typeof makeTestApp>) {
   const logger = pino({ level: 'info' }, { write: (line: string) => void lines.push(JSON.parse(line) as Line) });
   const t = base ?? makeTestApp({ logger });
   // a restart: a new app on the same database
-  const restarted = base ? createApp({ db: t.db, config: t.config, logger, now: t.now, webRoot: t.webRoot }) : t.app;
+  const restarted = base ? createApp({ db: t.db, config: t.config, logger, now: t.now, webRoot: t.webRoot, releases: async () => [] }) : t.app;
   const code = lines.map((l) => CODE.exec(l.msg)?.[1]).find((c) => c !== undefined);
   const post = (body: unknown, headers: Record<string, string> = SAME_ORIGIN) =>
     restarted.request('/api/setup', {

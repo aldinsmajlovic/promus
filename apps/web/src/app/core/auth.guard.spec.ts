@@ -58,9 +58,10 @@ describe('route guards', () => {
     fetch.mockClear();
     await db.setMeta('session', session);
     for (const url of ['/', '/add', '/settings']) expect(await visit(url)).toBe(url);
-    // the cached session is enough: the app opens offline (it asks only who's in the household, and its links)
+    // the cached session is enough: the app opens offline (it asks only who's in the household, its links,
+    // and in Settings whether a newer release is out)
     const asked = fetch.mock.calls.map(([url]) => url);
-    expect(asked.filter((url) => url !== '/api/me' && url !== '/api/shares')).toEqual([]);
+    expect(asked.filter((url) => !['/api/me', '/api/shares', '/api/releases'].includes(String(url)))).toEqual([]);
   });
 
   it('login sends a cached session home, unless its sign-in expired', async () => {

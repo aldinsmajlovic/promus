@@ -42,6 +42,7 @@ Anything longer than a line or two goes to a page in `docs/` and the README link
 | `docs/cli.md` | Server commands: accounts and backups |
 | `docs/development.md` | Running locally, checks, phone testing, releasing, project layout |
 | `docs/decisions.md` | Changes from the plan, with the why |
+| `CHANGELOG.md` | What each release changes for users, as Settings shows it |
 | `docs/images/` | Screenshots, retaken with `npm run screenshots` |
 | `docs/writing-docs.md` | These rules |
 | `CLAUDE.md` | Code conventions for changes |

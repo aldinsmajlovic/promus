@@ -118,3 +118,18 @@ app-phone-card {
   font-size: 0.8125rem;
   text-align: center;
 }
+
+.notes {
+  margin: 0;
+  // under the title, past the icon
+  padding: 0 1rem 0 calc(4.125rem + 1.125rem);
+  font-size: 0.9375rem;
+  line-height: 1.375rem;
+}
+
+.how {
+  display: block;
+  padding: 0.75rem 1rem 1rem 4.125rem;
+  color: var(--mat-sys-primary);
+  font-size: 0.9375rem;
+}

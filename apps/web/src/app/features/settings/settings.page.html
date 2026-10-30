@@ -93,6 +93,21 @@
         <app-phone-card />
       </div>
 
+      @if (releases()[0]; as latest) {
+        <div class="group update">
+          <div class="row">
+            <span class="ic"><mat-icon svgIcon="upgrade" /></span>
+            <span class="txt"><span class="main">{{ t('settings.update', { version: latest.version }) }}</span></span>
+          </div>
+          <ul class="notes">
+            @for (note of notes(); track $index) {
+              <li>{{ note }}</li>
+            }
+          </ul>
+          <a class="how" [href]="updateGuide(latest.version)" target="_blank" rel="noopener">{{ t('settings.updateHow') }}</a>
+        </div>
+      }
+
       <p class="version">{{ t('settings.version', { version }) }}</p>
     </main>
   </div>

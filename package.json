@@ -3,6 +3,10 @@
   "version": "0.6.1",
   "private": true,
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/aldinsmajlovic/promus"
+  },
   "type": "module",
   "workspaces": [
     "packages/*",

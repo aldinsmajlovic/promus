@@ -121,6 +121,8 @@ const app = createApp({
   logger: createLogger(config.logLevel),
   now: Date.now,
   webRoot: fileURLToPath(DEFAULT_WEB_ROOT),
+  // no update notice in the docs' pictures
+  releases: async () => [],
 });
 // any free port: only main.ts reads config.port
 const server = serve({ fetch: app.fetch, port: 0, hostname: '127.0.0.1' });

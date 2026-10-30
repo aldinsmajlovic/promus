@@ -9,3 +9,4 @@ export * from './auth.ts';
 export * from './share.ts';
 export * from './errors.ts';
 export * from './sync-client.ts';
+export * from './releases.ts';

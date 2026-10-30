@@ -27,6 +27,7 @@ export function makeTestApp(overrides: Partial<AppDeps> = {}) {
     logger: createLogger('silent'),
     now: () => now,
     webRoot,
+    releases: async () => [],
     ...overrides,
   });
   return { app, db, config, webRoot, now: () => now, setNow: (ms: number) => { now = ms; } };

@@ -161,6 +161,8 @@
     "sv": "Svenska",
     "system": "System",
     "theme": "Theme",
+    "update": "Version {{version}} is out",
+    "updateHow": "How to update",
     "version": "Version {{version}}",
     "you": "You"
   },

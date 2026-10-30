@@ -23,6 +23,7 @@ import type {
   Member,
   PullResponse,
   PushResponse,
+  Release,
   SetupRequest,
   Share,
   ShareCheck,
@@ -141,6 +142,11 @@ export class ApiClient implements SyncApi {
   pull(after: number, limit: number, household?: string): Promise<PullResponse> {
     const scope = household === undefined ? '' : `&household=${encodeURIComponent(household)}`;
     return this.request('GET', `/api/sync/pull?after=${after}&limit=${limit}${scope}`);
+  }
+
+  /** The releases after the server's version, newest first: none when it couldn't ask GitHub. */
+  async releases(): Promise<Release[]> {
+    return (await this.request<{ releases: Release[] }>('GET', '/api/releases')).releases;
   }
 
   /** The user's household, or a new one: `created` says which. */

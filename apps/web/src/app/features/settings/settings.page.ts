@@ -1,13 +1,16 @@
-import { Component, computed, inject } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { MatIconButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import { MatMenu, MatMenuItem, MatMenuTrigger } from '@angular/material/menu';
 import { RouterLink } from '@angular/router';
 import { TranslocoDirective, TranslocoService } from '@jsverse/transloco';
+import { AuthError, NetworkError, type Release } from '@promus/shared';
 import { version } from '../../../../../../package.json';
 import { Actions } from '../../core/actions';
+import { ApiClient } from '../../core/api';
 import { injectBack } from '../../core/back';
+import { updateGuideUrl } from '../../core/docs';
 import { Household } from '../../core/household';
 import { type Lang, LangService } from '../../core/i18n';
 import { SessionService } from '../../core/session';
@@ -36,6 +39,7 @@ import { injectInvite } from './invite-sheet';
 })
 export class SettingsPage {
   private readonly actions = inject(Actions);
+  private readonly api = inject(ApiClient);
   private readonly sync = inject(SyncService);
   private readonly household = inject(Household);
   private readonly transloco = inject(TranslocoService);
@@ -56,6 +60,10 @@ export class SettingsPage {
     return new Intl.ListFormat(this.activeLang(), { type: 'conjunction' }).format(names);
   });
   protected readonly version = version;
+  /** The releases after the server's, newest first: the update notice shows when there's one. */
+  protected readonly releases = signal<Release[]>([]);
+  protected readonly notes = computed(() => this.releases().flatMap((r) => r.notes[this.activeLang() === 'sv' ? 'sv' : 'en']));
+  protected readonly updateGuide = updateGuideUrl;
   protected readonly back = injectBack();
   protected readonly invite = injectInvite();
   protected readonly langs: { value: Lang | 'system'; label: string }[] = [
@@ -71,6 +79,13 @@ export class SettingsPage {
 
   constructor() {
     void this.household.refresh();
+    this.api.releases().then(
+      (releases) => this.releases.set(releases),
+      (err: unknown) => {
+        // offline or signed out (the badge on your initial says so): no notice
+        if (!(err instanceof NetworkError || err instanceof AuthError)) console.error('releases failed', err);
+      },
+    );
   }
 
   protected labelOf(options: { value: string; label: string }[], value: string): string {

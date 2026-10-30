@@ -36,7 +36,26 @@ An iPhone needs HTTPS, even for testing. Build the app, start the server with `n
 
 ## Releasing
 
-Pushing a version tag publishes the Docker image:
+Pushing a version tag publishes the Docker image and the release notes. First add the version's section to the top of [`CHANGELOG.md`](../CHANGELOG.md), from `git log v0.1.0..` (the last tag):
+
+```markdown
+## 0.2.0
+
+- Prices on items, and a total for the list
+- Fixed: Undo after a swipe brought back the wrong item
+
+### Svenska
+
+- Priser på varor, och en summa för listan
+- Fixat: Ångra efter ett svep tog tillbaka fel vara
+```
+
+- One line per change someone using the app would notice: what they can do now, or what works now that didn't. Fixes start with "Fixed:".
+- Leave out refactors, tests, docs and anything only the code sees. A release with nothing to notice says so in one line.
+- Plain text: Settings shows each line as it is, so no Markdown inside one.
+- The same lines in Swedish under `### Svenska`.
+
+Then:
 
 ```sh
 npm version 0.2.0 --no-git-tag-version
@@ -46,10 +65,13 @@ git push origin main v0.2.0
 ```
 
 `.github/workflows/image.yml` then:
-1. checks that the tag matches `version` in `package.json`;
+1. checks that the tag matches `version` in `package.json`, and that `CHANGELOG.md` has a section for it;
 2. builds the image for amd64 and arm64;
 3. starts it and waits for `/api/health`;
-4. pushes it to `ghcr.io/aldinsmajlovic/promus` as `0.2.0` and `latest`.
+4. pushes it to `ghcr.io/aldinsmajlovic/promus` as `0.2.0` and `latest`;
+5. publishes the section as the GitHub release `v0.2.0`. Servers on an older version show it in **Settings**.
+
+A failed check stops the release before anything is published: fix it, then move the tag with `git tag -f v0.2.0` and `git push -f origin v0.2.0`.
 
 The app reports this version and links to the docs at this tag, so tag only commits whose docs match the code.
 

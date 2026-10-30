@@ -4,6 +4,7 @@ import { DEFAULT_WEB_ROOT, createApp } from './app.ts';
 import { loadConfig } from './config.ts';
 import { MIGRATIONS_DIR, migrate, openDatabase } from './db.ts';
 import { createLogger } from './log.ts';
+import { releaseChecker } from './releases.ts';
 
 const config = loadConfig(process.env);
 const logger = createLogger(config.logLevel);
@@ -16,6 +17,7 @@ const app = createApp({
   logger,
   now: Date.now,
   webRoot: fileURLToPath(DEFAULT_WEB_ROOT),
+  releases: releaseChecker({ logger, now: Date.now }),
 });
 const server = serve({ fetch: app.fetch, port: config.port, hostname: config.host }, (info) => {
   logger.info({ port: info.port, host: config.host }, 'listening');

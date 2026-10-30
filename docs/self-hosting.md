@@ -161,3 +161,5 @@ docker run -d --name promus -p 127.0.0.1:8080:8080 -v promus-data:/data --restar
 With Compose, the last three lines are `docker compose pull && docker compose up -d`.
 
 Installed apps pick up the new version on their own and offer a reload.
+
+**Settings** says when a new version is out, with what changed since yours. To know, the server asks GitHub for Promus's releases, at most once a day and only when someone opens Settings. A server that can't reach GitHub shows nothing.

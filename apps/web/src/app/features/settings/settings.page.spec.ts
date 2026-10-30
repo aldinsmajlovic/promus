@@ -6,7 +6,7 @@ import { MATERIAL_ANIMATIONS } from '@angular/material/core';
 import { provideRouter } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
 import { TranslocoTestingModule } from '@jsverse/transloco';
-import { newId } from '@promus/shared';
+import { type Release, newId } from '@promus/shared';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { version } from '../../../../../../package.json';
 import en from '../../../i18n/en.json';
@@ -24,7 +24,7 @@ class Blank {}
 
 const html = document.documentElement;
 
-async function setup() {
+async function setup(releases: Release[] = []) {
   const me = newId();
   const db = new PromusDb(`settings-${newId()}`);
   await db.setMeta('session', { userId: me, username: 'anna', householdId: newId() });
@@ -35,7 +35,9 @@ async function setup() {
   const fetch = vi.fn<typeof globalThis.fetch>(async (url) =>
     url === '/api/invites'
       ? new Response(JSON.stringify({ id: 'i1', token: 'tok', expiresAt: 1 }), { status: 201 })
-      : new Response(JSON.stringify({ user: { id: me, username: 'anna' }, households: [{ id: 'h1', role: 'owner', members }] }), {
+      : url === '/api/releases'
+        ? new Response(JSON.stringify({ releases }))
+        : new Response(JSON.stringify({ user: { id: me, username: 'anna' }, households: [{ id: 'h1', role: 'owner', members }] }), {
           status: 200,
         }),
   );
@@ -161,8 +163,24 @@ describe('SettingsPage', () => {
     await vi.waitFor(async () => expect(await t.db.getMeta('lang')).toBe('system'));
   });
 
-  it('shows the app version', async () => {
+  it('shows the app version, and no update notice while none is out', async () => {
     const t = await setup();
     expect(t.text('.version')).toBe(`Version ${version}`);
+    await vi.waitFor(() => expect(t.fetch.mock.calls.some(([url]) => url === '/api/releases')).toBe(true));
+    await t.harness.fixture.whenStable();
+    expect(t.el.querySelector('.update')).toBeNull();
+  });
+
+  it('a newer release shows what changed since this one, in your language, and how to update', async () => {
+    const t = await setup([
+      { version: '9.1.0', notes: { en: ['Undo works offline'], sv: ['Ångra fungerar offline'] } },
+      { version: '9.0.0', notes: { en: ['Prices on items'], sv: ['Priser på varor'] } },
+    ]);
+    await vi.waitFor(() => expect(t.text('.update .main')).toBe('Version 9.1.0 har kommit'));
+    expect([...t.el.querySelectorAll('.update li')].map((li) => li.textContent)).toEqual([
+      'Ångra fungerar offline',
+      'Priser på varor',
+    ]);
+    expect(t.el.querySelector('.update .how')?.getAttribute('href')).toMatch(/\/blob\/v9\.1\.0\/docs\/self-hosting\.md#updating$/);
   });
 });

@@ -30,6 +30,7 @@ import sell from '@material-symbols/svg-400/rounded/sell.svg';
 import share from '@material-symbols/svg-400/rounded/share.svg';
 import shoppingBasket from '@material-symbols/svg-400/rounded/shopping_basket.svg';
 import translate from '@material-symbols/svg-400/rounded/translate.svg';
+import upgrade from '@material-symbols/svg-400/rounded/upgrade.svg';
 import visibility from '@material-symbols/svg-400/rounded/visibility.svg';
 import visibilityOff from '@material-symbols/svg-400/rounded/visibility_off.svg';
 import promus from '../../../../../brand/promus-p.svg';
@@ -67,6 +68,7 @@ const ICONS: Record<string, string> = {
   shopping_basket: shoppingBasket,
   visibility,
   visibility_off: visibilityOff,
+  upgrade,
   promus,
 };
 

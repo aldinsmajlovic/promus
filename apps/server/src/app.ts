@@ -1,4 +1,5 @@
 import type { DatabaseSync } from 'node:sqlite';
+import type { Release } from '@promus/shared';
 import { Hono } from 'hono';
 import type { AuthContext } from './auth/sessions.ts';
 import type { Config } from './config.ts';
@@ -11,6 +12,7 @@ import { guestRoutes } from './routes/guest.ts';
 import { healthRoutes } from './routes/health.ts';
 import { inviteRoutes } from './routes/invites.ts';
 import { memberRoutes } from './routes/members.ts';
+import { releaseRoutes } from './routes/releases.ts';
 import { shareRoutes } from './routes/shares.ts';
 import { setupRoutes } from './routes/setup.ts';
 import { syncRoutes } from './routes/sync.ts';
@@ -22,6 +24,8 @@ export type AppDeps = {
   logger: Logger;
   now: () => number;
   webRoot: string;
+  /** The releases after this one, for Settings' update notice. */
+  releases: () => Promise<Release[]>;
 };
 
 export type AppEnv = { Variables: { deps: AppDeps; auth: AuthContext; guest: GuestContext } };
@@ -55,6 +59,7 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
   });
   app.use('/api/*', csrf());
   app.route('/api', healthRoutes(deps));
+  app.route('/api', releaseRoutes(deps));
   app.route('/api', authRoutes(deps));
   app.route('/api', setupRoutes(deps));
   app.route('/api', inviteRoutes(deps));
