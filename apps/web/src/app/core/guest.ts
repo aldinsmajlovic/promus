@@ -1,17 +1,14 @@
-import { ApplicationRef, DestroyRef, EnvironmentInjector, Injector, type Provider, inject } from '@angular/core';
-import { MatBottomSheet } from '@angular/material/bottom-sheet';
-import { MatDialog } from '@angular/material/dialog';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { DestroyRef, EnvironmentInjector, Injector, type Provider, inject } from '@angular/core';
 import { type CanActivateFn, RedirectCommand, Router, type Routes } from '@angular/router';
 import { ApiError, type AuthError } from '@promus/shared';
 import Dexie from 'dexie';
-import { firstValueFrom } from 'rxjs';
 import { Actions } from './actions';
 import { ApiClient } from './api';
 import { CurrentList } from './current-list';
 import { GUEST, PromusDb } from './db';
 import { DexieSyncStorage } from './dexie-storage';
 import { Household } from './household';
+import { injectCloseOverlays } from './overlays';
 import { SessionService } from './session';
 import { Shares } from './shares';
 import { Store } from './store';
@@ -59,32 +56,14 @@ function authFailed(): (err: AuthError) => Promise<void> {
   const db = inject(PromusDb);
   const api = inject(ApiClient);
   const router = inject(Router);
-  const sheet = inject(MatBottomSheet);
-  const dialog = inject(MatDialog);
-  const snackBar = inject(MatSnackBar);
-  const app = inject(ApplicationRef);
+  const closeOverlays = injectCloseOverlays();
   // SyncService injects this, so it's looked up when called
   const injector = inject(Injector);
   return async (err) => {
     const guest = await db.getMeta('guest');
     const live = guest !== undefined && err.code !== 'share_ended' && !(await linkEnded(api, guest.token));
     injector.get(SyncService).stop();
-    // nothing of the list stays on screen over the page that follows. An item's options save what was typed in them
-    // as they close, into this page's database: the page, and its database, wait for that save to end
-    const sheetRef = sheet._openedBottomSheetRef;
-    const closed = Promise.all([
-      sheetRef && firstValueFrom(sheetRef.afterDismissed()),
-      firstValueFrom(dialog.afterAllClosed),
-    ]);
-    sheet.dismiss();
-    dialog.closeAll();
-    snackBar.dismiss();
-    await closed;
-    // a save holds the app unstable until it has written every field: Actions.run makes it a pending task
-    // ponytail: so when the cookie goes with an item's options open, Actions.run then offers that save's Undo, which
-    // flashes for about 100 ms over the name step until the page change dismisses it. Upgrade path: skip the Undo
-    // offer once this has stopped the guest's sync
-    await app.whenStable();
+    await closeOverlays();
     if (guest && live) {
       await router.navigate(['/share'], { fragment: guest.token, replaceUrl: true });
       return;

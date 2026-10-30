@@ -1,5 +1,6 @@
 import {
   type ApplicationConfig,
+  Injector,
   inject,
   isDevMode,
   provideAppInitializer,
@@ -12,7 +13,8 @@ import { LangService, provideI18n } from './core/i18n';
 import { InstallService } from './core/install';
 import { registerIcons } from './core/icons';
 import { SessionService } from './core/session';
-import { SyncService } from './core/sync.service';
+import { StartOver } from './core/start-over';
+import { SYNC_REMOVED, SyncService } from './core/sync.service';
 import { ThemeService } from './core/theme';
 import { UpdateService } from './core/update';
 
@@ -49,5 +51,13 @@ export const appConfig: ApplicationConfig = {
     provideI18n(),
     provideAppInitializer(registerIcons),
     provideAppInitializer(startup),
+    {
+      provide: SYNC_REMOVED,
+      // StartOver injects SyncService, which injects this, so it's looked up when called
+      useFactory: () => {
+        const injector = inject(Injector);
+        return () => injector.get(StartOver).run('removed');
+      },
+    },
   ],
 };
