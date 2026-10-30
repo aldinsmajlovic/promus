@@ -15,14 +15,42 @@ ul {
   list-style: none;
 }
 
+// rows sit in from the sheet's edges, so hover is a rounded highlight
 li {
+  padding-inline: var(--promus-inset);
+}
+
+.row {
   display: flex;
   align-items: center;
   gap: 0.875rem;
+  box-sizing: border-box;
+  width: 100%;
   height: 3.75rem;
-  padding-inline: 1.375rem;
+  padding-inline: 0.625rem;
+  border: 0;
+  border-radius: var(--promus-row-corner);
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: start;
   --face-size: 2.375rem;
-  position: relative;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button.row {
+  cursor: pointer;
+
+  @media (hover: hover) {
+    &:hover {
+      background: var(--promus-field);
+    }
+  }
+
+  &:focus-visible {
+    outline: 3px solid var(--mat-sys-secondary);
+    outline-offset: -3px;
+  }
 }
 
 .name {
@@ -34,19 +62,15 @@ li {
   white-space: nowrap;
 }
 
-.role {
+.role,
+.more {
+  flex: none;
   color: var(--promus-muted);
   font-size: 0.84375rem;
 }
 
 .acts {
   padding: 0.875rem 1.375rem 0;
-}
-
-.anchor {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
 }
 
 .leave {

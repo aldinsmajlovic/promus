@@ -101,7 +101,7 @@ describe('HouseholdPage', () => {
   const hold = (el: Element | null | undefined) =>
     el?.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
   const menu = () => document.querySelector('.mat-mdc-menu-panel');
-  const bo = (t: Awaited<ReturnType<typeof setup>>) => t.el.querySelectorAll('li')[1];
+  const bo = (t: Awaited<ReturnType<typeof setup>>) => t.el.querySelectorAll('li .row')[1];
   const remove = async (t: Awaited<ReturnType<typeof setup>>) => {
     await vi.waitFor(() => expect(t.el.querySelectorAll('li').length).toBe(2));
     hold(bo(t));
@@ -138,18 +138,23 @@ describe('HouseholdPage', () => {
     });
   });
 
-  it('only rows the owner can remove are focusable', async () => {
+  it('a tap on a member opens the menu too', async () => {
     const t = await setup();
     await vi.waitFor(() => expect(t.el.querySelectorAll('li').length).toBe(2));
-    const [anna, bo] = Array.from(t.el.querySelectorAll('li'));
-    expect(anna!.hasAttribute('tabindex')).toBe(false);
-    expect(bo!.getAttribute('tabindex')).toBe('0');
+    (bo(t) as HTMLElement).click();
+    await vi.waitFor(() => expect(menu()?.textContent).toContain(sv.settings.removeMember));
+  });
+
+  it('only rows the owner can remove are buttons', async () => {
+    const t = await setup();
+    await vi.waitFor(() => expect(t.el.querySelectorAll('li').length).toBe(2));
+    expect([...t.el.querySelectorAll('li .row')].map((r) => r.tagName)).toEqual(['DIV', 'BUTTON']);
   });
 
   it('no menu on your own row, nor for a member', async () => {
     const owner = await setup();
     await vi.waitFor(() => expect(owner.el.querySelectorAll('li').length).toBe(2));
-    hold(owner.el.querySelector('li'));
+    hold(owner.el.querySelector('li .row'));
     await owner.fixture.whenStable();
     expect(menu()).toBeNull();
   });
@@ -157,7 +162,7 @@ describe('HouseholdPage', () => {
   it('no menu for a member holding the owner', async () => {
     const t = await setup({ userId: 'u2' });
     await vi.waitFor(() => expect(t.el.querySelectorAll('li').length).toBe(2));
-    hold(t.el.querySelector('li'));
+    hold(t.el.querySelector('li .row'));
     await t.fixture.whenStable();
     expect(menu()).toBeNull();
   });

@@ -20,8 +20,8 @@ import { injectInvite } from './invite-sheet';
 const SNACK: MatSnackBarConfig = { duration: 5000 };
 
 /**
- * Who shares this household's lists, inviting someone new, and leaving. The owner holds a member to remove
- * them. Members are cached for offline.
+ * Who shares this household's lists, inviting someone new, and leaving. The owner taps, holds or right-clicks a
+ * member to remove them. Members are cached for offline.
  */
 @Component({
   selector: 'app-household-page',

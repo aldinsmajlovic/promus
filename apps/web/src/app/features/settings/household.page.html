@@ -12,18 +12,31 @@
       @if (members().length > 0) {
         <ul>
           @for (m of members(); track m.id) {
-            <li appRowGestures [swipe]="false" [attr.tabindex]="isOwner() && m.id !== you() ? 0 : null" (held)="isOwner() && m.id !== you() && options.openMenu()">
-              <app-face [member]="m" />
-              <span class="name">{{ m.username }}</span>
-              @if (m.id === you()) {
-                <span class="role">{{ t('settings.you') }}</span>
+            <li>
+              @if (isOwner() && m.id !== you()) {
+                <button
+                  #options="matMenuTrigger"
+                  class="row"
+                  type="button"
+                  appRowGestures
+                  [swipe]="false"
+                  [matMenuTriggerFor]="menu"
+                  [matMenuTriggerData]="{ member: m }"
+                  (held)="options.openMenu()"
+                >
+                  <app-face [member]="m" />
+                  <span class="name">{{ m.username }}</span>
+                  <mat-icon class="more" svgIcon="more_vert" />
+                </button>
+              } @else {
+                <div class="row">
+                  <app-face [member]="m" />
+                  <span class="name">{{ m.username }}</span>
+                  @if (m.id === you()) {
+                    <span class="role">{{ t('settings.you') }}</span>
+                  }
+                </div>
               }
-              <span
-                #options="matMenuTrigger"
-                class="anchor"
-                [matMenuTriggerFor]="menu"
-                [matMenuTriggerData]="{ member: m }"
-              ></span>
             </li>
           }
         </ul>
