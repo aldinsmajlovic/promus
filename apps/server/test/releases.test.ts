@@ -1,7 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createLogger } from '../src/log.ts';
 import { isNewer, releaseChecker, releaseNotes } from '../src/releases.ts';
-import { DAY, T0 } from './helpers.ts';
+import { T0 } from './helpers.ts';
+
+const HOUR = 3_600_000;
 
 const github = (releases: { tag_name: string; body: string | null }[]) =>
   vi.fn<typeof fetch>(async () => new Response(JSON.stringify(releases)));
@@ -21,7 +23,7 @@ describe('releases', () => {
     expect(releaseNotes('- Faster sync')).toEqual({ en: ['Faster sync'], sv: ['Faster sync'] });
   });
 
-  it('answers the newer releases, newest first, and asks GitHub at most once a day', async () => {
+  it('answers the newer releases, newest first, and asks GitHub at most once an hour', async () => {
     const fetch = github([
       { tag_name: 'v0.7.0', body: '- B' },
       { tag_name: 'v0.8.0', body: '- C' },
@@ -32,8 +34,10 @@ describe('releases', () => {
 
     expect((await releases()).map((r) => r.version)).toEqual(['0.8.0', '0.7.0']);
     await releases();
+    now += HOUR - 1;
+    await releases();
     expect(fetch).toHaveBeenCalledTimes(1);
-    now += DAY;
+    now += 1;
     await releases();
     expect(fetch).toHaveBeenCalledTimes(2);
   });

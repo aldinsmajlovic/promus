@@ -3,7 +3,7 @@ import { z } from 'zod';
 import pkg from '../../../package.json' with { type: 'json' };
 import type { Logger } from './log.ts';
 
-const DAY = 86_400_000;
+const HOUR = 3_600_000;
 const REPO = new URL(pkg.repository.url).pathname.slice(1);
 const githubReleases = z.array(z.object({ tag_name: z.string(), body: z.string().nullable() }));
 
@@ -26,7 +26,7 @@ export function releaseNotes(body: string): Release['notes'] {
   return { en: bullets(en), sv: bullets(sv) };
 }
 
-/** The releases after `current`, newest first, asked of GitHub at most once a day. Never rejects. */
+/** The releases after `current`, newest first, asked of GitHub at most once an hour. Never rejects. */
 export function releaseChecker(opts: {
   logger: Logger;
   now: () => number;
@@ -49,14 +49,14 @@ export function releaseChecker(opts: {
         .map((r) => ({ version: r.tag_name.replace(/^v/, ''), notes: releaseNotes(r.body ?? '') }))
         .sort((a, b) => (isNewer(a.version, b.version) ? -1 : 1));
     } catch (err) {
-      // offline, or GitHub is down or rate-limited: no notice until tomorrow's try
+      // offline, or GitHub is down or rate-limited: no notice until the next try, an hour on
       logger.warn({ err }, 'update check failed');
       return [];
     }
   }
 
   return () => {
-    if (!last || now() - last.at >= DAY) last = { at: now(), releases: check() };
+    if (!last || now() - last.at >= HOUR) last = { at: now(), releases: check() };
     return last.releases;
   };
 }
