@@ -111,6 +111,38 @@ describe('Store', () => {
     expect(await db.outbox.count()).toBe(written);
   });
 
+  it('setLater moves an item to Later and back, each with its undo', async () => {
+    const { store, listId } = await setup();
+    await store.addByName(listId, 'Ljus');
+    const { id } = itemNamed(store, 'Ljus');
+    const later = () => store.state().entries.get(entryKey(listId, id))?.later;
+    const moved = await store.setLater(listId, id, true);
+    expect(moved).toMatchObject({ messageKey: 'snack.later', params: { name: 'Ljus' } });
+    expect(later()).toBe(true);
+    expect(await store.setLater(listId, id, true)).toBeNull();
+    await store.undo(moved!);
+    expect(later()).toBe(false);
+    await store.setLater(listId, id, true);
+    expect(await store.setLater(listId, id, false)).toMatchObject({ messageKey: 'snack.unchecked', params: { name: 'Ljus' } });
+    expect(later()).toBe(false);
+    await store.check(listId, id);
+    expect(await store.setLater(listId, id, true)).toBeNull();
+  });
+
+  it('adding an item that is in Later moves it back, as it was, and undo puts it back in Later', async () => {
+    const { store, listId } = await setup();
+    await store.addByName(listId, 'Ljus');
+    const { id } = itemNamed(store, 'Ljus');
+    await store.setNote(listId, id, 'vita');
+    await store.setLater(listId, id, true);
+    const back = await store.addByName(listId, 'ljus');
+    expect(back).toMatchObject({ messageKey: 'snack.unchecked', params: { name: 'Ljus' } });
+    expect(store.state().entries.get(entryKey(listId, id))).toMatchObject({ state: 'active', later: false, note: 'vita' });
+    await store.undo(back!);
+    expect(store.state().entries.get(entryKey(listId, id))?.later).toBe(true);
+    expect(await store.addItem(listId, id)).toMatchObject({ messageKey: 'snack.unchecked' });
+  });
+
   it('addByName brings an archived item back with its history, and undo archives it again', async () => {
     const { store, listId } = await setup();
     await store.addByName(listId, 'Mjölk');

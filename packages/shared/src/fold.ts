@@ -26,6 +26,8 @@ export type EntryState = {
   quantity: number;
   /** Who checked it off, and so paid for it; null while it's active, or for a check this phone hasn't synced. */
   checkedBy: string | null;
+  /** Put off until later: kept through a check, so an uncheck puts it back there; an add brings it back. */
+  later: boolean;
 };
 export type HouseholdState = {
   lists: Map<string, ListState>;
@@ -156,6 +158,7 @@ function apply(s: HouseholdState, e: FoldEvent): boolean {
     case 'entry.removed':
     case 'entry.noteSet':
     case 'entry.quantitySet':
+    case 'entry.laterSet':
       return applyEntry(s, e);
   }
 }
@@ -170,7 +173,7 @@ function applyEntry(s: HouseholdState, e: EntryEvent): boolean {
   const at = hlcWall(e.hlc);
   const keep = {
     listId, itemId, note: prev?.note ?? null, addedAt: prev?.addedAt ?? at, addedBy: prev?.addedBy ?? null, quantity: prev?.quantity ?? 1,
-    checkedBy: null,
+    checkedBy: null, later: prev?.later ?? false,
   };
   switch (e.type) {
     case 'entry.added': {
@@ -179,6 +182,7 @@ function applyEntry(s: HouseholdState, e: EntryEvent): boolean {
       const addedBy = e.userId ?? null;
       s.entries.set(key, {
         listId, itemId, state: 'active', note, addedAt: at, checkedAt: null, addedBy, quantity: quantity ?? 1, checkedBy: null,
+        later: false,
       });
       if (note) item.lastNote = note;
       // only an add that brings one: adds from before quantities leave it alone, as adds without a note do
@@ -213,6 +217,9 @@ function applyEntry(s: HouseholdState, e: EntryEvent): boolean {
       if (!prev) break;
       prev.quantity = e.payload.quantity;
       item.lastQuantity = prev.quantity;
+      break;
+    case 'entry.laterSet':
+      if (prev) prev.later = e.payload.later;
       break;
   }
   return true;

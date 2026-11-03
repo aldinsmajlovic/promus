@@ -10,24 +10,28 @@ const NOW = 1_000_000;
 const sv = new Intl.Collator('sv', { numeric: true });
 const e = (itemId: string) => ({ listId: L, itemId });
 
-// milk: active with a note, 3 of them and a price, bread: checked, eggs: exists but not on the list
+// milk: active with a note, 3 of them and a price, bread: checked, eggs: exists but not on the list,
+// candles: in Later with a note and 2 of them
 const setup = [
   ev('list.created', { listId: L, name: 'Hem' }, 1),
   ev('item.created', { itemId: 'milk', name: 'Mjölk' }, 2),
   ev('item.created', { itemId: 'bread', name: 'Bröd' }, 3),
   ev('item.created', { itemId: 'eggs', name: 'Ägg' }, 4),
+  ev('item.created', { itemId: 'candles', name: 'Ljus' }, 4),
   ev('entry.added', { ...e('milk'), note: 'laktosfri', quantity: 3 }, 5),
   ev('item.priceSet', { itemId: 'milk', price: 1490 }, 5),
   ev('entry.added', e('bread'), 6),
   ev('entry.checked', e('bread'), 7),
+  ev('entry.added', { ...e('candles'), note: 'vita', quantity: 2 }, 8),
+  ev('entry.laterSet', { ...e('candles'), later: true }, 9),
 ];
 
 // a restored check is stamped with the undo's time, so checkedAt is left out of the comparison
 const snapshot = (events: FoldEvent[]) => {
   const s = fold(events);
-  const { active, done } = listView(s, L, NOW, sv);
+  const { active, later, done } = listView(s, L, NOW, sv);
   const bare = (xs: typeof active) => xs.map(({ checkedAt: _, ...rest }) => rest);
-  return { active: bare(active), done: bare(done), lists: listSummaries(s, sv) };
+  return { active: bare(active), later: bare(later), done: bare(done), lists: listSummaries(s, sv) };
 };
 
 const actions: [string, FoldEvent][] = [
@@ -38,6 +42,11 @@ const actions: [string, FoldEvent][] = [
   ['entry.unchecked', ev('entry.unchecked', e('bread'), 100)],
   ['entry.removed (active)', ev('entry.removed', e('milk'), 100)],
   ['entry.removed (checked)', ev('entry.removed', e('bread'), 100)],
+  ['entry.removed (later)', ev('entry.removed', e('candles'), 100)],
+  ['entry.added (later)', ev('entry.added', e('candles'), 100)],
+  ['entry.checked (later)', ev('entry.checked', e('candles'), 100)],
+  ['entry.laterSet', ev('entry.laterSet', { ...e('milk'), later: true }, 100)],
+  ['entry.laterSet (back)', ev('entry.laterSet', { ...e('candles'), later: false }, 100)],
   ['entry.noteSet', ev('entry.noteSet', { ...e('milk'), note: 'lätt' }, 100)],
   ['entry.quantitySet', ev('entry.quantitySet', { ...e('milk'), quantity: 6 }, 100)],
   ['item.priceSet', ev('item.priceSet', { itemId: 'milk', price: 1690 }, 100)],
@@ -66,6 +75,7 @@ describe('inverseOf', () => {
     expect(inverseOf(ev('list.restored', { listId: L }, 100), before)).toEqual([]);
     expect(inverseOf(ev('entry.noteSet', { ...e('eggs'), note: 'x' }, 100), before)).toEqual([]);
     expect(inverseOf(ev('entry.quantitySet', { ...e('eggs'), quantity: 2 }, 100), before)).toEqual([]);
+    expect(inverseOf(ev('entry.laterSet', { ...e('eggs'), later: true }, 100), before)).toEqual([]);
     expect(inverseOf(ev('item.priceSet', { itemId: 'nope', price: 100 }, 100), before)).toEqual([]);
   });
 

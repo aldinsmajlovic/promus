@@ -6,7 +6,7 @@ In Latin, a *promus* is the household steward who brings provisions out of the s
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/images/list-dark.png">
-  <img src="docs/images/list-light.png" alt="The list screen: six items, most with a price and one of them three times, what the list will cost, and two checked items under Done" width="320">
+  <img src="docs/images/list-light.png" alt="The list screen: six items, most with a price and one of them three times, what the list will cost, two items put off under Later, and two checked items under Done" width="320">
 </picture>
 
 ## Features
@@ -14,7 +14,7 @@ In Latin, a *promus* is the household steward who brings provisions out of the s
 - Re-add anything you've bought before with a few letters and a tap, typos and diacritics included: "gradd" finds "grädd". The same item comes back, never a duplicate, with its usual quantity and price, and the list shows its total, what's left to buy, and who paid for what.
 - With the add field empty, your most-bought items that aren't on the list are one tap away.
 - Works fully offline in the store. Changes sync when the server is reachable, with nothing lost or duplicated.
-- Checked items move to a Done section and leave the list after 24 hours.
+- Checked items move to a Done section and leave the list after 24 hours. Swipe an item right to put it off until a later trip: it waits under Later, out of the way of what you need now.
 - Every action can be undone from the snackbar. There are no confirmation dialogs.
 - Share several lists and one item history with your household: invite each person with a link or a QR code to an account of their own. Friends without one can use a single list from a link, until it expires.
 - Installs on Android and iPhone. Swedish and English, with light and dark themes.

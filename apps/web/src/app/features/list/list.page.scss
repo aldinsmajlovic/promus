@@ -105,14 +105,22 @@ li {
   align-items: center;
   justify-content: flex-end;
   gap: 0.5rem;
-  padding-inline-end: 1.25rem;
+  padding-inline: 1.25rem;
   border-radius: var(--promus-row-corner);
   background: var(--promus-swipe);
   color: var(--promus-swipe-text);
   font-weight: 600;
 }
 
-li:has(.swiping, .swept) .swipe-bg {
+// swiped right, to Later or back to the list: at the row's start, in the list's own green
+.swipe-bg.right {
+  justify-content: start;
+  background: var(--promus-tint);
+  color: var(--promus-tint-ink);
+}
+
+li:has(.swiping:not(.to-right), .swept) .swipe-bg:not(.right),
+li:has(.to-right, .swept-right) .right {
   visibility: visible;
 }
 
@@ -127,6 +135,10 @@ li:has(.swiping, .swept) .swipe-bg {
 
 .swept {
   translate: -100%;
+}
+
+.swept-right {
+  translate: 100%;
 }
 
 // the keyboard and screen reader path to a row's options, seen only when it or its row is focused

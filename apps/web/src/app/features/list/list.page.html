@@ -26,7 +26,7 @@
 
     <main class="sheet">
       @if (list(); as l) {
-        @if (!view().active.length && !view().done.length) {
+        @if (!view().active.length && !view().later.length && !view().done.length) {
           <div class="empty">
             <span class="icon"><mat-icon svgIcon="shopping_basket" /></span>
             <p class="brand">{{ t('list.emptyTitle', { list: l.name }) }}</p>
@@ -41,18 +41,23 @@
                 <div class="swipe-bg" aria-hidden="true">
                   {{ t('list.swipeRemove') }}<mat-icon svgIcon="delete" />
                 </div>
+                <div class="swipe-bg right" aria-hidden="true">
+                  {{ t('list.swipeLater') }}<mat-icon svgIcon="arrow_forward" />
+                </div>
                 <button
                   #activeRow
                   #r
                   class="row state"
                   matRipple
                   appRowGestures
+                  [swipeRight]="true"
                   role="checkbox"
                   aria-checked="false"
                   [attr.aria-description]="by ? t('list.addedBy', { name: byName }) : null"
                   (click)="check(l.id, e, i)"
-                  (held)="edit(l.id, e, r)"
+                  (held)="edit(l.id, e, r, false)"
                   (swiped)="remove(l.id, e, i, activeRows, r)"
+                  (swipedRight)="later(l.id, e, true, i, activeRows, r)"
                 >
                   <span class="circle"><mat-icon svgIcon="check" /></span>
                   <span class="text">
@@ -72,7 +77,7 @@
                   matIconButton
                   class="opts"
                   [attr.aria-label]="t('list.moreFor', { name: e.name })"
-                  (click)="edit(l.id, e, r)"
+                  (click)="edit(l.id, e, r, false)"
                 >
                   <mat-icon svgIcon="more_vert" />
                 </button>
@@ -111,6 +116,73 @@
             </p>
           }
 
+          @if (view().later.length && laterOpen() !== undefined) {
+            <mat-divider />
+            <button
+              #laterToggle
+              class="section state"
+              matRipple
+              [attr.aria-expanded]="laterOpen()"
+              (click)="toggleLater()"
+            >
+              {{ t('list.later', { n: view().later.length }) }}
+              <mat-icon [svgIcon]="laterOpen() ? 'expand_less' : 'expand_more'" />
+            </button>
+            @if (laterOpen()) {
+              <ul class="later">
+                @for (e of view().later; track e.itemId; let i = $index) {
+                  @let by = addedBy(e);
+                  @let byName = by?.name ?? t('guest.name');
+                  <li [animate.enter]="arriving()" (animate.leave)="leave($event, e)">
+                    <div class="swipe-bg" aria-hidden="true">
+                      {{ t('list.swipeRemove') }}<mat-icon svgIcon="delete" />
+                    </div>
+                    <div class="swipe-bg right" aria-hidden="true">
+                      <mat-icon svgIcon="arrow_upward" />{{ t('list.swipeBack') }}
+                    </div>
+                    <button
+                      #laterRow
+                      #r
+                      class="row state"
+                      matRipple
+                      appRowGestures
+                      [swipeRight]="true"
+                      role="checkbox"
+                      aria-checked="false"
+                      [attr.aria-description]="by ? t('list.addedBy', { name: byName }) : null"
+                      (click)="check(l.id, e, i, laterRows)"
+                      (held)="edit(l.id, e, r, true)"
+                      (swiped)="remove(l.id, e, i, laterRows, r)"
+                      (swipedRight)="later(l.id, e, false, i, laterRows, r)"
+                    >
+                      <span class="circle"><mat-icon svgIcon="check" /></span>
+                      <span class="text">
+                        <span class="name"
+                          ><span class="strike">{{ e.name }}</span>@if (e.quantity > 1) {<span class="qty">×{{ e.quantity }}</span>}</span
+                        >
+                        @let line = noteLine(e);
+                        @if (line) {
+                          <span class="note">{{ line }}</span>
+                        }
+                      </span>
+                      @if (by) {
+                        <app-face [member]="{ id: by.id, username: byName }" [guest]="by.guest" />
+                      }
+                    </button>
+                    <button
+                      matIconButton
+                      class="opts"
+                      [attr.aria-label]="t('list.moreFor', { name: e.name })"
+                      (click)="edit(l.id, e, r, true)"
+                    >
+                      <mat-icon svgIcon="more_vert" />
+                    </button>
+                  </li>
+                }
+              </ul>
+            }
+          }
+
           @if (view().done.length && doneOpen() !== undefined) {
             <mat-divider />
             <button
@@ -139,7 +211,7 @@
                       role="checkbox"
                       aria-checked="true"
                       (click)="uncheck(l.id, e, i)"
-                      (held)="edit(l.id, e, r)"
+                      (held)="edit(l.id, e, r, null)"
                       (swiped)="remove(l.id, e, i, doneRows, r)"
                     >
                       <span class="circle checked"><mat-icon svgIcon="check" /></span>
@@ -157,7 +229,7 @@
                       matIconButton
                       class="opts"
                       [attr.aria-label]="t('list.moreFor', { name: e.name })"
-                      (click)="edit(l.id, e, r)"
+                      (click)="edit(l.id, e, r, null)"
                     >
                       <mat-icon svgIcon="more_vert" />
                     </button>

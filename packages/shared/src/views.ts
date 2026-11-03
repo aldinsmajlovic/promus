@@ -24,20 +24,21 @@ export function listView(
   listId: string,
   now: number,
   collator: Intl.Collator,
-): { active: EntryView[]; done: EntryView[] } {
+): { active: EntryView[]; later: EntryView[]; done: EntryView[] } {
   const active: EntryView[] = [];
+  const later: EntryView[] = [];
   const done: EntryView[] = [];
   for (const e of entriesOf(state, listId)) {
     const item = state.items.get(e.itemId);
     if (!item) continue;
     const { note, checkedAt, addedBy, quantity, checkedBy } = e;
     const view = { itemId: e.itemId, name: item.name, note, checkedAt, addedBy, quantity, price: item.price, checkedBy };
-    if (e.state === 'active') active.push(view);
+    if (e.state === 'active') (e.later ? later : active).push(view);
     else if (inDoneWindow(e, now)) done.push(view);
   }
-  active.sort((a, b) => collator.compare(a.name, b.name));
+  for (const xs of [active, later]) xs.sort((a, b) => collator.compare(a.name, b.name));
   done.sort((a, b) => b.checkedAt! - a.checkedAt!);
-  return { active, done };
+  return { active, later, done };
 }
 
 export function listSummaries(
@@ -46,7 +47,7 @@ export function listSummaries(
 ): { id: string; name: string; activeCount: number }[] {
   return [...state.lists.values()]
     .filter((l) => !l.deleted)
-    .map((l) => ({ id: l.id, name: l.name, activeCount: entriesOf(state, l.id).filter((e) => e.state === 'active').length }))
+    .map((l) => ({ id: l.id, name: l.name, activeCount: entriesOf(state, l.id).filter((e) => e.state === 'active' && !e.later).length }))
     .sort((a, b) => collator.compare(a.name, b.name));
 }
 

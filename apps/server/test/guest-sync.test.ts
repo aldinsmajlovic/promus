@@ -183,6 +183,8 @@ describe('guest sync', { timeout: 30_000 }, () => {
     expect(await g.verdicts(t.ev('item.priceSet', { itemId: bread, price: 2500 }))).toEqual(['out_of_scope']);
     expect(await g.verdicts(t.ev('entry.quantitySet', { listId: list, itemId: milk, quantity: 3 }))).toEqual(['accepted']);
     expect(await g.verdicts(t.ev('entry.quantitySet', { listId: listB, itemId: bread, quantity: 3 }))).toEqual(['out_of_scope']);
+    expect(await g.verdicts(t.ev('entry.laterSet', { listId: list, itemId: milk, later: true }))).toEqual(['accepted']);
+    expect(await g.verdicts(t.ev('entry.laterSet', { listId: listB, itemId: bread, later: true }))).toEqual(['out_of_scope']);
     // their own "cheese" is the household's Cheese, which isn't on the list until the add
     const mine = newId();
     expect(

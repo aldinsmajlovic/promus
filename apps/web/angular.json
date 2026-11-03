@@ -50,9 +50,10 @@
                   "maximumWarning": "750kB",
                   "maximumError": "1MB"
                 },
+                // Raised from 4kB: the list page's, with Later's swipe and section, is 4.14 kB.
                 {
                   "type": "anyComponentStyle",
-                  "maximumWarning": "4kB",
+                  "maximumWarning": "5kB",
                   "maximumError": "8kB"
                 }
               ],

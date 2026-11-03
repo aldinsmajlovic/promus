@@ -85,6 +85,12 @@ const entryPlan = (
   item: ItemState,
 ): Plan => one(messageKey, item.name, { type, payload: { listId, itemId: item.id } });
 
+const laterPlan = (listId: string, item: ItemState, later: boolean): Plan =>
+  one(later ? 'snack.later' : 'snack.unchecked', item.name, {
+    type: 'entry.laterSet',
+    payload: { listId, itemId: item.id, later },
+  });
+
 const itemOf = (s: HouseholdState, itemId: string): ItemState | undefined => s.items.get(resolveItemId(s, itemId));
 
 const entryOf = (s: HouseholdState, listId: string, itemId: string) => {
@@ -213,6 +219,15 @@ export class Store {
     });
   }
 
+  /** An active item to Later, or back from it to the list. */
+  setLater(listId: string, itemId: string, later: boolean): Promise<UndoToken | null> {
+    return this.act((s) => {
+      const found = entryOf(s, listId, itemId);
+      if (found?.entry.state !== 'active' || found.entry.later === later) return null;
+      return laterPlan(listId, found.item, later);
+    });
+  }
+
   setNote(listId: string, itemId: string, note: string): Promise<UndoToken | null> {
     return this.act((s) => {
       const text = note.trim();
@@ -305,7 +320,10 @@ export class Store {
 
   private readd(s: HouseholdState, listId: string, itemId: string): Plan | null {
     const item = itemOf(s, itemId);
-    if (!item || s.entries.get(entryKey(listId, item.id))?.state === 'active') return null;
+    const entry = item && s.entries.get(entryKey(listId, item.id));
+    if (!item || (entry?.state === 'active' && !entry.later)) return null;
+    // as it was put off: its note, quantity and who added it
+    if (entry?.state === 'active') return laterPlan(listId, item, false);
     const payload = {
       listId,
       itemId: item.id,

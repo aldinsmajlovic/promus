@@ -71,10 +71,10 @@ describe('fold', () => {
     });
     expect(s.items.get('bread')).toMatchObject({ purchaseCount: 1, lastPurchasedAt: 1005 });
     expect(s.entries.get(entryKey(L, 'milk'))).toEqual({
-      listId: L, itemId: 'milk', state: 'active', note: 'laktosfri', addedAt: 1003, checkedAt: null, addedBy: null, quantity: 1, checkedBy: null,
+      listId: L, itemId: 'milk', state: 'active', note: 'laktosfri', addedAt: 1003, checkedAt: null, addedBy: null, quantity: 1, checkedBy: null, later: false,
     });
     expect(s.entries.get(entryKey(L, 'bread'))).toEqual({
-      listId: L, itemId: 'bread', state: 'checked', note: null, addedAt: 1004, checkedAt: 1005, addedBy: null, quantity: 1, checkedBy: null,
+      listId: L, itemId: 'bread', state: 'checked', note: null, addedAt: 1004, checkedAt: 1005, addedBy: null, quantity: 1, checkedBy: null, later: false,
     });
     expect(s.skipped).toBe(0);
   });
@@ -265,6 +265,20 @@ describe('fold', () => {
     expect(quantityOf(...checked)).toBe(3);
     expect(quantityOf(...checked, ev('entry.unchecked', entry, 5))).toBe(3);
     expect(quantityOf(...checked, ev('entry.added', entry, 5))).toBe(1);
+  });
+
+  it('moves an entry to Later and back; an add brings it back too, a check keeps it', () => {
+    const later = (...es: FoldEvent[]) => fold([...setup, ...es]).entries.get(entryKey(L, 'milk'))?.later;
+    const set = (to: boolean, wall: number) => ev('entry.laterSet', { ...entry, later: to }, wall);
+    expect(later(ev('entry.added', entry, 3))).toBe(false);
+    expect(later(ev('entry.added', entry, 3), set(true, 4))).toBe(true);
+    expect(later(ev('entry.added', entry, 3), set(true, 4), set(false, 5))).toBe(false);
+    expect(later(ev('entry.added', entry, 3), set(true, 4), ev('entry.added', entry, 5))).toBe(false);
+    const checked = [ev('entry.added', entry, 3), set(true, 4), ev('entry.checked', entry, 5)];
+    expect(later(...checked)).toBe(true);
+    expect(later(...checked, ev('entry.unchecked', entry, 6))).toBe(true);
+    // for an entry that isn't there, as a note
+    expect(later(set(true, 3))).toBeUndefined();
   });
 
   it('remembers the last quantity as it remembers the last note', () => {

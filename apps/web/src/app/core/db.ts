@@ -34,10 +34,11 @@ export type Meta = {
   theme: ThemeMode;
   persistRequested: boolean;
   doneFolded: boolean;
+  laterOpen: boolean;
 };
 type MetaKey = keyof Meta;
 // the device's choices, not the user's data: a wipe keeps them
-const DEVICE_KEYS: MetaKey[] = ['lang', 'theme', 'doneFolded'];
+const DEVICE_KEYS: MetaKey[] = ['lang', 'theme', 'doneFolded', 'laterOpen'];
 
 /** Wiping now would drop events the server hasn't accepted yet. */
 export class PendingChangesError extends Error {

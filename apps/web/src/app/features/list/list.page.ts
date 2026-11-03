@@ -45,32 +45,53 @@ import { ShareButton } from './share-button';
 
 type Rows = Signal<readonly ElementRef<HTMLElement>[]>;
 
+// a row swiped away, left or right, slides on out before it goes
+const SWEPT = '.swept, .swept-right';
+
 /**
- * Whether Done is open on this device, kept in meta `doneFolded`. Read once, so a list page coming back from
- * Add or find shows Done at once.
+ * Whether a section is open on this device, kept in meta: Done unless `doneFolded`, Later once `laterOpen`. Read
+ * once, so a list page coming back from Add or find shows it at once.
  */
-@Injectable({ providedIn: 'root' })
-class DoneFold {
+class SectionFold {
   private readonly db = inject(PromusDb);
   private readonly actions = inject(Actions);
   // undefined until read from meta
   private readonly state = signal<boolean | undefined>(undefined);
   readonly open = this.state.asReadonly();
+  private readonly key: 'doneFolded' | 'laterOpen';
+  // the stored flag says folded, not open
+  private readonly folds: boolean;
 
-  constructor() {
+  constructor(key: 'doneFolded' | 'laterOpen') {
+    this.key = key;
+    this.folds = key === 'doneFolded';
     inject(PendingTasks).run(async () => {
-      const folded = await this.db.getMeta('doneFolded').catch((err: unknown) => {
-        console.error('reading doneFolded failed', err);
+      const stored = await this.db.getMeta(key).catch((err: unknown) => {
+        console.error(`reading ${key} failed`, err);
         return false;
       });
-      this.state.set(!folded);
+      this.state.set((stored ?? false) !== this.folds);
     });
   }
 
   toggle(): void {
     const open = !this.state();
     this.state.set(open);
-    this.db.setMeta('doneFolded', !open).catch((err: unknown) => this.actions.failed(err));
+    this.db.setMeta(this.key, open !== this.folds).catch((err: unknown) => this.actions.failed(err));
+  }
+}
+
+@Injectable({ providedIn: 'root' })
+class DoneFold extends SectionFold {
+  constructor() {
+    super('doneFolded');
+  }
+}
+
+@Injectable({ providedIn: 'root' })
+class LaterFold extends SectionFold {
+  constructor() {
+    super('laterOpen');
   }
 }
 
@@ -98,6 +119,7 @@ export class ListPage {
   private readonly store = inject(Store);
   private readonly current = inject(CurrentList);
   private readonly fold = inject(DoneFold);
+  private readonly laterFold = inject(LaterFold);
   private readonly actions = inject(Actions);
   private readonly injector = inject(Injector);
   private readonly doc = inject(DOCUMENT);
@@ -109,7 +131,9 @@ export class ListPage {
   protected readonly guest = inject(GUEST) !== null;
   protected readonly wide = inject(WIDE);
   protected readonly activeRows = viewChildren('activeRow', { read: ElementRef });
+  protected readonly laterRows = viewChildren('laterRow', { read: ElementRef });
   protected readonly doneRows = viewChildren('doneRow', { read: ElementRef });
+  private readonly laterToggle = viewChild('laterToggle', { read: ElementRef });
   private readonly doneToggle = viewChild('doneToggle', { read: ElementRef });
   private readonly dock = viewChild('dock', { read: ElementRef });
   private readonly panel = viewChild<ElementRef<HTMLElement>>('panel');
@@ -117,7 +141,7 @@ export class ListPage {
   protected readonly list = this.current.list;
   protected readonly view = computed(() => {
     const list = this.list();
-    if (!list) return { active: [], done: [] };
+    if (!list) return { active: [], later: [], done: [] };
     return listView(this.store.state(), list.id, this.store.now(), this.current.collator());
   });
   /** The list's total, Done included, what's left to get, and the rows without a price; null until one has a price. */
@@ -154,6 +178,8 @@ export class ListPage {
   });
   /** Undefined until meta `doneFolded` is first read; then Done shows, open unless folded on this device. */
   protected readonly doneOpen = this.fold.open;
+  /** Undefined until meta `laterOpen` is first read; then Later shows, folded unless opened on this device. */
+  protected readonly laterOpen = this.laterFold.open;
   protected readonly members = computed((): Person[] =>
     this.household.current().map((m) => ({ id: m.id, name: m.username, guest: false })),
   );
@@ -175,10 +201,10 @@ export class ListPage {
     return { people: link ? this.withGuests() : this.members(), until: link?.expiresAt ?? null };
   }
 
-  // the list the last render showed in full, Done included: rows arriving in it or leaving it move, a list that
-  // loads or switches just shows. Angular runs the enter and leave animations after rendering, before this is
-  // updated in the read phase. On a cold start Done waits on its meta read, so its first rows would arrive if this
-  // were set before.
+  // the list the last render showed in full, Later and Done included: rows arriving in it or leaving it move, a list
+  // that loads or switches just shows. Angular runs the enter and leave animations after rendering, before this is
+  // updated in the read phase. On a cold start Later and Done wait on their meta reads, so their first rows would
+  // arrive if this were set before.
   private shown: string | undefined;
 
   constructor() {
@@ -186,32 +212,33 @@ export class ListPage {
     void this.shares.refresh();
     afterRenderEffect({
       read: () => {
-        this.shown = this.doneOpen() === undefined ? undefined : this.list()?.id;
+        const read = this.doneOpen() !== undefined && this.laterOpen() !== undefined;
+        this.shown = read ? this.list()?.id : undefined;
       },
     });
   }
 
-  protected check(listId: string, e: EntryView, index: number): void {
-    void this.move(this.store.check(listId, e.itemId), this.activeRows, index);
+  protected check(listId: string, e: EntryView, index: number, rows: Rows = this.activeRows): void {
+    void this.move(this.store.check(listId, e.itemId), rows, index);
   }
 
   protected uncheck(listId: string, e: EntryView, index: number): void {
     void this.move(this.store.uncheck(listId, e.itemId), this.doneRows, index);
   }
 
-  /**
-   * A swiped row slides on out from where the finger left it, since the gesture has already snapped it back;
-   * it comes back if the removal fails.
-   */
-  protected async remove(listId: string, e: EntryView, index: number, rows: Rows, row: HTMLElement): Promise<void> {
-    row.classList.add('swept');
-    const removed = await this.move(this.store.remove(listId, e.itemId), rows, index);
-    if (!removed) row.classList.remove('swept');
+  protected remove(listId: string, e: EntryView, index: number, rows: Rows, row: HTMLElement): void {
+    void this.sweep(row, 'swept', this.store.remove(listId, e.itemId), rows, index);
   }
 
-  protected edit(listId: string, e: EntryView, row: HTMLElement): void {
+  /** Swiped right: an active row to Later, a Later row back to the list. */
+  protected later(listId: string, e: EntryView, later: boolean, index: number, rows: Rows, row: HTMLElement): void {
+    void this.sweep(row, 'swept-right', this.store.setLater(listId, e.itemId, later), rows, index);
+  }
+
+  /** `later` is null for a Done row. */
+  protected edit(listId: string, e: EntryView, row: HTMLElement, later: boolean | null): void {
     const { itemId, name, note, addedBy, quantity, price } = e;
-    const data: EditSheetData = { listId, itemId, name, note, addedBy, quantity, price };
+    const data: EditSheetData = { listId, itemId, name, note, addedBy, quantity, price, later };
     runInInjectionContext(this.injector, () => openItemOptions(data, row));
   }
 
@@ -231,6 +258,10 @@ export class ListPage {
     this.fold.toggle();
   }
 
+  protected toggleLater(): void {
+    this.laterFold.toggle();
+  }
+
   /** Who added an active row, when that was someone else: in the household, or a guest. */
   protected addedBy(e: EntryView): Person | undefined {
     return e.addedBy && e.addedBy !== this.household.you() ? this.household.person(e.addedBy) : undefined;
@@ -246,7 +277,7 @@ export class ListPage {
    * any other just goes.
    */
   protected leave({ target, animationComplete }: AnimationCallbackEvent, e: EntryView): void {
-    if (target.querySelector('.swept')) return this.afterAnimations(target, animationComplete);
+    if (target.querySelector(SWEPT)) return this.afterAnimations(target, animationComplete);
     const checked = this.view().done.some((d) => d.itemId === e.itemId);
     if (!checked || this.list()?.id !== this.shown) return animationComplete();
     target.setAttribute('inert', '');
@@ -256,8 +287,23 @@ export class ListPage {
 
   /** A Done row goes at once, folding the section included, unless it was swiped: then it slides out. */
   protected leaveDone({ target, animationComplete }: AnimationCallbackEvent): void {
-    if (target.querySelector('.swept')) this.afterAnimations(target, animationComplete);
+    if (target.querySelector(SWEPT)) this.afterAnimations(target, animationComplete);
     else animationComplete();
+  }
+
+  /**
+   * A swiped row slides on out from where the finger left it, since the gesture has already snapped it back;
+   * it comes back if the action fails.
+   */
+  private async sweep(
+    row: HTMLElement,
+    swept: string,
+    action: Promise<UndoToken | null>,
+    rows: Rows,
+    index: number,
+  ): Promise<void> {
+    row.classList.add(swept);
+    if (!(await this.move(action, rows, index))) row.classList.remove(swept);
   }
 
   /** None are running under reduced motion. */
@@ -267,7 +313,7 @@ export class ListPage {
 
   /**
    * The row leaves its section and takes focus with it: hand focus to the row now in its place, the
-   * new last one, or the Done toggle or Add or find when the section is empty.
+   * new last one, or the Later or Done toggle or Add or find when the section is empty.
    */
   private async move(action: Promise<UndoToken | null>, rows: Rows, index: number): Promise<boolean> {
     // a checked-off row stays a moment to animate out, with focus still on it
@@ -279,7 +325,7 @@ export class ListPage {
         const focused = this.doc.activeElement;
         if (focused !== this.doc.body && focused !== row) return;
         const left = rows();
-        const next = left[Math.min(index, left.length - 1)] ?? this.doneToggle() ?? this.dock();
+        const next = left[Math.min(index, left.length - 1)] ?? this.laterToggle() ?? this.doneToggle() ?? this.dock();
         (next?.nativeElement ?? this.panel()?.nativeElement.querySelector('input'))?.focus();
       },
       { injector: this.injector },

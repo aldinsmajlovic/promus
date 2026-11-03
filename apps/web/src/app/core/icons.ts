@@ -4,6 +4,8 @@ import { DomSanitizer } from '@angular/platform-browser';
 import add from '@material-symbols/svg-400/rounded/add.svg';
 import arrowBack from '@material-symbols/svg-400/rounded/arrow_back.svg';
 import arrowDropDown from '@material-symbols/svg-400/rounded/arrow_drop_down.svg';
+import arrowForward from '@material-symbols/svg-400/rounded/arrow_forward.svg';
+import arrowUpward from '@material-symbols/svg-400/rounded/arrow_upward.svg';
 import check from '@material-symbols/svg-400/rounded/check.svg';
 import checklist from '@material-symbols/svg-400/rounded/checklist.svg';
 import chevronRight from '@material-symbols/svg-400/rounded/chevron_right.svg';
@@ -45,6 +47,8 @@ const ICONS: Record<string, string> = {
   expand_less: keyboardArrowUp,
   arrow_back: arrowBack,
   arrow_drop_down: arrowDropDown,
+  arrow_forward: arrowForward,
+  arrow_upward: arrowUpward,
   close,
   remove_shopping_cart: removeShoppingCart,
   history_toggle_off: historyToggleOff,

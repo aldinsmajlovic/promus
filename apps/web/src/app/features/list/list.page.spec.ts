@@ -138,8 +138,22 @@ const row = (el: HTMLElement, name: string) => rows(el, false).find((r) => text(
 const sharesAsked = (fetch: ReturnType<typeof configure>['fetch']) =>
   fetch.mock.calls.filter(([url]) => url === '/api/shares').length;
 const names = (el: HTMLElement, checked = false) => rows(el, checked).map((r) => text(r.querySelector('.name')));
-// the menu triggers carry aria-expanded too
-const doneToggle = (el: HTMLElement) => el.querySelector<HTMLElement>('main [aria-expanded]');
+const toggle = (el: HTMLElement, label: string) =>
+  [...el.querySelectorAll<HTMLElement>('main [aria-expanded]')].find((b) => text(b).startsWith(label)) ?? null;
+const doneToggle = (el: HTMLElement) => toggle(el, 'Klart');
+const laterToggle = (el: HTMLElement) => toggle(el, 'Senare');
+const laterNames = (el: HTMLElement) => [...el.querySelectorAll('ul.later .name')].map(text);
+/** Drags `row` from x `from` to x `to` and lets go, and the click a browser sends then. */
+function swipe(row: HTMLElement, from: number, to: number) {
+  HTMLElement.prototype.setPointerCapture = vi.fn();
+  Object.defineProperty(row, 'offsetWidth', { value: 360 });
+  const fire = (type: string, x: number) =>
+    row.dispatchEvent(new PointerEvent(type, { pointerId: 1, clientX: x, clientY: 0, button: 0, bubbles: true }));
+  fire('pointerdown', from);
+  fire('pointermove', to);
+  fire('pointerup', to);
+  row.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+}
 const noteOf = (store: Store, listId: string, name: string) =>
   store.state().entries.get(entryKey(listId, itemId(store, name)))?.note;
 /** The edit sheet's stepper button: Färre or Fler. */
@@ -592,6 +606,75 @@ describe('ListPage', () => {
     await snackBar.dismissWithAction();
     await fixture.whenStable();
     expect(names(el)).toEqual(['Mjölk', 'Ost']);
+  });
+
+  it('swiping a row right puts it in Later, out of the count, with undo', async () => {
+    const { el, fixture, loader } = await setup([['Mjölk'], ['Ost'], ['Tandkräm']]);
+    swipe(row(el, 'Ost'), 50, 200);
+    await fixture.whenStable();
+    expect(names(el)).toEqual(['Mjölk', 'Tandkräm']);
+    expect(text(laterToggle(el))).toBe('Senare (1)');
+    expect(laterToggle(el)!.getAttribute('aria-expanded')).toBe('false');
+    expect(text(el.querySelector('.meta'))).toContain('2 att handla');
+
+    const snackBar = await loader.getHarness(MatSnackBarHarness);
+    expect(await snackBar.getMessage()).toBe('Ost flyttad till Senare');
+    await snackBar.dismissWithAction();
+    await fixture.whenStable();
+    expect(names(el)).toEqual(['Mjölk', 'Ost', 'Tandkräm']);
+    expect(laterToggle(el)).toBeNull();
+  });
+
+  it('Later starts folded; open, its rows check off and swipe back, and opening it is remembered', async () => {
+    const { db, el, fixture, store, listId } = await setup([['Mjölk'], ['Ost'], ['Ljus']]);
+    await store.setLater(listId, itemId(store, 'Ost'), true);
+    await store.setLater(listId, itemId(store, 'Ljus'), true);
+    await fixture.whenStable();
+    expect(names(el)).toEqual(['Mjölk']);
+    laterToggle(el)!.click();
+    await fixture.whenStable();
+    expect(laterToggle(el)!.getAttribute('aria-expanded')).toBe('true');
+    expect(laterNames(el)).toEqual(['Ljus', 'Ost']);
+    await vi.waitFor(async () => expect(await db.getMeta('laterOpen')).toBe(true));
+
+    swipe(row(el, 'Ljus'), 50, 200);
+    await fixture.whenStable();
+    expect(laterNames(el)).toEqual(['Ost']);
+    expect(text(el.querySelector('.meta'))).toContain('2 att handla');
+
+    row(el, 'Ost').click();
+    await fixture.whenStable();
+    expect(laterToggle(el)).toBeNull();
+    expect(names(el, true)).toEqual(['Ost']);
+
+    await store.setLater(listId, itemId(store, 'Mjölk'), true);
+    await restart(db);
+    const again = TestBed.createComponent(ListPage);
+    await again.whenStable();
+    expect(laterNames(again.nativeElement)).toEqual(['Mjölk']);
+  });
+
+  it("a row's options move it to Later and back; a Done row's offer neither", async () => {
+    const { el, fixture, store, listId, loader } = await setup([['Mjölk'], ['Ost']]);
+    const choose = async (name: string, choice: string) => {
+      el.querySelector<HTMLElement>(`[aria-label="Alternativ för ${name}"]`)!.click();
+      const sheet = await loader.getHarness(MatBottomSheetHarness);
+      await (await sheet.getHarness(MatActionListItemHarness.with({ text: choice }))).click();
+      await fixture.whenStable();
+    };
+    await choose('Mjölk', 'Flytta till Senare');
+    expect(names(el)).toEqual(['Ost']);
+    laterToggle(el)!.click();
+    await fixture.whenStable();
+    await choose('Mjölk', 'Tillbaka till listan');
+    expect(laterToggle(el)).toBeNull();
+    expect(names(el)).toEqual(['Mjölk', 'Ost']);
+
+    await store.check(listId, itemId(store, 'Ost'));
+    await fixture.whenStable();
+    el.querySelector<HTMLElement>('ul.done [aria-label="Alternativ för Ost"]')!.click();
+    const sheet = await loader.getHarness(MatBottomSheetHarness);
+    expect(await sheet.getAllHarnesses(MatActionListItemHarness.with({ text: /Senare|Tillbaka/ }))).toHaveLength(0);
   });
 
   it('on a computer, Add or find sits beside the list and the dock is gone', async () => {

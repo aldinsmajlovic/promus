@@ -67,6 +67,14 @@ describe('searchItems', () => {
     expect([quantity('vispgrädde'), quantity('mjölk'), quantity('gurka')]).toEqual([2, 3, 1]);
   });
 
+  it('an item in Later is found as one to add, with its note and quantity', () => {
+    const s = groceries();
+    const itemId = idOf(s, 'Gurka');
+    applyEvent(s, ev('entry.added', { listId, itemId, note: 'ekologisk', quantity: 2 }));
+    applyEvent(s, ev('entry.laterSet', { listId, itemId, later: true }));
+    expect(searchItems(s, 'gurka', listId, NOW).exact).toMatchObject({ state: 'none', note: 'ekologisk', quantity: 2 });
+  });
+
   it('a checked item is "checked" only inside the Done window', () => {
     const s = groceries();
     const itemId = idOf(s, 'Gurka');

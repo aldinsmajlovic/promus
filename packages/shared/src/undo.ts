@@ -4,6 +4,12 @@ import { normalizeName } from './normalize.ts';
 
 export type Draft = { [T in EventType]: { type: T; payload: PayloadOf<T>; undoOf?: string } }[EventType];
 
+const laterAgain = (at: { listId: string; itemId: string }, undoOf: string): Draft => ({
+  type: 'entry.laterSet',
+  payload: { listId: at.listId, itemId: at.itemId, later: true },
+  undoOf,
+});
+
 // the events that undo `e`, given the state just before `e` was applied
 export function inverseOf(e: FoldEvent, before: HouseholdState): Draft[] {
   const undoOf = e.id;
@@ -15,10 +21,11 @@ export function inverseOf(e: FoldEvent, before: HouseholdState): Draft[] {
       const at = { listId: e.payload.listId, itemId: e.payload.itemId };
       if (!prev) return [{ type: 'entry.removed', payload: at, undoOf }];
       if (prev.state === 'checked') return [{ type: 'entry.checked', payload: at, undoOf }];
-      const note: Draft = { type: 'entry.noteSet', payload: { ...at, note: prev.note ?? '' }, undoOf };
-      return prev.quantity === (e.payload.quantity ?? 1)
-        ? [note]
-        : [note, { type: 'entry.quantitySet', payload: { ...at, quantity: prev.quantity }, undoOf }];
+      const drafts: Draft[] = [{ type: 'entry.noteSet', payload: { ...at, note: prev.note ?? '' }, undoOf }];
+      if (prev.quantity !== (e.payload.quantity ?? 1))
+        drafts.push({ type: 'entry.quantitySet', payload: { ...at, quantity: prev.quantity }, undoOf });
+      if (prev.later) drafts.push(laterAgain(at, undoOf));
+      return drafts;
     }
     case 'entry.checked':
       return [{ type: 'entry.unchecked', payload: e.payload, undoOf }];
@@ -35,7 +42,8 @@ export function inverseOf(e: FoldEvent, before: HouseholdState): Draft[] {
         ...(prev.note ? { note: prev.note } : {}),
         ...(prev.quantity > 1 ? { quantity: prev.quantity } : {}),
       };
-      return [{ type: 'entry.added', payload, undoOf }];
+      const added: Draft = { type: 'entry.added', payload, undoOf };
+      return prev.later ? [added, laterAgain(e.payload, undoOf)] : [added];
     }
     case 'entry.noteSet': {
       const prev = entryOf(e.payload);
@@ -44,6 +52,10 @@ export function inverseOf(e: FoldEvent, before: HouseholdState): Draft[] {
     case 'entry.quantitySet': {
       const prev = entryOf(e.payload);
       return prev ? [{ type: 'entry.quantitySet', payload: { ...e.payload, quantity: prev.quantity }, undoOf }] : [];
+    }
+    case 'entry.laterSet': {
+      const prev = entryOf(e.payload);
+      return prev ? [{ type: 'entry.laterSet', payload: { ...e.payload, later: prev.later }, undoOf }] : [];
     }
     case 'item.created':
       // a duplicate name becomes an alias of the existing item; archiving it would hit that item. Archived

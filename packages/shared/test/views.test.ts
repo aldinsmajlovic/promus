@@ -65,8 +65,8 @@ describe('views', () => {
 
   it('returns nothing for a deleted list', () => {
     const s = fold([...base, item('a', 'A', 2), ev('entry.added', { listId: L, itemId: 'a' }, 3), ev('list.deleted', { listId: L }, 4)]);
-    expect(listView(s, L, NOW, sv)).toEqual({ active: [], done: [] });
-    expect(listView(s, 'missing', NOW, sv)).toEqual({ active: [], done: [] });
+    expect(listView(s, L, NOW, sv)).toEqual({ active: [], later: [], done: [] });
+    expect(listView(s, 'missing', NOW, sv)).toEqual({ active: [], later: [], done: [] });
     expect(listSummaries(s, sv)).toEqual([]);
   });
 
@@ -81,6 +81,20 @@ describe('views', () => {
       { id: 'b', name: 'Affär', activeCount: 0 },
       { id: L, name: 'Hem', activeCount: 1 },
     ]);
+  });
+
+  it('keeps Later entries in a section of their own, sorted the same way, and out of the count', () => {
+    const names = ['Ljus', 'Bananer', 'Ägg', 'Kaffe'];
+    const s = fold([
+      ...base,
+      ...names.flatMap((n, i) => [item(`i${i}`, n, 10 + i), ev('entry.added', { listId: L, itemId: `i${i}` }, 20 + i)]),
+      ev('entry.laterSet', { listId: L, itemId: 'i2', later: true }, 30),
+      ev('entry.laterSet', { listId: L, itemId: 'i0', later: true }, 31),
+    ]);
+    const v = listView(s, L, NOW, sv);
+    expect(v.active.map((e) => e.name)).toEqual(['Bananer', 'Kaffe']);
+    expect(v.later.map((e) => e.name)).toEqual(['Ljus', 'Ägg']);
+    expect(listSummaries(s, sv)[0]!.activeCount).toBe(2);
   });
 
   it('ranks frequent items by count and recency and skips archived, active and just-bought items', () => {

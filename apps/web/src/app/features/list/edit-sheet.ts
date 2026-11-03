@@ -31,6 +31,8 @@ export type EditSheetData = {
   quantity: number;
   /** The item's, in öre. */
   price: number | null;
+  /** Whether it is in Later; null for a Done row, which can't be moved there. */
+  later: boolean | null;
 };
 
 /** The row's options: a dialog beside it on a computer, a bottom sheet otherwise. Call in an injection context. */
@@ -143,6 +145,13 @@ export function openItemOptions(data: EditSheetData, row: HTMLElement): void {
         </mat-form-field>
       </div>
       <mat-action-list>
+        @if (data.later !== null) {
+          <button mat-list-item (click)="later()">
+            <mat-icon matListItemIcon [svgIcon]="data.later ? 'arrow_upward' : 'arrow_forward'" />{{
+              t(data.later ? 'edit.backToList' : 'edit.later')
+            }}
+          </button>
+        }
         <button mat-list-item (click)="remove()">
           <mat-icon matListItemIcon svgIcon="remove_shopping_cart" />{{ t('edit.remove') }}
         </button>
@@ -317,6 +326,10 @@ export class EditSheet {
 
   protected remove(): void {
     this.leave(this.store.remove(this.data.listId, this.data.itemId));
+  }
+
+  protected later(): void {
+    this.leave(this.store.setLater(this.data.listId, this.data.itemId, !this.data.later));
   }
 
   protected archive(): void {

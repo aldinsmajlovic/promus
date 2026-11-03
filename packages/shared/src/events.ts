@@ -21,6 +21,7 @@ export const EVENT_TYPES = [
   'list.created', 'list.renamed', 'list.deleted', 'list.restored',
   'item.created', 'item.renamed', 'item.archived', 'item.unarchived', 'item.priceSet',
   'entry.added', 'entry.checked', 'entry.unchecked', 'entry.removed', 'entry.noteSet', 'entry.quantitySet',
+  'entry.laterSet',
 ] as const;
 export type EventType = (typeof EVENT_TYPES)[number];
 
@@ -62,6 +63,7 @@ export const eventInputSchema = z.discriminatedUnion('type', [
   event('entry.removed', entry),
   event('entry.noteSet', { ...entry, note }),
   event('entry.quantitySet', { ...entry, quantity }),
+  event('entry.laterSet', { ...entry, later: z.boolean() }),
 ]);
 
 export type EventInput = z.infer<typeof eventInputSchema>;

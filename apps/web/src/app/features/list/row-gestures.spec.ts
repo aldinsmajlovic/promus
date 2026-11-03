@@ -8,23 +8,28 @@ import { RowGestures } from './row-gestures';
   template: `<button
     appRowGestures
     [swipe]="swipe"
+    [swipeRight]="swipeRight"
     (click)="clicks = clicks + 1"
     (held)="held = held + 1"
     (swiped)="swiped = swiped + 1"
+    (swipedRight)="right = right + 1"
   >
     Milk
   </button>`,
 })
 class Host {
   swipe = true;
+  swipeRight = false;
+  right = 0;
   clicks = 0;
   held = 0;
   swiped = 0;
 }
 
-function setup(swipe = true) {
+function setup(swipe = true, swipeRight = false) {
   const fixture = TestBed.createComponent(Host);
   fixture.componentInstance.swipe = swipe;
+  fixture.componentInstance.swipeRight = swipeRight;
   fixture.detectChanges();
   const host = fixture.componentInstance;
   const el: HTMLButtonElement = fixture.nativeElement.querySelector('button');
@@ -109,6 +114,39 @@ describe('RowGestures', () => {
     fire('pointerup', 160, 10);
     expect(host.swiped).toBe(0);
     expect(el.style.translate).toBe('');
+  });
+
+  it('with swipeRight, a right swipe past 110px is swipedRight, marked to-right, and its click does nothing', () => {
+    const { host, el, fire, click } = setup(true, true);
+    fire('pointerdown', 10, 10);
+    fire('pointermove', 130, 12);
+    expect(el.classList).toContain('swiping');
+    expect(el.classList).toContain('to-right');
+    expect(el.style.translate).toBe('120px');
+    fire('pointerup', 130, 12);
+    click();
+    expect(host.right).toBe(1);
+    expect(host.swiped).toBe(0);
+    expect(host.clicks).toBe(0);
+    expect(el.classList).not.toContain('to-right');
+  });
+
+  it('with swipeRight, a short right swipe springs back, and a left one still swipes', () => {
+    const { host, el, fire } = setup(true, true);
+    fire('pointerdown', 10, 10);
+    fire('pointermove', 70, 10);
+    fire('pointerup', 70, 10);
+    expect(host.right).toBe(0);
+    expect(el.style.translate).toBe('');
+    fire('pointerdown', 200, 10);
+    fire('pointermove', 80, 10);
+    // a swipe that turns back goes no further than where it started
+    fire('pointermove', 260, 10);
+    expect(el.style.translate).toBe('0px');
+    fire('pointermove', 80, 10);
+    fire('pointerup', 80, 10);
+    expect(host.swiped).toBe(1);
+    expect(host.right).toBe(0);
   });
 
   it('right-click or the context-menu key is held once, default prevented', () => {

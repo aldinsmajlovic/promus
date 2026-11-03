@@ -9,7 +9,7 @@ export type SearchResult = {
   name: string;
   note: string | null;
   quantity: number;
-  /** On the list, checked off inside the Done window (also on the list's Done), or neither. */
+  /** On the list, checked off inside the Done window (also on the list's Done), or neither (Later is neither). */
   state: 'none' | 'active' | 'checked';
   ranges: number[];
 };
@@ -51,7 +51,8 @@ export function resultOf(
     name: item.name,
     note: shown ? shown.note : item.lastNote,
     quantity: shown ? shown.quantity : item.lastQuantity,
-    state: shown?.state ?? 'none',
+    // one in Later adds like one not on the list: the add brings it back
+    state: shown && !(shown.state === 'active' && shown.later) ? shown.state : 'none',
     ranges,
   };
 }

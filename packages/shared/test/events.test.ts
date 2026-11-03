@@ -19,7 +19,7 @@ describe('event schemas', () => {
     for (const quantity of [0, 100, 1.5]) expect(parseEventInput(makeEvent('entry.added', { ...p, quantity }, meta())).ok).toBe(false);
   });
 
-  it('has the 15 types', () => expect(EVENT_TYPES).toHaveLength(15));
+  it('has the 16 types', () => expect(EVENT_TYPES).toHaveLength(16));
 
   it('takes a price in whole öre up to 99 999,99 kr, or null', () => {
     const price = (p: number | null) => makeEvent('item.priceSet', { itemId: newId(), price: p }, meta());

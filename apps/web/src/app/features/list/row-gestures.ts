@@ -4,7 +4,10 @@ export const HOLD_MS = 480;
 export const SLOP_PX = 8;
 export const SWIPE_MAX_PX = 110;
 
-/** Long-press or right-click is `held`; a swipe left past a third of the row (at most 110px) is `swiped`. */
+/**
+ * Long-press or right-click is `held`; a swipe left past a third of the row (at most 110px) is `swiped`, and one
+ * right, with `swipeRight`, is `swipedRight`. A swipe right is marked `to-right` while it lasts.
+ */
 @Directive({
   selector: '[appRowGestures]',
   host: {
@@ -18,8 +21,10 @@ export const SWIPE_MAX_PX = 110;
 })
 export class RowGestures {
   readonly swipe = input(true);
+  readonly swipeRight = input(false);
   readonly held = output<void>();
   readonly swiped = output<void>();
+  readonly swipedRight = output<void>();
 
   private readonly host: HTMLElement = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
   private timer: ReturnType<typeof setTimeout> | undefined;
@@ -30,6 +35,7 @@ export class RowGestures {
   private x = 0;
   private y = 0;
   private dx = 0;
+  private right = false;
 
   constructor() {
     // a hold still pending would arm the swallower after the row is gone; one already armed stays, for its click
@@ -54,17 +60,19 @@ export class RowGestures {
     const dy = e.clientY - this.y;
     if (this.mode === 'tap' && (Math.abs(dx) > SLOP_PX || Math.abs(dy) > SLOP_PX)) {
       clearTimeout(this.timer);
-      if (Math.abs(dx) > Math.abs(dy) && dx < 0 && this.swipe()) {
+      if (Math.abs(dx) > Math.abs(dy) && (dx < 0 ? this.swipe() : this.swipeRight())) {
         this.mode = 'swipe';
+        this.right = dx > 0;
         this.swallowNextClick();
         this.host.setPointerCapture(e.pointerId);
         this.host.classList.add('swiping');
+        this.host.classList.toggle('to-right', this.right);
       } else {
         this.mode = 'none';
       }
     }
     if (this.mode === 'swipe') {
-      this.dx = Math.min(0, dx);
+      this.dx = this.right ? Math.max(0, dx) : Math.min(0, dx);
       this.host.style.translate = `${this.dx}px`;
     }
   }
@@ -72,10 +80,11 @@ export class RowGestures {
   protected up(): void {
     if (!this.pressed) return;
     const swiping = this.mode === 'swipe';
-    const past = swiping && -this.dx > Math.min(this.host.offsetWidth / 3, SWIPE_MAX_PX);
+    const past = swiping && Math.abs(this.dx) > Math.min(this.host.offsetWidth / 3, SWIPE_MAX_PX);
+    const right = this.right;
     this.reset();
     if (swiping) this.host.classList.add('snap');
-    if (past) this.swiped.emit();
+    if (past) (right ? this.swipedRight : this.swiped).emit();
   }
 
   protected menu(e: Event): void {
@@ -96,7 +105,7 @@ export class RowGestures {
     this.heldFired = false;
     this.dx = 0;
     this.host.style.translate = '';
-    this.host.classList.remove('swiping');
+    this.host.classList.remove('swiping', 'to-right');
   }
 
   private fireHeld(): void {

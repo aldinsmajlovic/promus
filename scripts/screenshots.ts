@@ -29,6 +29,8 @@ const ITEMS: [name: string, set?: { note?: string; price?: string; quantity?: nu
   ['Yogurt'],
 ];
 const CHECKED = ['Butter', 'Yogurt'];
+// put off: in Later, folded
+const LATER = ['Candles', 'Shoe polish'];
 // a second list, which two guests join
 const SHARED = 'Taco night';
 const SHARED_ITEMS = ['Tortillas', 'Ground beef', 'Cheese'];
@@ -71,7 +73,7 @@ async function fill(page: Page, password: string): Promise<void> {
   await page.getByLabel('Password').fill(password);
   await page.getByRole('button', { name: 'Sign in' }).click();
 
-  await add(page, ITEMS.map(([name]) => name));
+  await add(page, [...ITEMS.map(([name]) => name), ...LATER]);
   for (const [name, set] of ITEMS) {
     if (!set) continue;
     await page.getByRole('checkbox', { name }).click({ button: 'right' });
@@ -81,6 +83,11 @@ async function fill(page: Page, password: string): Promise<void> {
     await page.getByLabel('Price', { exact: true }).press('Enter');
   }
   for (const name of CHECKED) await page.getByRole('checkbox', { name }).tap();
+  for (const name of LATER) {
+    await page.getByRole('checkbox', { name }).click({ button: 'right' });
+    await page.getByRole('button', { name: 'Move to Later' }).click();
+    await page.getByText(`${name} moved to Later`).waitFor();
+  }
   await settle(page, 'Settings for demo');
 }
 
