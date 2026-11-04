@@ -16,7 +16,8 @@ const fail = (description: string, ...statuses: string[]) =>
 
 const listId = { name: 'listId', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } };
 const itemId = { name: 'itemId', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } };
-const errors = { ...fail('The body is not valid', '400'), ...fail('No token, or an unknown, revoked or expired one', '401'), ...fail('Not a token, or a token without the scope', '403') };
+const bad = fail('The body is not valid', '400');
+const errors = { ...fail('No token, or an unknown, revoked or expired one', '401'), ...fail('Not a token, or a token without the scope', '403') };
 const notFound = fail('The list is not one of the household\'s, or the item is not on it', '404');
 const tooLarge = fail('The body is over 4 KB', '413');
 
@@ -37,6 +38,7 @@ export function openApiDocument(): object {
         Error: output(apiErrorSchema),
       },
     },
+    servers: [{ url: '/api/v1' }],
     security: [{ token: [] }],
     paths: {
       '/openapi.json': {
@@ -54,7 +56,7 @@ export function openApiDocument(): object {
           responses: {
             ...ok('201', 'The item, added or brought back', 'Item'),
             ...ok('200', 'The item was on the list already', 'Item'),
-            ...errors, ...notFound, ...tooLarge,
+            ...bad, ...errors, ...notFound, ...tooLarge,
           },
         },
       },
@@ -63,7 +65,7 @@ export function openApiDocument(): object {
           parameters: [listId, itemId],
           summary: 'Check an item off, or uncheck it',
           requestBody: body('SetChecked'),
-          responses: { ...ok('200', 'The item', 'Item'), ...errors, ...notFound, ...tooLarge },
+          responses: { ...ok('200', 'The item', 'Item'), ...bad, ...errors, ...notFound, ...tooLarge },
         },
         delete: {
           parameters: [listId, itemId],

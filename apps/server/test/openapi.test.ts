@@ -24,4 +24,12 @@ describe('the OpenAPI document', () => {
     const doc = openApiDocument() as { components: { schemas: Record<string, unknown> } };
     expect(doc.components.schemas.AddItem).toMatchObject({ type: 'object', required: ['name'] });
   });
+
+  it('resolves its paths under /api/v1, and lists 400 only where a body is read', () => {
+    const doc = openApiDocument() as { servers: unknown; paths: Record<string, Record<string, { responses: object }>> };
+    expect(doc.servers).toEqual([{ url: '/api/v1' }]);
+    const has400 = Object.entries(doc.paths).flatMap(([p, ops]) =>
+      Object.entries(ops).filter(([, op]) => '400' in op.responses).map(([m]) => `${m} ${p}`));
+    expect(has400.sort()).toEqual(['patch /lists/{listId}/items/{itemId}', 'post /lists/{listId}/items']);
+  });
 });
