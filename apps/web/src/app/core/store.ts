@@ -4,16 +4,24 @@ import {
   applyEvent,
   cleanName,
   emptyState,
-  entryKey,
   eventInputSchema,
   fold,
   inverseOf,
   makeEvent,
   newId,
   normalizeName,
+  one,
+  planAddByName,
+  planCheck,
+  planReadd,
+  planRemove,
+  planUncheck,
+  itemOf,
+  entryOf,
+  laterPlan,
   resolveItemId,
 } from '@promus/shared';
-import type { Draft, EventInput, HouseholdState, ItemState } from '@promus/shared';
+import type { Draft, EventInput, HouseholdState, Plan } from '@promus/shared';
 import { liveQuery } from 'dexie';
 import { GUEST, PromusDb } from './db';
 import { DexieSyncStorage } from './dexie-storage';
@@ -44,8 +52,6 @@ export class ValidationError extends Error {
   }
 }
 
-// one action: its events (as drafts) and the snackbar text
-type Plan = { messageKey: string; name: string; drafts: Draft[] };
 // what the data looked like at the last load; a difference means another tab or a sync changed it
 type Seen = { events: number; outbox: number; cursor: number; householdId: string | null };
 
@@ -75,29 +81,6 @@ const valid = (event: EventInput): EventInput => {
 // guests never archive or unarchive: an archived name goes back on the list as it is, and undoing a new item takes it
 // off the list and keeps it
 const guestMay = (d: Draft): boolean => d.type !== 'item.archived' && d.type !== 'item.unarchived';
-
-const one = (messageKey: string, name: string, draft: Draft): Plan => ({ messageKey, name, drafts: [draft] });
-
-const entryPlan = (
-  type: 'entry.checked' | 'entry.unchecked' | 'entry.removed',
-  messageKey: string,
-  listId: string,
-  item: ItemState,
-): Plan => one(messageKey, item.name, { type, payload: { listId, itemId: item.id } });
-
-const laterPlan = (listId: string, item: ItemState, later: boolean): Plan =>
-  one(later ? 'snack.later' : 'snack.unchecked', item.name, {
-    type: 'entry.laterSet',
-    payload: { listId, itemId: item.id, later },
-  });
-
-const itemOf = (s: HouseholdState, itemId: string): ItemState | undefined => s.items.get(resolveItemId(s, itemId));
-
-const entryOf = (s: HouseholdState, listId: string, itemId: string) => {
-  const item = itemOf(s, itemId);
-  const entry = item && s.entries.get(entryKey(listId, item.id));
-  return item && entry ? { item, entry } : null;
-};
 
 /**
  * The client's source of truth. Every action is an event written to the outbox first; `state` is the
@@ -168,55 +151,27 @@ export class Store {
    */
   addByName(listId: string, name: string): Promise<UndoToken | null> {
     return this.act((s) => {
-      const clean = checkName(name);
-      const normalized = normalizeName(clean);
-      const existing = s.byName.get(normalized)?.values().next().value;
-      if (existing !== undefined) return this.readd(s, listId, existing);
-      // byName holds live items only
-      const archived = [...s.items.values()].find((i) => i.archived && i.normalized === normalized);
-      if (archived) {
-        const readd = this.readd(s, listId, archived.id)?.drafts ?? [];
-        // a guest never unarchives, so on the list already there is nothing left to do
-        if (this.guest && !readd.length) throw new ValidationError('already_on_list');
-        const unarchive: Draft = { type: 'item.unarchived', payload: { itemId: archived.id } };
-        return { messageKey: 'snack.added', name: archived.name, drafts: [unarchive, ...readd] };
-      }
-      const itemId = newId();
-      return {
-        messageKey: 'snack.added',
-        name: clean,
-        drafts: [
-          { type: 'item.created', payload: { itemId, name: clean } },
-          { type: 'entry.added', payload: { listId, itemId } },
-        ],
-      };
+      const p = planAddByName(s, listId, checkName(name));
+      // a guest never unarchives, so with nothing but an unarchive left the item is already on the list
+      if (p && this.guest && !p.drafts.some(guestMay)) throw new ValidationError('already_on_list');
+      return p;
     });
   }
 
   addItem(listId: string, itemId: string): Promise<UndoToken | null> {
-    return this.act((s) => this.readd(s, listId, itemId));
+    return this.act((s) => planReadd(s, listId, itemId));
   }
 
   check(listId: string, itemId: string): Promise<UndoToken | null> {
-    return this.act((s) => {
-      const found = entryOf(s, listId, itemId);
-      return found?.entry.state === 'active' ? entryPlan('entry.checked', 'snack.checked', listId, found.item) : null;
-    });
+    return this.act((s) => planCheck(s, listId, itemId));
   }
 
   uncheck(listId: string, itemId: string): Promise<UndoToken | null> {
-    return this.act((s) => {
-      const found = entryOf(s, listId, itemId);
-      const checked = found?.entry.state === 'checked';
-      return checked ? entryPlan('entry.unchecked', 'snack.unchecked', listId, found.item) : null;
-    });
+    return this.act((s) => planUncheck(s, listId, itemId));
   }
 
   remove(listId: string, itemId: string): Promise<UndoToken | null> {
-    return this.act((s) => {
-      const found = entryOf(s, listId, itemId);
-      return found ? entryPlan('entry.removed', 'snack.removed', listId, found.item) : null;
-    });
+    return this.act((s) => planRemove(s, listId, itemId));
   }
 
   /** An active item to Later, or back from it to the list. */
@@ -316,21 +271,6 @@ export class Store {
       if (token.householdId !== this.householdId) throw new SessionError('the undo is for another household');
       if (token.inverse.length > 0) await this.commit(token.inverse);
     });
-  }
-
-  private readd(s: HouseholdState, listId: string, itemId: string): Plan | null {
-    const item = itemOf(s, itemId);
-    const entry = item && s.entries.get(entryKey(listId, item.id));
-    if (!item || (entry?.state === 'active' && !entry.later)) return null;
-    // as it was put off: its note, quantity and who added it
-    if (entry?.state === 'active') return laterPlan(listId, item, false);
-    const payload = {
-      listId,
-      itemId: item.id,
-      ...(item.lastNote ? { note: item.lastNote } : {}),
-      ...(item.lastQuantity > 1 ? { quantity: item.lastQuantity } : {}),
-    };
-    return one('snack.added', item.name, { type: 'entry.added', payload });
   }
 
   /** A guest's plan goes without its archives and unarchives, and one with nothing left changes nothing. */
