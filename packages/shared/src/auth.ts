@@ -34,3 +34,12 @@ export type InviteCheck = { expiresAt: number; invitedBy: string; ownHousehold: 
 
 /** A household member, as Settings lists them. `former` is true after they left or were removed; members cached by older versions lack it. */
 export type Member = { id: string; username: string; role: string; former: boolean };
+
+export const TOKEN_NAME_MAX = 50;
+export const tokenCreateSchema = z.strictObject({ name: z.string().trim().min(1).max(TOKEN_NAME_MAX) });
+export type TokenCreate = z.infer<typeof tokenCreateSchema>;
+
+/** An API token as Settings lists it; `lastUsedAt` is null until its first use. */
+export type ApiToken = { id: string; name: string; createdAt: number; lastUsedAt: number | null };
+/** The only time the token itself is shown. */
+export type TokenCreated = { id: string; token: string };
