@@ -259,6 +259,7 @@
   "token": {
     "copy": "Copy token",
     "intro": "Name it after the app, so you know which one to disconnect later.",
+    "local": "This page is open on a local address: give {{name}} the address it reaches this server on instead.",
     "madeIntro": "Paste it into {{name}}, together with this server's address. It shows only now: if you lose it, make a new one.",
     "madeTitle": "Token for {{name}}",
     "make": "Make a token",

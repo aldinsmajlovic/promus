@@ -10,7 +10,7 @@ const HOUR = 3_600_000;
 async function setup() {
   const lines: string[] = [];
   const t = makeTestApp({ logger: pino({ level: 'info' }, { write: (line: string) => void lines.push(line) }) });
-  await createUser(t.db, { username: 'Anna', password: PW, locale: 'sv', now: T0 });
+  const anna = await createUser(t.db, { username: 'Anna', password: PW, locale: 'sv', now: T0 });
   await createUser(t.db, { username: 'Bo', password: PW, locale: 'sv', now: T0 });
   const cookieA = cookieOf(await login(t.app, 'anna', PW));
   const cookieB = cookieOf(await login(t.app, 'bo', PW));
@@ -25,7 +25,7 @@ async function setup() {
     t.app.request(path, { method, headers: { Authorization: `Bearer ${token}` } });
   const listed = async (cookie = cookieA) =>
     ((await (await send('GET', '/api/tokens', undefined, cookie)).json()) as { tokens: { id: string; lastUsedAt: number | null }[] }).tokens;
-  return { ...t, lines, cookieA, cookieB, send, make, bearer, listed };
+  return { ...t, anna, lines, cookieA, cookieB, send, make, bearer, listed };
 }
 
 describe('api tokens', { timeout: 30_000 }, () => {
@@ -88,10 +88,10 @@ describe('api tokens', { timeout: 30_000 }, () => {
   });
 
   it('a token cannot manage tokens, and a browser session id is not a token', async () => {
-    const { make, bearer, send, db, cookieA } = await setup();
+    const { make, bearer, send, db, cookieA, anna } = await setup();
     const { token } = await make();
     expect((await bearer(token, 'POST', '/api/tokens')).status).toBe(403);
-    const browser = db.prepare("SELECT id FROM sessions WHERE kind = 'browser' LIMIT 1").get() as { id: string };
+    const browser = db.prepare("SELECT id FROM sessions WHERE kind = 'browser' AND user_id = ? LIMIT 1").get(anna.userId) as { id: string };
     expect((await send('DELETE', `/api/tokens/${browser.id}`, undefined, cookieA)).status).toBe(404);
   });
 

@@ -11,7 +11,7 @@ import { TranslocoDirective, TranslocoService } from '@jsverse/transloco';
 import { TOKEN_NAME_MAX } from '@promus/shared';
 import { Actions } from '../../core/actions';
 import { ApiClient } from '../../core/api';
-import { ORIGIN } from '../../core/platform';
+import { ORIGIN, isLocalOrigin } from '../../core/platform';
 
 export type TokenSheetData = { changed: () => void };
 
@@ -40,6 +40,9 @@ export function injectConnect(): (changed: () => void) => Promise<void> {
         <p>{{ t('token.madeIntro', { name: made.name }) }}</p>
         <p class="box">{{ made.token }}</p>
         <p class="box origin">{{ origin }}</p>
+        @if (local) {
+          <p>{{ t('token.local', { name: made.name }) }}</p>
+        }
         <div class="actions">
           <button matButton="outlined" type="button" (click)="copy(made.token)">
             <mat-icon svgIcon="content_copy" />{{ t('token.copy') }}
@@ -108,6 +111,7 @@ export class TokenSheet {
   private readonly snackBar = inject(MatSnackBar);
   private readonly transloco = inject(TranslocoService);
   protected readonly origin = inject(ORIGIN);
+  protected readonly local = isLocalOrigin(this.origin);
   protected readonly max = TOKEN_NAME_MAX;
   protected readonly name = new FormControl('', { nonNullable: true });
   protected readonly busy = signal(false);

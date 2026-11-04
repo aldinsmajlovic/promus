@@ -25,6 +25,17 @@ describe('the OpenAPI document', () => {
     expect(doc.components.schemas.AddItem).toMatchObject({ type: 'object', required: ['name'] });
   });
 
+  it('states the bounds of a name', () => {
+    const doc = openApiDocument() as { components: { schemas: Record<string, { properties: { name: object } }> } };
+    expect(doc.components.schemas.AddItem!.properties.name).toMatchObject({ type: 'string', minLength: 1, maxLength: 200 });
+  });
+
+  it('closes requests to unknown keys, and leaves responses open to new fields', () => {
+    const { schemas } = (openApiDocument() as { components: { schemas: Record<string, unknown> } }).components;
+    for (const name of ['AddItem', 'SetChecked']) expect(schemas[name]).toMatchObject({ additionalProperties: false });
+    for (const name of ['List', 'Lists', 'Item', 'Items', 'Error']) expect(JSON.stringify(schemas[name])).not.toContain('"additionalProperties":false');
+  });
+
   it('resolves its paths under /api/v1, and lists 400 only where a body is read', () => {
     const doc = openApiDocument() as { servers: unknown; paths: Record<string, Record<string, { responses: object }>> };
     expect(doc.servers).toEqual([{ url: '/api/v1' }]);

@@ -259,6 +259,7 @@
   "token": {
     "copy": "Kopiera token",
     "intro": "Döp den efter appen, så vet du vilken du ska koppla från senare.",
+    "local": "Sidan är öppen på en lokal adress: ge {{name}} adressen den når servern på i stället.",
     "madeIntro": "Klistra in den i {{name}}, tillsammans med serverns adress. Den visas bara nu: tappar du bort den, skapa en ny.",
     "madeTitle": "Token för {{name}}",
     "make": "Skapa en token",

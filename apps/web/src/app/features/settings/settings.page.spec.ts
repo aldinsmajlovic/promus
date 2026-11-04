@@ -5,7 +5,7 @@ import { MatMenuHarness } from '@angular/material/menu/testing';
 import { MATERIAL_ANIMATIONS } from '@angular/material/core';
 import { provideRouter } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
-import { TranslocoTestingModule } from '@jsverse/transloco';
+import { TranslocoService, TranslocoTestingModule } from '@jsverse/transloco';
 import { type Release, newId } from '@promus/shared';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { version } from '../../../../../../package.json';
@@ -117,6 +117,13 @@ describe('SettingsPage', () => {
     TestBed.resetTestingModule();
     const none = await setup();
     await vi.waitFor(() => expect(none.text('.apps-row .sub')).toBe(sv.settings.appsNone));
+  });
+
+  it('the connected apps row follows a change of language', async () => {
+    const t = await setup();
+    await vi.waitFor(() => expect(t.text('.apps-row .sub')).toBe(sv.settings.appsNone));
+    TestBed.inject(TranslocoService).setActiveLang('en');
+    await vi.waitFor(() => expect(t.text('.apps-row .sub')).toBe(en.settings.appsNone));
   });
 
   it('Invite a friend shows a link to lists of their own', async () => {

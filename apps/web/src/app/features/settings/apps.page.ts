@@ -65,11 +65,12 @@ export class AppsPage {
   protected async disconnect(token: ApiToken): Promise<void> {
     try {
       await this.api.revokeToken(token.id);
-      await this.refresh();
     } catch (err) {
       this.actions.failed(err, SNACK);
+      await this.refresh(); // the row may already be gone
       return;
     }
+    await this.refresh();
     this.snackBar
       .open(
         this.transloco.translate('snack.appDisconnected', { name: token.name }),

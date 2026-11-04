@@ -21,13 +21,13 @@ const json = (status: number, body: unknown) =>
 
 const DAY = 86_400_000;
 
-async function setup(tokens: ApiToken[]) {
+async function setup(tokens: ApiToken[], origin = 'https://promus.example', revoke = 204) {
   const db = new PromusDb(`apps-${newId()}`);
   await db.setMeta('session', { userId: 'u1', username: 'anna', householdId: 'h1' });
   const fetch = vi.fn<typeof globalThis.fetch>(async (url, init) => {
     if (url === '/api/tokens' && init?.method === 'GET') return json(200, { tokens });
     if (url === '/api/tokens' && init?.method === 'POST') return json(201, { id: 't1', token: 'pr_example' });
-    if (url === '/api/tokens/t1' && init?.method === 'DELETE') return new Response(null, { status: 204 });
+    if (url === '/api/tokens/t1' && init?.method === 'DELETE') return new Response(revoke === 204 ? null : JSON.stringify({ error: 'not_found' }), { status: revoke });
     if (url === '/api/tokens/t1/restore' && init?.method === 'POST') return new Response(null, { status: 204 });
     throw new Error(`unexpected ${String(url)}`);
   });
@@ -35,7 +35,7 @@ async function setup(tokens: ApiToken[]) {
     providers: [
       { provide: PromusDb, useValue: db },
       { provide: FETCH, useValue: fetch },
-      { provide: ORIGIN, useValue: 'https://promus.example' },
+      { provide: ORIGIN, useValue: origin },
       { provide: MATERIAL_ANIMATIONS, useValue: { animationsDisabled: true } },
       provideAppInitializer(registerIcons),
       importProvidersFrom(
@@ -113,6 +113,20 @@ describe('AppsPage', () => {
     await vi.waitFor(() => expect(t.sheet()).toBeNull());
   });
 
+  it('says on a local address that the app needs the address the server is reached on', async () => {
+    for (const [origin, shown] of [['http://127.0.0.1:8080', true], ['https://promus.example', false]] as const) {
+      TestBed.resetTestingModule();
+      const t = await setup([], origin);
+      await (await t.button(sv.apps.connect)).click();
+      await vi.waitFor(() => expect(t.sheet()).not.toBeNull());
+      t.sheet()!.querySelector('input')!.value = 'Home Assistant';
+      t.sheet()!.querySelector('input')!.dispatchEvent(new Event('input'));
+      await (await t.button(sv.token.make)).click();
+      await vi.waitFor(() => expect(t.sheet()?.textContent).toContain('pr_example'));
+      expect(t.sheet()!.textContent!.includes(sv.token.local.replace('{{name}}', 'Home Assistant'))).toBe(shown);
+    }
+  });
+
   it('refuses an empty name without calling the server', async () => {
     const t = await setup([]);
     await (await t.button(sv.apps.connect)).click();
@@ -137,5 +151,16 @@ describe('AppsPage', () => {
     await vi.waitFor(() =>
       expect(t.fetch).toHaveBeenCalledWith('/api/tokens/t1/restore', expect.objectContaining({ method: 'POST' })),
     );
+  });
+
+  it('fetches the list again when a disconnect fails, such as for a token already gone', async () => {
+    const t = await setup([token()], 'https://promus.example', 404);
+    await vi.waitFor(() => expect(t.el.querySelectorAll('li').length).toBe(1));
+    const gets = () => t.fetch.mock.calls.filter(([url, init]) => url === '/api/tokens' && init?.method === 'GET').length;
+    const before = gets();
+    t.el.querySelector<HTMLElement>('li .row')!.click();
+    await vi.waitFor(() => expect(document.querySelector('.mat-mdc-menu-panel')).not.toBeNull());
+    await (await t.root.getHarness(MatMenuItemHarness.with({ text: new RegExp(sv.apps.disconnect) }))).click();
+    await vi.waitFor(() => expect(gets()).toBe(before + 1));
   });
 });

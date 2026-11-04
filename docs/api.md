@@ -9,7 +9,7 @@ In **Settings**, open **Connected apps** and tap **Connect an app**. Name the to
 The page lists each app with when it was last used. Tap an app and choose **Disconnect** to stop its token working; **Undo** brings it back. The page links here from **How to use a token**.
 
 - **What it can do:** read and change the lists of your household, as you. It can't change your account, your household's members, invites or share links.
-- **How long it works:** until you disconnect it under **Connected apps**, or after 400 days without use.
+- **How long it works:** until you disconnect it under **Connected apps**, or after 400 days without use. Changing the account's password with `user:password` also stops every token.
 - **If you move:** a token follows its account. Leave or be removed from a household, and it sees the lists you have next, not the old ones.
 
 ## Send it

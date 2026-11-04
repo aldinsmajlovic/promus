@@ -1,11 +1,22 @@
 import {
-  apiAddItemSchema, apiErrorSchema, apiItemSchema, apiItemsSchema, apiListsSchema, apiListSchema, apiSetCheckedSchema,
+  apiErrorSchema, apiItemSchema, apiItemsSchema, apiListsSchema, apiListSchema, apiSetCheckedSchema, LIMITS,
 } from '@promus/shared';
 import * as z from 'zod';
 import pkg from '../../../package.json' with { type: 'json' };
 
 const input = (s: z.ZodType) => z.toJSONSchema(s, { io: 'input', target: 'draft-2020-12' });
-const output = (s: z.ZodType) => z.toJSONSchema(s, { io: 'output', target: 'draft-2020-12' });
+// responses stay open: v1 may add a field, and a strict client generator must not break on it
+const output = (s: z.ZodType) =>
+  z.toJSONSchema(s, {
+    io: 'output',
+    target: 'draft-2020-12',
+    override: ({ jsonSchema }) => {
+      if (jsonSchema.additionalProperties === false) delete jsonSchema.additionalProperties;
+    },
+  });
+
+// the add body is cleaned by a transform before its bounds apply, which JSON Schema can't show: state the bounds as the client sees them
+const addItemBody = z.strictObject({ name: z.string().min(1).max(LIMITS.nameMax) });
 
 const ref = (name: string) => ({ $ref: `#/components/schemas/${name}` });
 const json = (name: string) => ({ 'application/json': { schema: ref(name) } });
@@ -33,7 +44,7 @@ export function openApiDocument(): object {
         Lists: output(apiListsSchema),
         Item: output(apiItemSchema),
         Items: output(apiItemsSchema),
-        AddItem: input(apiAddItemSchema),
+        AddItem: input(addItemBody),
         SetChecked: input(apiSetCheckedSchema),
         Error: output(apiErrorSchema),
       },

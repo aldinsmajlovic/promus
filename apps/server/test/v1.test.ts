@@ -87,6 +87,24 @@ describe('/api/v1', { timeout: 30_000 }, () => {
     const made = (await fresh.json()) as ApiItem;
     expect(made).toMatchObject({ name: 'Gurka', checked: false, later: false, quantity: 1, note: null });
     expect(made.id).not.toBe(MJOLK);
+    const [added, created] = t.db.prepare('SELECT type, hlc FROM events ORDER BY seq DESC LIMIT 2').all() as { type: string; hlc: string }[];
+    const seeded = (t.db.prepare("SELECT MAX(hlc) AS hlc FROM events WHERE session_id = 'phone'").get() as { hlc: string }).hlc;
+    expect([created!.type, added!.type]).toEqual(['item.created', 'entry.added']);
+    expect(created!.hlc > seeded).toBe(true);
+    expect(added!.hlc > created!.hlc).toBe(true);
+  });
+
+  it('adding the name of an archived item brings it back, then adds it', async () => {
+    const t = await setup();
+    const LOK = t.item('Lök');
+    t.seed('item.archived', { itemId: LOK });
+    const res = await t.api('POST', t.itemsPath, { name: 'lök' });
+    expect(res.status).toBe(201);
+    expect(await res.json()).toMatchObject({ id: LOK, name: 'Lök', checked: false });
+    const last = t.db.prepare('SELECT type, payload FROM events ORDER BY seq DESC LIMIT 2').all() as { type: string; payload: string }[];
+    expect(last.map((e) => e.type)).toEqual(['entry.added', 'item.unarchived']);
+    expect(last.map((e) => JSON.parse(e.payload).itemId)).toEqual([LOK, LOK]);
+    expect(await t.items()).toMatchObject([{ id: LOK, checked: false }]);
   });
 
   it('"lok" is a new item beside "Lök"', async () => {

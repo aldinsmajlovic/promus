@@ -62,10 +62,11 @@ export class SettingsPage {
   /** Null until known, or when the request failed. */
   private readonly tokens = signal<ApiToken[] | null>(null);
   protected readonly apps = computed(() => {
+    const lang = this.activeLang(); // read first: the row follows a change of language
     const tokens = this.tokens();
     if (tokens === null) return this.transloco.translate('settings.appsHint');
     if (tokens.length === 0) return this.transloco.translate('settings.appsNone');
-    return new Intl.ListFormat(this.activeLang(), { type: 'conjunction' }).format(tokens.map((t) => t.name));
+    return new Intl.ListFormat(lang, { type: 'conjunction' }).format(tokens.map((t) => t.name));
   });
   protected readonly version = version;
   /** The releases after the server's, newest first: the update notice shows when there's one. */
