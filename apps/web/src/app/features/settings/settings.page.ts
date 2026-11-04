@@ -5,7 +5,7 @@ import { MatIcon } from '@angular/material/icon';
 import { MatMenu, MatMenuItem, MatMenuTrigger } from '@angular/material/menu';
 import { RouterLink } from '@angular/router';
 import { TranslocoDirective, TranslocoService } from '@jsverse/transloco';
-import { AuthError, NetworkError, type Release } from '@promus/shared';
+import { type ApiToken, AuthError, NetworkError, type Release } from '@promus/shared';
 import { version } from '../../../../../../package.json';
 import { Actions } from '../../core/actions';
 import { ApiClient } from '../../core/api';
@@ -59,6 +59,14 @@ export class SettingsPage {
     const names = this.faces().map((m) => (m.id === you ? this.transloco.translate('settings.you') : m.username));
     return new Intl.ListFormat(this.activeLang(), { type: 'conjunction' }).format(names);
   });
+  /** Null until known, or when the request failed. */
+  private readonly tokens = signal<ApiToken[] | null>(null);
+  protected readonly apps = computed(() => {
+    const tokens = this.tokens();
+    if (tokens === null) return this.transloco.translate('settings.appsHint');
+    if (tokens.length === 0) return this.transloco.translate('settings.appsNone');
+    return new Intl.ListFormat(this.activeLang(), { type: 'conjunction' }).format(tokens.map((t) => t.name));
+  });
   protected readonly version = version;
   /** The releases after the server's, newest first: the update notice shows when there's one. */
   protected readonly releases = signal<Release[]>([]);
@@ -79,6 +87,13 @@ export class SettingsPage {
 
   constructor() {
     void this.household.refresh();
+    this.api.tokens().then(
+      (tokens) => this.tokens.set(tokens),
+      (err: unknown) => {
+        // offline or signed out: the row says what it is for instead
+        if (!(err instanceof NetworkError || err instanceof AuthError)) console.error('tokens failed', err);
+      },
+    );
     this.api.releases().then(
       (releases) => this.releases.set(releases),
       (err: unknown) => {

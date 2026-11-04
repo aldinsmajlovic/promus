@@ -8,3 +8,6 @@ export const HTTPS_GUIDE_URL = `${REPO}/blob/v${version}/docs/self-hosting.md#pu
 
 /** How to update, as tagged for the release being updated to. */
 export const updateGuideUrl = (to: string): string => `${REPO}/blob/v${to}/docs/self-hosting.md#updating`;
+
+/** How to use a token, as tagged for this version. */
+export const API_DOCS_URL = `${REPO}/blob/v${version}/docs/api.md`;

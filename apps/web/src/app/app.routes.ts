@@ -28,6 +28,11 @@ export const routes: Routes = [
     loadComponent: () => import('./features/settings/household.page').then((m) => m.HouseholdPage),
   },
   {
+    path: 'settings/apps',
+    canActivate: [authGuard],
+    loadComponent: () => import('./features/settings/apps.page').then((m) => m.AppsPage),
+  },
+  {
     path: 'login',
     canActivate: [loginGuard, setupNeededGuard],
     loadComponent: () => import('./features/login/login.page').then((m) => m.LoginPage),

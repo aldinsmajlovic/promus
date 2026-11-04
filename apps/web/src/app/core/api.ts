@@ -13,8 +13,10 @@ import {
   shareCreateSchema,
   shareJoinSchema,
   shareTokenSchema,
+  tokenCreateSchema,
 } from '@promus/shared';
 import type {
+  ApiToken,
   EventInput,
   GuestMe,
   InviteAccept,
@@ -30,6 +32,7 @@ import type {
   ShareJoined,
   SharesResponse,
   SyncApi,
+  TokenCreated,
 } from '@promus/shared';
 
 export type User = { id: string; username: string };
@@ -90,6 +93,23 @@ export class ApiClient implements SyncApi {
 
   acceptInvite(req: InviteAccept): Promise<void> {
     return this.request('POST', '/api/invites/accept', inviteAcceptSchema.parse(req));
+  }
+
+  async tokens(): Promise<ApiToken[]> {
+    return (await this.request<{ tokens: ApiToken[] }>('GET', '/api/tokens')).tokens;
+  }
+
+  /** The token itself is in the answer once; it can't be read again. */
+  createToken(name: string): Promise<TokenCreated> {
+    return this.request('POST', '/api/tokens', tokenCreateSchema.parse({ name }));
+  }
+
+  revokeToken(id: string): Promise<void> {
+    return this.request('DELETE', `/api/tokens/${encodeURIComponent(id)}`);
+  }
+
+  restoreToken(id: string): Promise<void> {
+    return this.request('POST', `/api/tokens/${encodeURIComponent(id)}/restore`);
   }
 
   /** The list's live link, or a new one: `created` says which. */

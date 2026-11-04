@@ -1,0 +1,52 @@
+<ng-container *transloco="let t">
+  <div class="frame">
+    <header class="band slim">
+      <button matIconButton [attr.aria-label]="t('settings.back')" (click)="back()">
+        <mat-icon svgIcon="arrow_back" />
+      </button>
+      <h1 class="title">{{ t('settings.apps') }}</h1>
+    </header>
+
+    <main class="sheet">
+      <p class="intro">{{ t('apps.intro') }}</p>
+      @if (tokens(); as list) {
+        <ul>
+          @for (a of list; track a.id) {
+            @let used = lastUsed(a);
+            <li>
+              <button
+                #options="matMenuTrigger"
+                class="row"
+                type="button"
+                appRowGestures
+                [swipe]="false"
+                [matMenuTriggerFor]="menu"
+                [matMenuTriggerData]="{ app: a }"
+                (held)="options.openMenu()"
+              >
+                <span class="txt">
+                  <span class="name">{{ a.name }}</span>
+                  <span class="sub">{{ t(used.key, used.params) }}</span>
+                </span>
+                <mat-icon class="more" svgIcon="more_vert" />
+              </button>
+            </li>
+          }
+        </ul>
+      }
+      <mat-menu #menu="matMenu" xPosition="before">
+        <ng-template matMenuContent let-app="app">
+          <button mat-menu-item (click)="disconnect(app)">
+            <mat-icon svgIcon="link_off" />{{ t('apps.disconnect') }}
+          </button>
+        </ng-template>
+      </mat-menu>
+      <div class="acts">
+        <button matButton="tonal" type="button" (click)="connect(refresh)">
+          <mat-icon svgIcon="key" />{{ t('apps.connect') }}
+        </button>
+        <a class="how" [href]="docs" target="_blank" rel="noopener">{{ t('apps.howTo') }}</a>
+      </div>
+    </main>
+  </div>
+</ng-container>

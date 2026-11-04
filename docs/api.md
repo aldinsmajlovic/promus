@@ -4,10 +4,12 @@ Other apps, such as Home Assistant, can read your lists and change them through 
 
 ## Make a token
 
-In **Settings**, open **Connected apps** and make a token, with a name that says where it goes, such as Home Assistant. The token starts with `pr_` and shows once: copy it into the other app then.
+In **Settings**, open **Connected apps** and tap **Connect an app**. Name the token after the app that will use it, such as Home Assistant. The token starts with `pr_` and shows once, with this server's address: copy it into the other app then. **Undo** in the snackbar takes it back.
+
+The page lists each app with when it was last used. Tap an app and choose **Disconnect** to stop its token working; **Undo** brings it back. The page links here from **How to use a token**.
 
 - **What it can do:** read and change the lists of your household, as you. It can't change your account, your household's members, invites or share links.
-- **How long it works:** until you revoke it under **Connected apps**, or after 400 days without use.
+- **How long it works:** until you disconnect it under **Connected apps**, or after 400 days without use.
 - **If you move:** a token follows its account. Leave or be removed from a household, and it sees the lists you have next, not the old ones.
 
 ## Send it

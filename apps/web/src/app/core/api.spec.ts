@@ -53,6 +53,26 @@ describe('ApiClient', () => {
     expect(JSON.parse(fetch.mock.calls[0]?.[1]?.body as string)).toEqual({ username: 'anna', password: 'secret' });
   });
 
+  it('lists, makes, revokes and restores API tokens', async () => {
+    const t = { id: 't1', name: 'Home Assistant', createdAt: 1, lastUsedAt: null };
+    const fetch = vi
+      .fn<typeof globalThis.fetch>()
+      .mockResolvedValueOnce(json(200, { tokens: [t] }))
+      .mockResolvedValueOnce(json(201, { id: 't1', token: 'pr_example' }))
+      .mockResolvedValue(new Response(null, { status: 204 }));
+    const api = setup(fetch);
+    expect(await api.tokens()).toEqual([t]);
+    expect(await api.createToken(' Home Assistant ')).toEqual({ id: 't1', token: 'pr_example' });
+    await api.revokeToken('t1');
+    await api.restoreToken('t1');
+    expect(calls(fetch)).toEqual([
+      ['GET', '/api/tokens', undefined],
+      ['POST', '/api/tokens', { name: 'Home Assistant' }],
+      ['DELETE', '/api/tokens/t1', undefined],
+      ['POST', '/api/tokens/t1/restore', undefined],
+    ]);
+  });
+
   it('makes, ends and brings back links, and says whether a link was made', async () => {
     const share = { id: 's1', listId: L, token: 'tok', expiresAt: 1, createdBy: 'u1' };
     const fetch = vi

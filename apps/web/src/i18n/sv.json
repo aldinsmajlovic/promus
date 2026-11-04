@@ -20,6 +20,16 @@
     "onList": "På listan",
     "placeholder": "Lägg till eller hitta"
   },
+  "apps": {
+    "connect": "Anslut en app",
+    "disconnect": "Koppla från",
+    "howTo": "Så använder du en token",
+    "intro": "En app med en token ser och ändrar dina listor som du gör: det den lägger till visar din initial. Koppla från den så slutar token att fungera.",
+    "neverUsed": "Aldrig använd",
+    "usedOn": "Använd {{date}}",
+    "usedToday": "Använd i dag",
+    "usedYesterday": "Använd i går"
+  },
   "dialog": {
     "close": "Stäng"
   },
@@ -143,6 +153,9 @@
   },
   "settings": {
     "account": "Konto",
+    "apps": "Anslutna appar",
+    "appsHint": "Home Assistant och andra appar",
+    "appsNone": "Inga än",
     "back": "Tillbaka",
     "dark": "Mörkt",
     "en": "English",
@@ -200,6 +213,7 @@
   },
   "snack": {
     "added": "{{name}} tillagd",
+    "appDisconnected": "{{name}} frånkopplad",
     "archived": "{{name}} borttagen från förslag",
     "checked": "{{name}} avbockad",
     "copied": "Länken kopierad",
@@ -223,6 +237,9 @@
     "renamed": "Bytt namn till {{name}}",
     "shareEnded": "Länken avslutad",
     "shareMade": "Länken skapad",
+    "tokenCopied": "Token kopierad",
+    "tokenMade": "Token skapad",
+    "tokenRevoked": "Token återkallad",
     "unchecked": "{{name}} tillbaka på listan",
     "undo": "Ångra"
   },
@@ -238,6 +255,15 @@
     "serverError": "Servern svarade inte som väntat",
     "signedOut": "Utloggad",
     "tooLarge": "För många ändringar att skicka på en gång"
+  },
+  "token": {
+    "copy": "Kopiera token",
+    "intro": "Döp den efter appen, så vet du vilken du ska koppla från senare.",
+    "madeIntro": "Klistra in den i {{name}}, tillsammans med serverns adress. Den visas bara nu: tappar du bort den, skapa en ny.",
+    "madeTitle": "Token för {{name}}",
+    "make": "Skapa en token",
+    "name": "Namn",
+    "title": "Anslut en app"
   },
   "update": {
     "ready": "Ny version finns",

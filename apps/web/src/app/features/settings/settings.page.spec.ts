@@ -24,7 +24,7 @@ class Blank {}
 
 const html = document.documentElement;
 
-async function setup(releases: Release[] = []) {
+async function setup(releases: Release[] = [], tokens: { id: string; name: string }[] = []) {
   const me = newId();
   const db = new PromusDb(`settings-${newId()}`);
   await db.setMeta('session', { userId: me, username: 'anna', householdId: newId() });
@@ -35,9 +35,11 @@ async function setup(releases: Release[] = []) {
   const fetch = vi.fn<typeof globalThis.fetch>(async (url) =>
     url === '/api/invites'
       ? new Response(JSON.stringify({ id: 'i1', token: 'tok', expiresAt: 1 }), { status: 201 })
-      : url === '/api/releases'
-        ? new Response(JSON.stringify({ releases }))
-        : new Response(JSON.stringify({ user: { id: me, username: 'anna' }, households: [{ id: 'h1', role: 'owner', members }] }), {
+      : url === '/api/tokens'
+        ? new Response(JSON.stringify({ tokens }))
+        : url === '/api/releases'
+          ? new Response(JSON.stringify({ releases }))
+          : new Response(JSON.stringify({ user: { id: me, username: 'anna' }, households: [{ id: 'h1', role: 'owner', members }] }), {
           status: 200,
         }),
   );
@@ -54,6 +56,7 @@ async function setup(releases: Release[] = []) {
         { path: 'settings', component: SettingsPage },
         { path: 'settings/account', component: Blank },
         { path: 'settings/household', component: Blank },
+        { path: 'settings/apps', component: Blank },
       ]),
       provideAppInitializer(registerIcons),
       importProvidersFrom(
@@ -104,6 +107,16 @@ describe('SettingsPage', () => {
     await vi.waitFor(() => expect(t.text('.household-row .sub')).toBe('Du och maja'));
     expect(t.el.querySelector('.household-row')?.getAttribute('href')).toBe('/settings/household');
     expect(t.el.querySelectorAll('.household-row app-face').length).toBe(2);
+  });
+
+  it('shows connected apps by name, or none yet', async () => {
+    const named = await setup([], [{ id: 't1', name: 'Home Assistant' }]);
+    await vi.waitFor(() => expect(named.text('.apps-row .sub')).toBe('Home Assistant'));
+    expect(named.text('.apps-row .main')).toBe(sv.settings.apps);
+    expect(named.el.querySelector('.apps-row')?.getAttribute('href')).toBe('/settings/apps');
+    TestBed.resetTestingModule();
+    const none = await setup();
+    await vi.waitFor(() => expect(none.text('.apps-row .sub')).toBe(sv.settings.appsNone));
   });
 
   it('Invite a friend shows a link to lists of their own', async () => {

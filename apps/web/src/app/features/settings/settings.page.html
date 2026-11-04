@@ -46,6 +46,17 @@
       </div>
 
       <div class="group">
+        <a class="row apps-row" routerLink="apps">
+          <span class="ic"><mat-icon svgIcon="key" /></span>
+          <span class="txt">
+            <span class="main">{{ t('settings.apps') }}</span>
+            <span class="sub">{{ apps() }}</span>
+          </span>
+          <mat-icon class="go" svgIcon="chevron_right" />
+        </a>
+      </div>
+
+      <div class="group">
         <button class="row theme-row" type="button" [matMenuTriggerFor]="themeMenu">
           <span class="ic"><mat-icon svgIcon="contrast" /></span>
           <span class="txt"><span class="main">{{ t('settings.theme') }}</span></span>

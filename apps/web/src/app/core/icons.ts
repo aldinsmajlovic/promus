@@ -16,6 +16,7 @@ import deleteIcon from '@material-symbols/svg-400/rounded/delete.svg';
 import edit from '@material-symbols/svg-400/rounded/edit.svg';
 import group from '@material-symbols/svg-400/rounded/group.svg';
 import historyToggleOff from '@material-symbols/svg-400/rounded/history_toggle_off.svg';
+import key from '@material-symbols/svg-400/rounded/key.svg';
 import keyboardArrowDown from '@material-symbols/svg-400/rounded/keyboard_arrow_down.svg';
 import keyboardArrowUp from '@material-symbols/svg-400/rounded/keyboard_arrow_up.svg';
 import link from '@material-symbols/svg-400/rounded/link.svg';
@@ -55,6 +56,7 @@ const ICONS: Record<string, string> = {
   logout,
   chevron_right: chevronRight,
   group,
+  key,
   contrast,
   translate,
   mobile_arrow_down: mobileArrowDown,

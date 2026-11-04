@@ -20,6 +20,16 @@
     "onList": "On the list",
     "placeholder": "Add or find"
   },
+  "apps": {
+    "connect": "Connect an app",
+    "disconnect": "Disconnect",
+    "howTo": "How to use a token",
+    "intro": "An app with a token sees and changes your lists as you do: what it adds shows your initial. Disconnect it and the token stops working.",
+    "neverUsed": "Never used",
+    "usedOn": "Used {{date}}",
+    "usedToday": "Used today",
+    "usedYesterday": "Used yesterday"
+  },
   "dialog": {
     "close": "Close"
   },
@@ -143,6 +153,9 @@
   },
   "settings": {
     "account": "Account",
+    "apps": "Connected apps",
+    "appsHint": "Home Assistant and other apps",
+    "appsNone": "None yet",
     "back": "Back",
     "dark": "Dark",
     "en": "English",
@@ -200,6 +213,7 @@
   },
   "snack": {
     "added": "{{name}} added",
+    "appDisconnected": "{{name}} disconnected",
     "archived": "{{name}} removed from suggestions",
     "checked": "{{name}} checked off",
     "copied": "Link copied",
@@ -223,6 +237,9 @@
     "renamed": "Renamed to {{name}}",
     "shareEnded": "Link ended",
     "shareMade": "Link made",
+    "tokenCopied": "Token copied",
+    "tokenMade": "Token made",
+    "tokenRevoked": "Token taken back",
     "unchecked": "{{name}} back on the list",
     "undo": "Undo"
   },
@@ -238,6 +255,15 @@
     "serverError": "The server returned an error",
     "signedOut": "Signed out",
     "tooLarge": "Too many changes to send at once"
+  },
+  "token": {
+    "copy": "Copy token",
+    "intro": "Name it after the app, so you know which one to disconnect later.",
+    "madeIntro": "Paste it into {{name}}, together with this server's address. It shows only now: if you lose it, make a new one.",
+    "madeTitle": "Token for {{name}}",
+    "make": "Make a token",
+    "name": "Name",
+    "title": "Connect an app"
   },
   "update": {
     "ready": "New version available",
