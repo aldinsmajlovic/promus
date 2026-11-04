@@ -42,6 +42,7 @@ Put HTTPS in front of `http://127.0.0.1:8080` with whatever you use to expose se
 - [Promus with systemd](docs/proxmox.md): built from source and run as a systemd service, for example in a Proxmox LXC container.
 - [Configuration](docs/configuration.md): the environment variables.
 - [Server commands](docs/cli.md): accounts and backups.
+- [The API](docs/api.md): tokens and routes for Home Assistant and other apps.
 - [Development](docs/development.md): running it locally, the checks, releasing and the project layout.
 - [Decisions](docs/decisions.md): what changed from the original plan, and why.
 - [Writing docs](docs/writing-docs.md): rules for these pages.

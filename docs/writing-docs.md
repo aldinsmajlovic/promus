@@ -40,6 +40,7 @@ Anything longer than a line or two goes to a page in `docs/` and the README link
 | `docs/proxmox.md` | The systemd install, in a Proxmox LXC container |
 | `docs/configuration.md` | Environment variables |
 | `docs/cli.md` | Server commands: accounts and backups |
+| `docs/api.md` | The API for other apps: tokens, routes, the OpenAPI document |
 | `docs/development.md` | Running locally, checks, phone testing, releasing, project layout |
 | `docs/decisions.md` | Changes from the plan, with the why |
 | `CHANGELOG.md` | What each release changes for users, as Settings shows it |

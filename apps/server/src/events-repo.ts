@@ -1,5 +1,6 @@
 import type { DatabaseSync } from 'node:sqlite';
-import type { EventInput, StoredEvent } from '@promus/shared';
+import { eventInputSchema, hlcNow, makeEvent, parseHlc } from '@promus/shared';
+import type { Draft, EventInput, HlcState, StoredEvent } from '@promus/shared';
 import { transaction } from './db.ts';
 
 type Row = {
@@ -19,6 +20,31 @@ export function insertEvents(db: DatabaseSync, events: EventInput[], ctx: { user
       stmt.run(e.id, e.householdId, ctx.userId, ctx.sessionId, e.type, e.v, e.hlc, e.occurredAt, now, e.undoOf ?? null, JSON.stringify(e.payload));
     }
   });
+}
+
+/**
+ * The server's own events, from a plan's drafts, stored and returned. Each sorts after everything the household has
+ * stored, even a phone's from an hour ahead, so it wins as the same action in the app would. Validated like the app's:
+ * a stored event is never changed.
+ */
+export function insertServerEvents(
+  db: DatabaseSync,
+  householdId: string,
+  who: { userId: string; sessionId: string },
+  drafts: Draft[],
+  now: number,
+): EventInput[] {
+  const newest = db.prepare('SELECT hlc FROM events WHERE household_id = ? ORDER BY hlc DESC LIMIT 1').get(householdId) as
+    | { hlc: string }
+    | undefined;
+  let clock: HlcState = newest ? parseHlc(newest.hlc) : { wall: 0, counter: 0 };
+  const events = drafts.map(({ type, payload, undoOf }) => {
+    const next = hlcNow(clock, now, 'api');
+    clock = next.state;
+    return eventInputSchema.parse(makeEvent(type, payload, { householdId, hlc: next.hlc, occurredAt: now, ...(undoOf ? { undoOf } : {}) }));
+  });
+  insertEvents(db, events, who, now);
+  return events;
 }
 
 const COLUMNS = 'seq, id, household_id, user_id, type, v, hlc, occurred_at, received_at, undo_of, payload';

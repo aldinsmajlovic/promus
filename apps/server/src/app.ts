@@ -17,6 +17,7 @@ import { shareRoutes } from './routes/shares.ts';
 import { setupRoutes } from './routes/setup.ts';
 import { syncRoutes } from './routes/sync.ts';
 import { tokenRoutes } from './routes/tokens.ts';
+import { v1Routes } from './routes/v1.ts';
 import { serveWeb } from './static.ts';
 
 export type AppDeps = {
@@ -69,6 +70,7 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
   app.route('/api', guestRoutes(deps));
   app.route('/api', syncRoutes(deps));
   app.route('/api', tokenRoutes(deps));
+  app.route('/api/v1', v1Routes(deps));
   app.all('/api/*', (c) => c.json({ error: 'not_found' }, 404));
   app.get('*', serveWeb(deps.webRoot));
   return app;

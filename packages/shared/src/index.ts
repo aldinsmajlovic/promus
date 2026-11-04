@@ -11,3 +11,4 @@ export * from './errors.ts';
 export * from './sync-client.ts';
 export * from './releases.ts';
 export * from './plans.ts';
+export * from './api.ts';
