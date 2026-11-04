@@ -9,6 +9,7 @@ import type { ApiItem, ApiList, Draft, HouseholdState } from '@promus/shared';
 import type { AppDeps, AppEnv } from '../app.ts';
 import { householdEvents, insertServerEvents } from '../events-repo.ts';
 import { requireAuth, requireScope } from '../middleware/auth.ts';
+import { openApiDocument } from '../openapi.ts';
 
 const small = bodyLimit({ maxSize: 4096, onError: (c) => c.json({ error: 'payload_too_large' }, 413) });
 
@@ -46,6 +47,7 @@ export function v1Routes({ db, now }: Pick<AppDeps, 'db' | 'now' | 'logger'>) {
   const invalid = (c: Context<AppEnv>) => c.json({ error: 'invalid_request' }, 400);
 
   return new Hono<AppEnv>()
+    .get('/openapi.json', (c) => c.json(openApiDocument()))
     .use(requireAuth('api'))
     .get('/lists', requireScope('lists:read'), (c) => {
       const householdId = c.get('auth').householdIds[0];

@@ -33,6 +33,8 @@ A browser session doesn't work here, and a token works only as this header, neve
 
 Bodies are JSON, at most 4 KB.
 
+The API is described as an OpenAPI 3.1 document at `/api/v1/openapi.json`, which needs no token. Any OpenAPI viewer or client generator can read it.
+
 ### The lists
 
 ```sh
